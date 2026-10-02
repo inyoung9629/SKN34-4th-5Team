@@ -1,16 +1,22 @@
 "use client";
 
-import { useEffect, useEffectEvent, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState, useMemo, type ReactNode } from "react";
 import { loadKakaoMaps, type KakaoMap, type KakaoMaps, type KakaoOverlay, type KakaoPlace, type MapClickEvent } from "@/lib/kakao-maps";
 import { searchKakaoPlaces } from "@/lib/nearby-search";
 import { areValidCoordinates, type RouteStop } from "@/lib/routes";
 import { coursePointLabel } from "@/lib/drawn-course";
 import { CourseTravelPanel, useCourseDirections, useTravelOverlay } from "./course-travel";
 import { Icon } from "./icons";
+import { googleLodgingId, isLodgingReference, kakaoLodgingReference } from "@/lib/google-lodging";
+import { GoogleLodgingPanel } from "./google-lodging-panel";
+import { KakaoLodgingPanel } from "./kakao-lodging-panel";
+import type { NearbyStadium } from "@/lib/nearby-places";
 
-type Props = { stops: RouteStop[]; searchable?: boolean; allowOriginSelection?: boolean; mapFirst?: boolean; children?: ReactNode; travelAside?: ReactNode; onAddStop?: (stop: RouteStop) => void };
+type Props = { stops: RouteStop[]; stadium?: NearbyStadium; searchable?: boolean; allowOriginSelection?: boolean; mapFirst?: boolean; children?: ReactNode; travelAside?: ReactNode; onAddStop?: (stop: RouteStop) => void };
 
-export function RouteMap({ stops, searchable = false, allowOriginSelection = true, mapFirst = false, children, travelAside, onAddStop }: Props) {
+export function RouteMap({ stops: storedStops, stadium, searchable = false, allowOriginSelection = true, mapFirst = false, children, travelAside, onAddStop }: Props) {
+  const [resolved, setResolved] = useState<Record<string, RouteStop>>({});
+  const stops = useMemo(() => storedStops.map(stop => isLodgingReference(stop) && resolved[stop.placeId!] ? { ...stop, name: resolved[stop.placeId!].name, lat: resolved[stop.placeId!].lat, lng: resolved[stop.placeId!].lng } : stop), [storedStops, resolved]);
   const travel = useCourseDirections(stops);
   const [fitRequest, setFitRequest] = useState(0);
   const [mapState, setMapState] = useState<KakaoMap | null>(null);
@@ -29,7 +35,7 @@ export function RouteMap({ stops, searchable = false, allowOriginSelection = tru
   const sequence = useRef(0);
   const searchController = useRef<AbortController | null>(null);
   const searchId = useId();
-  const first = stops[0];
+  const first = stops.find(stop => !googleLodgingId(stop) && areValidCoordinates(stop.lat, stop.lng));
   useTravelOverlay(mapState, sdk, travel);
   const fitRoute = useEffectEvent((map: KakaoMap, maps: KakaoMaps) => {
     const points = [...travel.points, ...(travel.data?.legs.flatMap((leg) => leg.paths.flat()) ?? [])].filter(stop => areValidCoordinates(stop.lat, stop.lng)).map(stop => new maps.LatLng(stop.lat, stop.lng));
@@ -65,12 +71,13 @@ export function RouteMap({ stops, searchable = false, allowOriginSelection = tru
     const map = mapRef.current;
     if (!sdk || !map) return;
     const overlays: KakaoOverlay[] = [];
-    stops.filter(stop => areValidCoordinates(stop.lat, stop.lng)).map((stop, index) => {
+    stops.filter(stop => areValidCoordinates(stop.lat, stop.lng)).map((stop) => {
       const point = new sdk.LatLng(stop.lat, stop.lng);
       const label = document.createElement("span");
       label.className = (stop.isMapPoint || stop.isDrawnPoint) ? "planner-drawn-pin" : "route-map-pin";
-      const text = document.createElement("span"); text.textContent = coursePointLabel(stops, index); label.appendChild(text);
-      label.title = `${coursePointLabel(stops, index)}. ${stop.name}`;
+      const originalIndex = stops.indexOf(stop);
+      const text = document.createElement("span"); text.textContent = coursePointLabel(stops, originalIndex); label.appendChild(text);
+      label.title = `${coursePointLabel(stops, originalIndex)}. ${stop.name}`;
       label.setAttribute("aria-label", label.title);
       overlays.push(new sdk.CustomOverlay({ map, position: point, content: label, yAnchor: 1, zIndex: 2 }));
       return point;
@@ -126,7 +133,9 @@ export function RouteMap({ stops, searchable = false, allowOriginSelection = tru
         {sdk && <span className="route-map-label">{searchable ? "지도에서 위치를 눌러 직접 추가할 수 있어요" : "코스 미리보기"}</span>}
       </div>
       {children}
-      <p className="route-map-caption">선택한 이동 수단의 실제 경로를 표시해요. 조회할 수 없는 구간은 선을 표시하지 않아요.{first && <> <a href={`https://map.kakao.com/link/map/${encodeURIComponent(first.name)},${first.lat},${first.lng}`} target="_blank" rel="noreferrer">카카오맵 열기 ↗</a></>}</p>
+      <p className="route-map-caption">{travel.googleCourse ? "숙소 위치는 확인 버튼으로 불러와요. 조회된 코스는 직선 연결이며 실제 길찾기가 아니에요." : "선택한 이동 수단의 실제 경로를 표시해요. 조회할 수 없는 구간은 선을 표시하지 않아요."}{first && <> <a href={`https://map.kakao.com/link/map/${encodeURIComponent(first.name)},${first.lat},${first.lng}`} target="_blank" rel="noreferrer">카카오맵 열기 ↗</a></>}</p>
+      {storedStops.some(stop => googleLodgingId(stop)) && <GoogleLodgingPanel stops={storedStops} onSelect={stop => setResolved(previous => ({ ...previous, [stop.placeId!]: stop }))} />}
+      {storedStops.some(stop => kakaoLodgingReference(stop)) && <KakaoLodgingPanel key={stadium?.code} stadium={stadium} stops={stops} onSelect={stop => setResolved(previous => ({ ...previous, [stop.placeId!]: stop }))} />}
       {mapFirst && <div className={travelAside ? "route-travel-columns" : undefined}><CourseTravelPanel travel={travel} stops={stops} originReplacement={allowOriginSelection ? undefined : false} onFit={() => setFitRequest((value) => value + 1)} />{travelAside}</div>}
       {searching && <p className="route-map-note" role="status">장소를 검색하고 있어요.</p>}
       {searchNote && <p className="route-map-note" role="status">{searchNote}</p>}

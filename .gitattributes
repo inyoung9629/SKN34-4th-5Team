@@ -1,0 +1,3 @@
+# Snapshot checksums must survive Windows/Linux clone and checkout.
+data/staging/stadium_places/**/*.json text eol=lf
+data/staging/stadium_places/**/*.jsonl text eol=lf

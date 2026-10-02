@@ -40,8 +40,20 @@ CHAT_CHECKPOINT_SIGNING_KEY = os.getenv("CHAT_CHECKPOINT_SIGNING_KEY", "")
 CHAT_TRUST_PROXY_HEADERS = os.getenv("CHAT_TRUST_PROXY_HEADERS", "false").strip().lower() == "true"
 CHAT_GUEST_RATE_LIMIT = int(os.getenv("CHAT_GUEST_RATE_LIMIT", "10"))
 CHAT_GUEST_RATE_WINDOW = int(os.getenv("CHAT_GUEST_RATE_WINDOW", "60"))
+# 채팅 토큰 사용량(llm.service.usage). 1 credit = 1000 토큰. 회원 달 경계는 USAGE_TIMEZONE 기준.
+USAGE_TIMEZONE = os.getenv("USAGE_TIMEZONE", "Asia/Seoul")
+USAGE_GUEST_TOKENS = int(os.getenv("USAGE_GUEST_TOKENS", "500000"))
+USAGE_MEMBER_MONTHLY_TOKENS = int(os.getenv("USAGE_MEMBER_MONTHLY_TOKENS", "999999000"))
+USAGE_TURN_RESERVE_TOKENS = int(os.getenv("USAGE_TURN_RESERVE_TOKENS", "20000"))
+USAGE_MIN_START_TOKENS = int(os.getenv("USAGE_MIN_START_TOKENS", "1000"))
+USAGE_MAX_CALL_OUTPUT_TOKENS = int(os.getenv("USAGE_MAX_CALL_OUTPUT_TOKENS", "4000"))  # ChatOpenAI max_tokens
 KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY", "")
 EXTERNAL_DATA_SYNC_INTERVAL_SECONDS = positive_int_env("EXTERNAL_DATA_SYNC_INTERVAL_SECONDS", 600)
+COLLECTED_PLACES_DIR = Path(os.getenv("COLLECTED_PLACES_DIR") or BASE_DIR.parent / "data/staging/stadium_places/20260927T092810Z")
+PLACE_RAG_PATH = Path(os.getenv("PLACE_RAG_PATH") or BASE_DIR / "artifacts/place-rag/index.sqlite3")
+# Explicit opt-in only; a local knowledge miss must not silently buy web searches.
+COURSE_WEB_VERIFICATION_ENABLED = os.getenv("COURSE_WEB_VERIFICATION_ENABLED", "false").strip().lower() == "true"
+SERPER_API_KEY = os.getenv("SERPER_API_KEY") or os.getenv("Serper_API_KEY", "")
 
 ALLOWED_HOSTS = [
     host.strip()
@@ -128,6 +140,9 @@ DATABASES = {
 }
 
 DATABASE_ROUTERS = ["baseball.db_router.BaseballDatabaseRouter"]
+
+# 공개 SSE 이벤트 사이 최대 대기(초). 넘으면 error 하나로 끝낸다. 이벤트마다 다시 잰다.
+CHAT_STREAM_IDLE_TIMEOUT_SECONDS = positive_int_env("CHAT_STREAM_IDLE_TIMEOUT_SECONDS", 90)
 
 BASEBALL_QUERY_MAX_ROWS = positive_int_env("BASEBALL_QUERY_MAX_ROWS", 200)
 BASEBALL_QUERY_TIMEOUT_MS = positive_int_env("BASEBALL_QUERY_TIMEOUT_MS", 3000)
@@ -221,7 +236,8 @@ if email_backend == "django.core.mail.backends.smtp.EmailBackend":
 
 
 REST_FRAMEWORK = {
-    'NUM_PROXIES': 1,
+    # X-Forwarded-For 는 CHAT_TRUST_PROXY_HEADERS(앞단 nginx 1개) 일 때만 믿는다. 아니면 REMOTE_ADDR(0).
+    'NUM_PROXIES': 1 if CHAT_TRUST_PROXY_HEADERS else 0,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',

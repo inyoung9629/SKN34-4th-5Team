@@ -1,4 +1,5 @@
 from .admin_views import MemberList, MemberRole
+from .public import PublicMemberView
 from django.urls import path
 from .views import LogoutView, RefreshView, SignInView, change_password, get_user, request_email_change, request_username, set_password, signup, verify_email_change
 
@@ -14,6 +15,7 @@ from .views import LogoutView, RefreshView, SignInView, change_password, get_use
     POST /api/v1/auth/logout
 """
 urlpatterns = [
+    path("users/<int:member_id>/public/", PublicMemberView.as_view(), name="public_member"),
     path("admin/members/", MemberList.as_view(), name="admin_members"),
     path("admin/members/<int:pk>/role/", MemberRole.as_view(), name="admin_member_role"),
     path("signin", SignInView.as_view(), name="login"),

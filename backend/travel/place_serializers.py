@@ -120,6 +120,10 @@ class KakaoPlaceSerializer(serializers.Serializer):
     phone = serializers.CharField()
     x = serializers.CharField()
     y = serializers.CharField()
+    stadiumArea = serializers.DictField(
+        child=serializers.CharField(allow_null=True), required=False, read_only=True,
+        help_text="scope: internal(초록 내부) 또는 external. stadium: 해당 구장 코드 또는 null. 빨강 전용 구역은 반환하지 않습니다.",
+    )
 
 
 class PlaceSearchResponseSerializer(serializers.Serializer):

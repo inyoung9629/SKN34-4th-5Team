@@ -7,6 +7,7 @@ export type KakaoMap = {
   getLevel(): number;
   getBounds(): { getSouthWest(): MapCoordinate; getNorthEast(): MapCoordinate };
   setLevel(level: number): void;
+  setMapTypeId(type: number): void;
   setCursor(cursor: string): void;
   getProjection(): { containerPointFromCoords(point: MapCoordinate): { x: number; y: number }; coordsFromContainerPoint(point: { x: number; y: number }): MapCoordinate };
   setCenter(point: MapCoordinate): void;
@@ -19,9 +20,11 @@ export type PlaceSearchCallback = (places: KakaoPlace[], status: string, paginat
 export type KakaoOverlay = { setMap(map: KakaoMap | null): void };
 export type MapClickEvent = { latLng: MapCoordinate };
 export type KakaoMaps = {
+  MapTypeId: { ROADMAP: number; HYBRID: number };
   load(callback: () => void): void;
   Map: new (element: HTMLElement, options: { center: MapCoordinate; level: number; draggable?: boolean; scrollwheel?: boolean; disableDoubleClickZoom?: boolean }) => KakaoMap;
   LatLng: new (lat: number, lng: number) => MapCoordinate;
+  Point: new (x: number, y: number) => { x: number; y: number };
   LatLngBounds: new () => Bounds;
   CustomOverlay: new (options: { map: KakaoMap; position: MapCoordinate; content: HTMLElement; xAnchor?: number; yAnchor?: number; zIndex?: number; clickable?: boolean }) => KakaoOverlay;
   Polyline: new (options: { map: KakaoMap; path: MapCoordinate[]; strokeWeight: number; strokeColor: string; strokeOpacity: number; strokeStyle: string; endArrow?: boolean }) => KakaoOverlay;
@@ -33,8 +36,8 @@ export type KakaoMaps = {
 declare global { interface Window { kakao?: { maps: KakaoMaps } } }
 let loading: Promise<KakaoMaps> | undefined;
 
-export function loadKakaoMaps(): Promise<KakaoMaps> {
-  if (window.kakao?.maps?.services && window.kakao.maps.Map) return Promise.resolve(window.kakao.maps);
+export function loadKakaoMaps(options?: { referrerPolicy?: ReferrerPolicy }): Promise<KakaoMaps> {
+  if (window.kakao?.maps?.Map) return Promise.resolve(window.kakao.maps);
   if (loading) return loading;
   const key = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY?.trim();
   if (!key) return Promise.reject(new Error("지도를 연결할 수 없어요. 지도 설정을 확인한 뒤 다시 시도해 주세요."));
@@ -51,13 +54,14 @@ export function loadKakaoMaps(): Promise<KakaoMaps> {
     };
     const timeout = setTimeout(fail, 12000);
     script.async = true;
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(key)}&autoload=false&libraries=services`;
+    script.referrerPolicy = options?.referrerPolicy ?? "no-referrer";
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(key)}&autoload=false`;
     script.onerror = fail;
     script.onload = () => {
       if (!window.kakao?.maps?.load) { fail(); return; }
       window.kakao.maps.load(() => {
         if (settled) return;
-        if (!window.kakao?.maps?.services) { fail(); return; }
+        if (!window.kakao?.maps?.Map) { fail(); return; }
         settled = true;
         clearTimeout(timeout);
         resolve(window.kakao.maps);

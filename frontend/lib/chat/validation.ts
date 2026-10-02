@@ -46,7 +46,7 @@ export function parseChatRequest(value: unknown): ChatRequest {
       context.origin = { lat: origin.lat, lng: origin.lng };
     }
   }
-  if (value.sessionId !== undefined && (!Number.isSafeInteger(value.sessionId) || Number(value.sessionId) < 1)) throw new ChatError("채팅방 번호를 확인해 주세요.");
+  if (value.sessionId !== undefined && (typeof value.sessionId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.sessionId))) throw new ChatError("채팅방 번호를 확인해 주세요.");
   // Only the documented fields reach a provider; client-supplied model/system settings are discarded.
-  return { messages, ...(value.sessionId !== undefined ? { sessionId: value.sessionId as number } : {}), ...(context ? { context } : {}) };
+  return { messages, ...(value.sessionId !== undefined ? { sessionId: value.sessionId as string } : {}), ...(context ? { context } : {}) };
 }

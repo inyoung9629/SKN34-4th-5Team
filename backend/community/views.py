@@ -5,6 +5,7 @@ from rest_framework import generics, status
 from rest_framework.exceptions import NotAuthenticated, PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from accounts.activity import activity_author
 
 from .models import CommunityPost, TEAM_CODES
 from .pagination import CommunityPostPageSerializer, CommunityPostPagination, CommunityPostQuery
@@ -32,6 +33,7 @@ def same_submission(post, validated_data):
             OpenApiParameter("board", OpenApiTypes.STR, enum=("free", "teams")),
             OpenApiParameter("team", OpenApiTypes.STR),
             OpenApiParameter("mine", OpenApiTypes.STR, enum=("1",)),
+            OpenApiParameter("author_id", {"type": "integer", "minimum": 1}, description="작성자 활동 목록. JWT 인증 필요, 본인 또는 공개 설정된 회원만 조회 가능."),
             OpenApiParameter("page", {"type": "integer", "minimum": 1, "maximum": 2_147_483_647}),
             OpenApiParameter("page_size", {"type": "integer", "minimum": 1, "maximum": 100}),
             OpenApiParameter("q", {"type": "string", "maxLength": 200}),
@@ -46,6 +48,7 @@ def same_submission(post, validated_data):
             ),
             400: OpenApiTypes.OBJECT,
             401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
             404: OpenApiTypes.OBJECT,
         },
     ),
@@ -67,6 +70,8 @@ class CommunityPostListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         # 신고 처리로 숨긴 글은 공개 목록에 나오지 않는다
         queryset = post_queryset().filter(is_hidden=False)
+        if "author_id" in self.request.query_params:
+            queryset = queryset.filter(owner=activity_author(self.request))
         query = CommunityPostQuery.from_params(self.request.query_params)
         board = self.request.query_params.get("board")
         team = self.request.query_params.get("team")

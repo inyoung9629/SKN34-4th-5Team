@@ -1,0 +1,12 @@
+.panel { padding: 16px; border: 1px solid #dce4ef; border-radius: 14px; background: #f8faff; color: #22334d; }
+.panel h3 { margin: 0 0 8px; font-size: 15px; }
+.panel p { font-size: 12px; line-height: 1.65; margin: 8px 0; }
+.buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.buttons button { padding: 8px 10px; border: 1px solid #bdcde3; border-radius: 8px; background: white; color: #205ab1; font: inherit; font-size: 12px; cursor: pointer; }
+.buttons button:disabled { opacity: .5; cursor: default; }
+.buttons button:focus-visible { outline: 2px solid #2868dc; outline-offset: 2px; }
+.buttons button[aria-pressed="true"] { color: #fff; background: #205ab1; border-color: #205ab1; }
+.widget { margin-top: 12px; min-width: 0; }
+.widget > * { width: 100%; color-scheme: light; --gmp-mat-font-family: inherit; --gmp-mat-color-primary: #205ab1; --gmp-mat-color-surface: #fff; --gmp-mat-color-on-surface: #22334d; --gmp-mat-color-on-surface-variant: #5e708a; --gmp-mat-font-display-small: 600 17px/1.4 sans-serif; border-radius: 10px; }
+.note { color: #617089; font-size: 12px; line-height: 1.65; }
+.note summary { cursor: pointer; margin-top: 10px; }

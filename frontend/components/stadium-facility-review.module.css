@@ -1,0 +1,16 @@
+.page { max-width: 1400px; padding: 24px; margin: auto; color: #253449; }
+.page h1 { font-size: 28px; margin: 16px 0; }
+.page p { line-height: 1.7; font-size: 14px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0; }
+.tabs button, .page select { padding: 9px 11px; border: 1px solid #b9c7d7; border-radius: 7px; background: white; color: #253449; cursor: pointer; }
+.tabs button[aria-pressed=true] { background: #24559c; color: white; }
+.layout { display: grid; grid-template-columns: minmax(0,1fr) 350px; gap: 22px; }
+.layout aside { padding: 16px; border: 1px solid #dce4ed; border-radius: 10px; max-height: 850px; overflow: auto; }
+.map { height: 540px; margin-top: 12px; border: 1px solid #cad6e4; border-radius: 10px; overflow: hidden; }
+.dot { display:block; width:13px; height:13px; border:2px solid white; border-radius:50%; background:#b44221; box-shadow:0 1px 5px #0008; cursor:pointer; padding:0; }
+.dot.active { width:18px; height:18px; background:#165fd1; }
+.selected { padding:16px; border:1px solid #cbdcf3; background:#f3f7ff; border-radius:9px; }
+.selected h2 { font-size:20px; margin:0; }
+.search { display:grid; gap:6px; font-size:14px; }
+.search input { width:100%; padding:10px; border:1px solid #b9c7d7; border-radius:6px; }
+@media(max-width:850px) { .layout { grid-template-columns:1fr; } .map { height:420px; } .page { padding:14px; } }

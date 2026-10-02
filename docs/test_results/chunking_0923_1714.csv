@@ -1,0 +1,32 @@
+﻿variant,id,question,rank_vector,rank_hybrid,top1_vector,top1_hybrid
+H_1400,r01,보크가 뭐야? 언제 보크 선언돼?,3,1,RULE_COMMON_BR_용어3,RULE_COMMON_BR_6.02
+H_1400,r02,인필드 플라이 규칙 설명해줘,1,1,RULE_COMMON_BR_용어40,RULE_COMMON_BR_용어40
+H_1400,r03,스트라이크 존이 정확히 어디까지야?,1,1,RULE_COMMON_BR_용어73,RULE_COMMON_BR_용어73
+H_1400,r04,지명타자 규칙이 뭐야?,2,1,RULE_COMMON_BR_5.04,RULE_COMMON_BR_5.11
+H_1400,r05,더블헤더는 하루에 몇 경기까지 할 수 있어?,1,1,RULE_COMMON_BR_4.08,RULE_COMMON_BR_4.08
+H_1400,r06,서스펜디드 게임이 무슨 뜻이야?,1,1,RULE_COMMON_BR_용어74,RULE_COMMON_BR_용어74
+H_1400,r07,야구공 무게랑 둘레 규격이 어떻게 돼?,1,1,RULE_COMMON_BR_3.01,RULE_COMMON_BR_3.01
+H_1400,r08,배트 길이 제한이 몇 인치야?,1,1,RULE_COMMON_BR_3.02,RULE_COMMON_BR_3.02
+H_1400,r09,KBO 정규시즌 연장전은 몇 회까지 해?,1,1,RULE_COMMON_LR_제1조,RULE_COMMON_LR_제1조
+H_1400,r10,정규시즌 한 팀당 몇 경기 하는 거야?,1,5,RULE_COMMON_LR_제1조,RULE_COMMON_LR_제3조
+H_1400,r11,승률이 같으면 순위 어떻게 정해?,5,1,RULE_COMMON_LR_제2조,RULE_COMMON_LR_제3조
+H_1400,r12,한 경기에 등록할 수 있는 현역선수는 몇 명이야?,1,1,RULE_COMMON_LR_제14조,RULE_COMMON_LR_제14조
+H_1400,r13,비디오 판독은 한 경기에 몇 번까지 신청할 수 있어?,1,1,RULE_COMMON_LR_제28조,RULE_COMMON_LR_제28조
+H_1400,r14,ABS는 어떤 경기에 적용돼?,1,1,RULE_COMMON_LR_ABS_1,RULE_COMMON_LR_ABS_1
+H_1400,r15,ABS 판정에 항의할 수 있어?,5,1,RULE_COMMON_LR_ABS_4,RULE_COMMON_LR_ABS_2_3
+H_1400,r16,피치클락 시간이 몇 초야?,2,2,RULE_COMMON_LR_피치클락_2,RULE_COMMON_LR_피치클락_2
+H_1400,r17,포수가 마운드에 올라갈 수 있는 횟수 제한 있어?,,,RULE_COMMON_BR_5.10,RULE_COMMON_BR_5.10
+H_1400,r18,클리닝 타임은 몇 분이야?,,1,RULE_COMMON_LR_피치클락_1,RULE_COMMON_LR_스피드업_2
+H_1400,r19,비 오면 경기 취소는 누가 언제 결정해?,1,2,RULE_COMMON_LR_제11조,RULE_COMMON_LR_제8조
+H_1400,r20,미세먼지 심하면 경기 취소돼?,2,1,RULE_COMMON_BR_7.02,RULE_COMMON_LR_제27조
+H_1400,r21,노게임 되면 티켓은 어떻게 돼?,2,2,RULE_COMMON_LR_제71조,RULE_COMMON_LR_제71조
+H_1400,r22,한국시리즈는 몇 승 먼저 하면 우승이야?,1,1,RULE_COMMON_LR_제42조,RULE_COMMON_LR_제42조
+H_1400,r23,한국시리즈 1차전은 어느 구장에서 해?,1,1,RULE_COMMON_LR_제44조,RULE_COMMON_LR_제44조
+H_1400,r24,와일드카드 결정전은 어떻게 진행돼? 4위가 유리해?,1,2,RULE_COMMON_LR_제30조,RULE_COMMON_LR_제31조
+H_1400,r25,준플레이오프는 몇 선승제야?,,,RULE_COMMON_LR_제51조,RULE_COMMON_LR_제38조
+H_1400,r26,포스트시즌 연장전은 몇 회까지 해?,1,1,RULE_COMMON_LR_제1조,RULE_COMMON_LR_제1조
+H_1400,r27,평일 경기 시작 시간이 몇 시야?,4,4,RULE_COMMON_BR_4.08,RULE_COMMON_BR_4.08
+H_1400,r28,고척돔 천장에 공 맞으면 어떻게 돼?,1,1,RULE_COMMON_LR_APP_고척그라운드룰,RULE_COMMON_LR_APP_고척그라운드룰
+H_1400,r29,선수가 심판 판정에 항의해서 퇴장당하면 징계가 어떻게 돼?,5,3,RULE_COMMON_BR_8.02,RULE_COMMON_BR_6.04
+H_1400,r30,홀드는 어떤 조건이면 기록돼?,1,1,RULE_COMMON_LR_표창규정_제12조,RULE_COMMON_LR_표창규정_제12조
+H_1400,r31,신인상 받으려면 무슨 자격이 필요해?,1,1,RULE_COMMON_LR_표창규정_제7조,RULE_COMMON_LR_표창규정_제7조

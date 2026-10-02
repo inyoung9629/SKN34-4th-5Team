@@ -10,7 +10,7 @@ import ts from "typescript";
 const frontend = dirname(dirname(fileURLToPath(import.meta.url)));
 const scratch = mkdtempSync(join(tmpdir(), "kbo-route-draft-test-"));
 after(() => rmSync(scratch, { recursive: true }));
-for (const name of ["client-id", "route-draft", "stadiums", "community-rich-content"]) {
+for (const name of ["client-id", "route-draft", "stadiums", "stadium-locations", "community-rich-content", "google-lodging"]) {
   const source = readFileSync(join(frontend, "lib", `${name}.ts`), "utf8");
   const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } });
   writeFileSync(join(scratch, `${name}.js`), outputText);
@@ -29,6 +29,18 @@ test("versioned draft round-trips incomplete fields and route details", () => {
   assert.equal(saved.status, "saved");
   assert.deepEqual(readRouteDraft(storage, "copy:42").draft?.data, data);
   assert.equal(readRouteDraft(storage, "edit:42").draft, undefined);
+});
+
+test("Google lodging draft persists references, not coordinates or content", () => {
+  const storage = memory();
+  const google = { name: "Google content", category: "호텔", address: "Google address", lat: 37.4, lng: 126.7, placeId: "google-ui-kit:fixture1", visitId: "v1" };
+  const saved = saveRouteDraft(storage, "new:JAMSIL", { ...data, stops: [google] }, null);
+  assert.equal(saved.status, "saved");
+  const wire = JSON.parse(saved.raw).data.stops[0];
+  assert.deepEqual(wire, { name: "선택한 숙소", category: "숙박", lat: null, lng: null, placeId: google.placeId, visitId: "v1" });
+  const restored = parseRouteDraft(saved.raw).data.stops[0];
+  assert.ok(Number.isNaN(restored.lat));
+  assert.equal(saveRouteDraft(storage, "new:JAMSIL", { ...data, stops: [google] }, saved.raw).status, "unchanged");
 });
 
 test("route story styles and image references survive draft save on HTTP", () => {

@@ -1,4 +1,5 @@
 from django.urls import path
+from .activity import CommunityMemberCommentListView
 
 from .admin_views import AdminPostDetail, AdminPostList, AdminReportAction, AdminReportList
 from .drafts import CommunityDraftDetailView, CommunityDraftListCreateView
@@ -9,6 +10,7 @@ from .publishing import CommunityDraftPublishView
 from .views import CommunityPostDetailView, CommunityPostListCreateView
 
 urlpatterns = [
+    path("comments/", CommunityMemberCommentListView.as_view(), name="community-member-comments"),
     path("admin/posts/", AdminPostList.as_view(), name="community-admin-posts"),
     path("admin/posts/<str:source_id>/", AdminPostDetail.as_view(), name="community-admin-post"),
     path("admin/reports/", AdminReportList.as_view(), name="community-admin-reports"),

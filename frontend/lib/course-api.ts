@@ -2,6 +2,7 @@ import type { TripRoute } from "./routes";
 import type { CourseCreateRequestDto, CourseCreateResultDto, CourseDto, CoursePatchRequestDto, CourseReactionDto, CourseViewResultDto } from "./api/content";
 import { ApiError, apiRequest } from "./api/client";
 import { memberFetch } from "./member-auth-request";
+import { referenceOnlyStop } from "./google-lodging";
 
 const TOKEN_PREFIX = "kbo-course-edit-token:";
 const sessionTokens = new Map<string, string>();
@@ -20,7 +21,7 @@ function rememberToken(id: string, value: string) {
 
 function routeFromApi(value: CourseDto, owned = Boolean(token(value.id)), saveWarning = ""): TripRoute {
   if (!value || typeof value.id !== "string" || !Array.isArray(value.stops)) throw new Error("코스 서버 응답을 확인해 주세요.");
-  const stops = [...value.stops].sort((a, b) => a.position - b.position).map(stop => { const copy = { ...stop }; Reflect.deleteProperty(copy, "position"); return copy; });
+  const stops = [...value.stops].sort((a, b) => a.position - b.position).map(stop => { const copy = { ...stop, lat: stop.lat ?? NaN, lng: stop.lng ?? NaN }; Reflect.deleteProperty(copy, "position"); return referenceOnlyStop(copy); });
   const description = value.description || (value.content?.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() || stops.map(stop => stop.name).join(" → ")).slice(0, 100);
   return {
     id: value.sampleId ?? value.id, ...(value.sampleId ? { apiId: value.id } : {}), routeNumber: value.routeNumber, title: value.title, stadium: value.stadium, description, content: value.content ?? "",
@@ -34,7 +35,7 @@ function payload(route: TripRoute, editing: boolean): CourseCreateRequestDto | C
   return {
     title: route.title, stadium: route.stadium, content: route.content, contentDoc: route.contentDoc ?? null, contentFormat: route.contentFormat ?? "",
     duration: route.duration, tags: route.tags, ...(route.start ? { startLat: route.start.lat, startLng: route.start.lng } : editing ? { startLat: null, startLng: null } : {}),
-    stops: route.stops.map((stop, position) => ({ ...stop, position })),
+    stops: route.stops.map((stop, position) => ({ ...referenceOnlyStop(stop), position })),
   };
 }
 

@@ -29,5 +29,7 @@ urlpatterns = [
     path("api/v1/schema/", SpectacularAPIView.as_view(), name="api-v1-schema"),
     path("admin/", admin.site.urls),
     path("api/v1/", include("config.urls_v1")),
-    path("api/v2/", include("config.urls_v2")),
+    # 채팅 버전 분기(v1/v2)는 llm/urls.py 안의 re_path 가 맡는다. 여기는 다른 앱들과
+    # 똑같이 plain include 만 한다.
+    path("api/", include("llm.urls")),
 ]

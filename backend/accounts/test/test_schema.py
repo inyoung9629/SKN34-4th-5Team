@@ -14,6 +14,8 @@ class AuthSchemaTests(SimpleTestCase):
         schemas = self.schema["components"]["schemas"]
 
         self.assertNotIn("content", paths["/api/v1/auth/signup/"]["post"]["responses"]["201"])
+        self.assertEqual(schemas["Signup"]["properties"]["team_code"]["type"], "string")
+        self.assertNotIn("team_code", schemas["Signup"]["required"])
         self.assertNotIn("content", paths["/api/v1/auth/password"]["post"]["responses"]["200"])
         logout = paths["/api/v1/auth/logout"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]
         self.assertEqual(logout, {"type": "object", "properties": {}, "additionalProperties": False})

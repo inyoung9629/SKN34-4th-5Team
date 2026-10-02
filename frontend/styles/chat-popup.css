@@ -123,3 +123,9 @@
   .chat-popup-footnote { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .chat-popup-thinking i { animation: none; opacity: .7; } }
+.chat-popup-message-user { flex-wrap: wrap; }
+.chat-popup-message-note, .chat-popup-message-actions { flex-basis: 100%; margin-top: 3px; color: #8ea0b8; font-size: 10px; text-align: right; }
+.chat-popup-message-assistant .chat-popup-message-note { text-align: left; }
+.chat-popup-message-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.chat-popup-message-actions button, .chat-popup-edit-banner button { padding: 1px 0; border: 0; background: transparent; color: #477ecd; text-decoration: underline; text-underline-offset: 3px; font-size: 10px; }
+.chat-popup-edit-banner { margin-bottom: 6px; color: #738bab; font-size: 10px; text-align: center; }

@@ -32,6 +32,18 @@
 
 ## 전체 등록 API
 
+### 회원 글·댓글 활동 목록 (v1)
+
+- `GET /api/v1/auth/users/{member_id}/public/`: JWT 인증 후 `id`, `nickname`, `activityVisible`만 반환한다. 닉네임이 없으면 username을 사용하며 이메일·생년월일·전체 공개 설정은 반환하지 않는다.
+- `GET /api/v1/community/posts/?author_id={member_id}&page=1&page_size=20`: 기존 게시글 목록에 작성자 필터를 적용한다. `board`, `team`, `q`, `search_field`와 함께 사용할 수 있다.
+- `GET /api/v1/community/comments/?author_id={member_id}&page=1&page_size=20`: 작성자 댓글을 최신순(`created_at`, `id` 내림차순)으로 조회한다. 각 항목은 `id`, `content`, `createdAt`, `postId`, `postTitle`, `board`, `teamCode`를 제공한다. 자유게시판의 `teamCode`는 빈 문자열이다.
+
+공개 여부는 기존 `PATCH /api/v1/auth/user`의 `visibility.posts`를 재사용한다. 값이 없으면 비공개이며 본인은 공개 설정과 관계없이 조회 가능하다. 다른 회원의 비공개 활동 목록은 `403`, 없는 회원·비활성 회원은 `404`, 미인증 요청은 `401`이다. 프로필 조회 성공 여부와 별개로 두 활동 목록 API 모두 서버에서 권한을 검사한다.
+
+`author_id`는 양의 정수이며 잘못된 값은 `400`이다. 댓글 목록에는 필수다. 작성자별 목록은 페이지 파라미터를 생략해도 기본 20개씩 `{count,next,previous,results}` 형식으로 응답한다. 숨김 게시글과 그 게시글의 댓글은 본인 조회에서도 제외한다. 게시글은 기존 게시글 번호 내림차순을 유지한다.
+
+프론트는 비로그인 시 `/login?next=...`로 이동하며, 비공개 안내에서 본인 예외를 적용한다. 공개 프로필 조회 뒤 설정이 변경되어 활동 API가 `403`을 반환하는 경우에도 비공개 화면을 표시한다. 탭·페이지 파싱과 로그인 복귀 주소는 `member-return-path.ts`, 원문 이동 주소는 `getCommunityPostHref()`를 공통으로 사용한다.
+
 응답 DTO와 세부 검증은 뒤 절을 함께 본다. 표에 없는 REST 기능을 지원한다고 가정하지 않는다.
 
 ### 글·댓글·추천·신고

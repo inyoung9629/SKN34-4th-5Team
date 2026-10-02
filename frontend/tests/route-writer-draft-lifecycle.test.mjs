@@ -37,8 +37,8 @@ test("planner modes and tailored chat preserve server save and completion locks"
   assert.match(planner, /if \(courseCompleted\) return/);
   assert.match(planner, /StadiumParkingMapDialog/);
   assert.match(popup, /welcomeLink \? <Link/);
-  assert.match(popup, /chat\.streaming \? <ChatAnswer/);
-  assert.match(popup, /chat\.uncertain \? chat\.onReset : chat\.onRetry/);
+  assert.match(popup, /<ChatProgress items=\{chat\.timeline\} live \/>/);
+  assert.match(popup, /onClick=\{chat\.onRetry\}/);
 });
 
 test("planner draft reentry distinguishes draw-only points and map pickers cannot race", () => {

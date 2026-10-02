@@ -13,18 +13,12 @@ export type { AdminDetailDtoMap, AdminResourceDtoMap, AdminResourceName } from "
 
 export {
   createChatSession,
+  deleteChatMessages,
   deleteChatSession,
+  editChatMessage,
   fetchChatHistory,
   listChatSessions,
   renameChatSession,
-  sendNonStreamChatMessage,
+  sendChatMessage,
 } from "../chat/client";
-export type {
-  ChatFinalizeRequestDto,
-  ChatFinalizeResponseDto,
-  ChatMessageDto,
-  ChatNonStreamResponseDto,
-  ChatSessionDto,
-  GuestChatSseEvent,
-  MemberChatSseEvent,
-} from "../chat/wire";
+export type { ChatMessageDto, ChatSessionDto, ChatSseEvent } from "../chat/wire";

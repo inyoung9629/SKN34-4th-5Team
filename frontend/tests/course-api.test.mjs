@@ -5,6 +5,9 @@ import ts from "typescript";
 
 const source = readFileSync(new URL("../lib/course-api.ts", import.meta.url), "utf8");
 const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } });
+const lodgingCode = ts.transpileModule(readFileSync(new URL("../lib/google-lodging.ts", import.meta.url), "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+const lodgingModule = { exports: {} };
+new Function("module", "exports", lodgingCode)(lodgingModule, lodgingModule.exports);
 
 function harness(memberFetch = async () => { throw new Error("unexpected authenticated request"); }) {
   const storage = new Map();
@@ -27,7 +30,7 @@ function harness(memberFetch = async () => { throw new Error("unexpected authent
     ? { ApiError, apiRequest }
     : name === "./member-auth-request"
       ? { memberFetch: (...args) => memberHandler(...args) }
-      : (() => { throw new Error(`unexpected import: ${name}`); })();
+      : name === "./google-lodging" ? lodgingModule.exports : (() => { throw new Error(`unexpected import: ${name}`); })();
   const testModule = { exports: {} };
   new Function("module", "exports", "window", "require", outputText)(testModule, testModule.exports, window, requireDependency);
   return { ...testModule.exports, storage, block: () => { blocked = true; }, member: handler => { memberHandler = handler; } };
@@ -73,6 +76,18 @@ test("create sends ordered stops and stores only the returned edit token", async
   assert.equal(saved.id, apiCourse({}).id);
   assert.equal(saved.owned, true);
   assert.deepEqual([...api.storage], [[`kbo-course-edit-token:${saved.id}`, "edit-secret"]]);
+});
+
+test("Google lodging writes ID-only references and reads unresolved coordinates", async () => {
+  const api = harness();
+  const stop = { name: "Do not store Google content", address: "Do not store", category: "호텔", lat: 37.4, lng: 126.7, placeId: "google-ui-kit:fixture_1", visitId: "v1", tourContentId: "bad", isMapPoint: true };
+  const result = await api.persistCourse(route({ stops: [stop] }), async (_url, init) => {
+    const saved = JSON.parse(init.body).stops[0];
+    assert.deepEqual(saved, { name: "선택한 숙소", category: "숙박", lat: null, lng: null, placeId: stop.placeId, visitId: "v1", position: 0 });
+    return Response.json(apiCourse({ editToken: "test-token", stops: [saved] }), { status: 201 });
+  });
+  assert.ok(Number.isNaN(result.stops[0].lat));
+  assert.equal(result.stops[0].address, undefined);
 });
 
 test("list ownership, update, and delete all use the per-course token", async () => {

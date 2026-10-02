@@ -15,7 +15,7 @@ function parsePlace(value: unknown): ChatCoursePlace | null {
   if (!name || lat === undefined || lng === undefined || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
   const phase = PHASES.has(String(value.phase)) ? value.phase as ChatCoursePlace["phase"] : "BEFORE";
   const category = CATEGORIES.has(String(value.category)) ? value.category as ChatCoursePlace["category"] : "SPOT";
-  const placeId = typeof value.placeId === "number" ? String(value.placeId) : text(value.placeId, 64);
+  const placeId = typeof value.placeId === "number" ? String(value.placeId) : text(value.placeId, 255);
   const stayMin = finite(value.stayMin);
   return {
     phase, name, lat, lng, category,
@@ -72,7 +72,7 @@ export function courseToStops(course: ChatCourse, newId: () => string = () => cr
     lat: place.lat,
     lng: place.lng,
     category: COURSE_CATEGORY_LABEL[place.category],
-    placeId: place.placeId && /^\d+$/.test(place.placeId) ? place.placeId : `chat:${place.category === "STADIUM" ? `stadium:${course.stadiumCode ?? place.name}` : newId()}`,
+    placeId: place.placeId && /^(?:\d+|collected:(?:SBIZ|PARK|TOUR):.+)$/.test(place.placeId) ? place.placeId : `chat:${place.category === "STADIUM" ? `stadium:${course.stadiumCode ?? place.name}` : newId()}`,
     ...(place.address ? { address: place.address } : {}),
     isDrawnPoint: true,
   }));

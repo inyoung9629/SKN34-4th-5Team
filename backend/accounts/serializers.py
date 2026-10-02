@@ -68,17 +68,25 @@ class PasswordValidationMixin:
         return value
 
 
-class SignupSerializer(PasswordValidationMixin, serializers.ModelSerializer):
+class TeamCodeValidationMixin:
+    def validate_team_code(self, value):
+        if value and value not in TEAM_CODES:
+            raise serializers.ValidationError("응원팀을 확인해 주세요.")
+        return value
+
+
+class SignupSerializer(TeamCodeValidationMixin, PasswordValidationMixin, serializers.ModelSerializer):
     username = serializers.RegexField(r"^[A-Za-z0-9]{4,20}$", validators=[UniqueValidator(queryset=User.objects.all(), message="이미 사용 중인 아이디입니다.")])
     email = serializers.EmailField(required=True, max_length=254)
     first_name = serializers.CharField(required=True, allow_blank=False, max_length=150)
     birth_date = serializers.DateField(required=True)
     gender = serializers.ChoiceField(choices=User._meta.get_field("gender").choices, required=True)
     re_password = serializers.CharField(write_only=True, trim_whitespace=False)
+    team_code = serializers.CharField(required=False, allow_blank=True, max_length=2)
 
     class Meta:
         model = User
-        fields = ["username", "email", "password", "re_password", "first_name", "birth_date", "gender"]
+        fields = ["username", "email", "password", "re_password", "first_name", "birth_date", "gender", "team_code"]
         extra_kwargs = {"password": {"write_only": True, "trim_whitespace": False}}
 
     # 비밀번호 일치 검증
@@ -144,7 +152,7 @@ class VisibilitySettingsField(serializers.JSONField):
     pass
 
 
-class MemberUserUpdateSerializer(serializers.ModelSerializer):
+class MemberUserUpdateSerializer(TeamCodeValidationMixin, serializers.ModelSerializer):
     notifications = NotificationSettingsField(required=False)
     visibility = VisibilitySettingsField(required=False)
 
@@ -162,11 +170,6 @@ class MemberUserUpdateSerializer(serializers.ModelSerializer):
             from django.utils import timezone
             if timezone.now() < _next_nickname_change(self.instance.nickname_changed_at):
                 raise serializers.ValidationError("닉네임은 변경 후 6개월이 지나야 다시 바꿀 수 있어요.")
-        return value
-
-    def validate_team_code(self, value):
-        if value and value not in TEAM_CODES:
-            raise serializers.ValidationError("응원팀을 확인해 주세요.")
         return value
 
     def validate_avatar(self, value):

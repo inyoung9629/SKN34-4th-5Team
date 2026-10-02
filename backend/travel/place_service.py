@@ -15,6 +15,8 @@ from django.utils import timezone
 
 from .models import Place
 from .place_serializers import PlaceSearchSerializer, PlaceSerializer, PlaceWriteSerializer
+from .stadium_scope import filter_provider_places
+from .collected_places import CatalogueUnavailable, distance
 
 
 KAKAO_ENDPOINTS = {
@@ -199,8 +201,11 @@ def _normalize_document(value):
         "y": y,
     }
     place_url = _string(value, "place_url", 500)
-    if place_url and (urlsplit(place_url).scheme not in {"http", "https"} or urlsplit(place_url).hostname != "place.map.kakao.com"):
-        raise PlaceUpstreamError
+    try:
+        if place_url and (urlsplit(place_url).scheme not in {"http", "https"} or urlsplit(place_url).hostname != "place.map.kakao.com"):
+            raise PlaceUpstreamError
+    except ValueError as error:
+        raise PlaceUpstreamError from error
     return document, {
         "name": name,
         "road_address": document["road_address_name"],
@@ -215,7 +220,7 @@ def _normalize_document(value):
     }
 
 
-def _request_kakao(query):
+def _request_kakao(query, *, timeout=8):
     key = getattr(settings, "KAKAO_REST_API_KEY", "").strip()
     if not key:
         raise PlaceConfigurationError
@@ -225,6 +230,8 @@ def _request_kakao(query):
     }
     if query.get("radius"):
         params["radius"] = query["radius"]
+    if query.get("rect"):
+        params["rect"] = query["rect"]
     if query["method"] == "keyword":
         params["query"] = query["keyword"]
         if query.get("category"):
@@ -233,7 +240,7 @@ def _request_kakao(query):
         params["category_group_code"] = query["category"]
     request = Request(f"{KAKAO_ENDPOINTS[query['method']]}?{urlencode(params)}", headers={"Authorization": f"KakaoAK {key}"})
     try:
-        with build_opener(_NoRedirect()).open(request, timeout=8) as response:
+        with build_opener(_NoRedirect()).open(request, timeout=timeout) as response:
             content_length = response.headers.get("Content-Length")
             if content_length and (not content_length.isdecimal() or int(content_length) > 262144):
                 raise PlaceUpstreamError
@@ -273,6 +280,11 @@ def search_and_sync_places(query):
         normalized = [_normalize_document(item) for item in payload["documents"]]
         if len({document["id"] for document, _ in normalized}) != len(normalized):
             raise PlaceUpstreamError
+        try:
+            visible = {doc["id"]: doc for doc in filter_provider_places([doc for doc, _ in normalized])}
+        except CatalogueUnavailable as exc:
+            raise PlaceUpstreamError from exc
+        normalized = [(visible[doc["id"]], defaults) for doc, defaults in normalized if doc["id"] in visible]
         synced_at = timezone.now()
         sync_interval = timedelta(seconds=settings.EXTERNAL_DATA_SYNC_INTERVAL_SECONDS)
         with transaction.atomic():
@@ -290,6 +302,102 @@ def search_and_sync_places(query):
         return {"places": [document for document, _ in normalized], "hasNextPage": not payload["meta"]["is_end"], "syncedAt": synced_at.isoformat()}
     finally:
         _SEARCH_SLOTS.release()
+
+
+def search_live_places(query):
+    """Read-only nearby lookup. Provider content stays in this response, not Place."""
+    serializer = _validated(PlaceSearchSerializer, query, SEARCH_FIELDS)
+    return _search_live(serializer.validated_data)
+
+
+def _near_cell(document, rect):
+    # Live Kakao results can straddle the requested rectangle by sub-meter
+    # coordinate/index rounding (observed 0.4m). This is NOT a radius expansion:
+    # the course source still applies the exact circle and stadium exclusions.
+    lng, lat = float(document["x"]), float(document["y"])
+    nearest_lng = min(max(lng, rect[0]), rect[2])
+    nearest_lat = min(max(lat, rect[1]), rect[3])
+    return distance(lat, lng, nearest_lat, nearest_lng) <= 2
+
+
+def search_candidate_cell(*, rect, category="", keyword="", page=1, timeout=8):
+    """Internal read-only rectangle lookup with completeness metadata.
+
+    Not exposed as a new public endpoint; existing map contracts stay unchanged.
+    Raw provider results are request-local and never synchronized into Place.
+    """
+    if (not isinstance(rect, (tuple, list)) or len(rect) != 4
+            or any(type(v) not in (int, float) or not math.isfinite(v) for v in rect)
+            or not -180 <= rect[0] < rect[2] <= 180 or not -90 <= rect[1] < rect[3] <= 90
+            or category not in {"", "FD6", "CE7", "AT4", "CT1", "CS2", "AD5"}
+            or not isinstance(keyword, str) or len(keyword) > 100 or not (category or keyword.strip())
+            or type(page) is not int or not 1 <= page <= 3
+            or type(timeout) not in (int, float) or not math.isfinite(timeout) or not 0 < timeout <= 8):
+        raise PlaceValidationError
+    west, south, east, north = rect
+    query = {"method": "keyword" if keyword else "category", "keyword": keyword, "category": category,
+             "lat": (south + north) / 2, "lng": (west + east) / 2,
+             "rect": ",".join(str(v) for v in rect), "page": page, "size": 15, "sort": "accuracy"}
+    _enter_search()
+    try:
+        try:
+            payload = _request_kakao(query, timeout=timeout)
+        except PlaceUpstreamError as error:
+            # Preserve existing public search error contracts; the course
+            # provider separately records quota/rate failures as incomplete.
+            if isinstance(error.__cause__, HTTPError) and error.__cause__.code == 429:
+                raise PlaceRateLimitError from error
+            raise
+        meta = payload.get("meta") if isinstance(payload, dict) else None
+        if (not isinstance(meta, dict) or type(meta.get("is_end")) is not bool
+                or type(meta.get("total_count")) is not int or type(meta.get("pageable_count")) is not int
+                or not 0 <= meta["pageable_count"] <= min(45, meta["total_count"])
+                or not isinstance(payload.get("documents"), list) or len(payload["documents"]) > 15):
+            raise PlaceUpstreamError
+        documents = [_normalize_document(item)[0] for item in payload["documents"]]
+        if len({p["id"] for p in documents}) != len(documents) or any(
+            not p["id"].isascii() or not p["id"].isdecimal()
+            or (category and p["category_group_code"] != category)
+            or not _near_cell(p, rect) for p in documents
+        ):
+            raise PlaceUpstreamError
+        return {"places": documents, "total_count": meta["total_count"],
+                "pageable_count": meta["pageable_count"], "is_end": meta["is_end"]}
+    finally:
+        _SEARCH_SLOTS.release()
+
+
+def _search_live(query):
+    _enter_search()
+    try:
+        payload = _request_kakao(query)
+        if not isinstance(payload, dict) or not isinstance(payload.get("meta"), dict) or not isinstance(payload["meta"].get("is_end"), bool) or not isinstance(payload.get("documents"), list) or len(payload["documents"]) > query["size"]:
+            raise PlaceUpstreamError
+        documents = [_normalize_document(item)[0] for item in payload["documents"]]
+        if len({item["id"] for item in documents}) != len(documents) or any(
+            not item["id"].isdecimal() or not item["id"].isascii()
+            or (query.get("category") and item["category_group_code"] != query["category"])
+            for item in documents
+        ):
+            raise PlaceUpstreamError
+        try:
+            documents = filter_provider_places(documents)
+        except CatalogueUnavailable as exc:
+            raise PlaceUpstreamError from exc
+        return {"places": documents, "hasNextPage": not payload["meta"]["is_end"], "syncedAt": timezone.now().isoformat()}
+    finally:
+        _SEARCH_SLOTS.release()
+
+
+def search_live_lodging(query):
+    """Lodging-only live lookup; never copy provider responses to Place rows."""
+    serializer = _validated(PlaceSearchSerializer, query, SEARCH_FIELDS)
+    query = serializer.validated_data
+    if query["category"] != "AD5" or (
+        query["method"] == "keyword" and query["keyword"] not in {"호텔", "모텔", "여관", "여인숙"}
+    ) or (query["method"] == "category" and query["keyword"]):
+        raise PlaceValidationError
+    return _search_live(query)
 
 
 class PlaceService:

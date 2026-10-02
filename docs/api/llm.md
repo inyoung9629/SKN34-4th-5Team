@@ -1,5 +1,7 @@
 # llm — 회원·게스트 채팅, SSE, 저장과 진행 기록
 
+> 현재 V2의 경기 기준·같은 방 기억·응원팀 조건과 활성 SSE 계약은 [직관 코스 백엔드 1차 명세](course-policy-v1.md)를 참고한다. 아래 본문에는 이전 채팅 구조 설명이 포함되어 있으므로 `/api/v2/chat/sessions/<uuid>/messages/`의 현재 코드와 구분한다.
+
 [에이전트 도구 명세](agent-tools.md)는 챗봇이 내부적으로 사용하는 야구·구장·장소·코스·커뮤니티·문서 검색·읽기 전용 SQL 도구를 설명한다.
 
 현재 [프로젝트 URL 등록](../../backend/config/urls.py), [views.py](../../backend/llm/views.py), [serializers.py](../../backend/llm/serializers.py), [chat_service.py](../../backend/llm/chat_service.py) 기준의 HTTP 계약이다. RAG 구성/인덱싱 상세는 기존 [rag/README.md](../../backend/llm/rag/README.md)를 참고한다. 기존 문서의 예시보다 **현재 URLconf와 실행 코드가 우선**이다. 특히 [rag_views.py](../../backend/llm/rag_views.py)는 파일이 존재해도 URLconf에 등록되지 않았으므로 `POST /chat/`를 공개 API로 사용하면 안 된다.

@@ -21,7 +21,7 @@ function compile(name) {
   writeFileSync(join(scratch, `${name}.js`), outputText);
 }
 
-for (const name of ["lib/chat/types", "lib/chat/validation", "lib/chat/progress", "lib/chat/history"]) compile(name);
+for (const name of ["lib/chat/types", "lib/chat/validation", "lib/chat/history"]) compile(name);
 mkdirSync(join(scratch, "components"), { recursive: true });
 
 const providerSource = readFileSync(join(frontend, "components/chat-provider.tsx"), "utf8")
@@ -29,7 +29,6 @@ const providerSource = readFileSync(join(frontend, "components/chat-provider.tsx
   .replace('from "next/navigation"', 'from "../test-navigation"')
   .replaceAll('from "@/lib/chat/types"', 'from "../lib/chat/types"')
   .replace('from "@/lib/chat/client"', 'from "../test-chat-client"')
-  .replace('from "@/lib/chat/progress"', 'from "../lib/chat/progress"')
   .replace('from "@/lib/chat/history"', 'from "../lib/chat/history"')
   .replace('from "@/lib/member-auth"', 'from "../test-member-auth"')
   .replace('from "@/lib/client-id"', 'from "../test-client-id"')
@@ -56,9 +55,11 @@ writeFileSync(join(scratch, "test-client-id.js"), `exports.createClientId = () =
 writeFileSync(join(scratch, "test-popup.js"), `exports.ChatPopup = () => null;`);
 writeFileSync(join(scratch, "test-chat-client.js"), `
 class ChatClientError extends Error {}
+class ChatStreamStoppedError extends ChatClientError {}
 exports.ChatClientError = ChatClientError;
+exports.ChatStreamStoppedError = ChatStreamStoppedError;
 exports.GUEST_STATUS = { provider: "guest", model: "guest", ready: true };
-for (const name of ["fetchChatHistory", "fetchChatTurns", "getChatStatus", "listChatSessions", "sendChatMessage", "sendGuestChatMessage"])
+for (const name of ["deleteChatMessages", "deleteChatSession", "editChatMessage", "fetchChatHistory", "getChatStatus", "listChatSessions", "sendChatMessage"])
   exports[name] = (...args) => global.__chatApi[name](...args);
 `);
 
@@ -121,13 +122,17 @@ const deferred = () => {
   return { promise, resolve };
 };
 const tick = () => new Promise(resolve => setImmediate(resolve));
-const rooms = [{ id: 1, title: "첫 대화" }, { id: 2, title: "둘째 대화" }];
-const progress = [{
-  turn_id: "11111111-1111-4111-8111-111111111111", sequence_no: 1,
-  operation_id: "22222222-2222-4222-8222-222222222222", parent_operation_id: null,
-  kind: "tool", status: "completed", label: "조회 완료", created_at: "2026-09-16T03:00:00Z",
-  tool_name: "get_games", summary: null,
-}];
+const FIRST = "3f2c1a4e-8b7d-4c21-9e0f-5a6b7c8d9e01", SECOND = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+const USER_MSG = 1, ASSISTANT_MSG = 2;
+const OLD_MSG = 4;
+const rooms = [{ id: FIRST, title: "첫 대화" }, { id: SECOND, title: "둘째 대화" }];
+const row = (id, role, content, status = "completed", tools = []) => ({ id, sequence_no: id, role, content, status, tools, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" });
+const unused = async () => { throw new Error("not used"); };
+const baseApi = {
+  deleteChatMessages: unused, deleteChatSession: unused, editChatMessage: unused, sendChatMessage: unused,
+  fetchChatHistory: async () => [],
+  getChatStatus: async mode => ({ provider: mode === "member" ? "backend" : "guest", model: "server", ready: true }),
+};
 
 global.window = {
   location: { pathname: "/", search: "", hash: "", origin: "http://localhost" }, scrollY: 0,
@@ -138,14 +143,9 @@ global.cancelAnimationFrame = () => {};
 global.__memberAuth = { status: "authenticated", user: { id: 7 } };
 
 test("provider ignores delayed list/history callbacks and reloads an interrupted room", async () => {
+  global.__memberAuth = { status: "authenticated", user: { id: 7 } };
   const lateList = deferred();
-  global.__chatApi = {
-    listChatSessions: () => lateList.promise,
-    fetchChatHistory: async () => [], fetchChatTurns: async () => [],
-    getChatStatus: async () => ({ provider: "member", model: "server", ready: true }),
-    sendChatMessage: async () => { throw new Error("not used"); },
-    sendGuestChatMessage: async () => { throw new Error("not used"); },
-  };
+  global.__chatApi = { ...baseApi, listChatSessions: () => lateList.promise };
   let runner = hookRunner();
   let controls = runner.render();
   runner.flushEffects();
@@ -157,47 +157,225 @@ test("provider ignores delayed list/history callbacks and reloads an interrupted
   assert.equal(controls.draft, "작성 중");
   assert.deepEqual(controls.conversations, [{ id: "initial-chat", title: "새 대화" }]);
 
-  const firstHistory = deferred(), firstTurns = deferred(), secondHistory = deferred(), secondTurns = deferred();
+  const firstHistory = deferred(), secondHistory = deferred();
   const historyCalls = [];
   global.__chatApi = {
-    ...global.__chatApi,
+    ...baseApi,
     listChatSessions: async () => rooms,
-    fetchChatHistory: sessionId => {
-      historyCalls.push(sessionId);
-      if (sessionId === 1 && historyCalls.filter(id => id === 1).length === 1) return firstHistory.promise;
-      if (sessionId === 2) return secondHistory.promise;
+    fetchChatHistory: (mode, sessionId) => {
+      historyCalls.push([mode, sessionId]);
+      if (sessionId === FIRST && historyCalls.filter(([, id]) => id === FIRST).length === 1) return firstHistory.promise;
+      if (sessionId === SECOND) return secondHistory.promise;
       return Promise.resolve([]);
     },
-    fetchChatTurns: sessionId => sessionId === 1 ? firstTurns.promise : secondTurns.promise,
   };
   runner = hookRunner();
   controls = runner.render();
   runner.flushEffects();
   await tick();
   controls = runner.render();
-  assert.equal(controls.activeConversationId, "member:1");
+  assert.equal(controls.activeConversationId, `member:${FIRST}`);
 
-  controls.onSelectConversation("member:2");
+  controls.onSelectConversation(`member:${SECOND}`);
   controls = runner.render();
   controls.onDraftChange("둘째 방 초안");
-  firstHistory.resolve([{ id: 10, sequence_no: 1, role: "human", content: "늦은 첫 기록", status: "completed" }]);
-  firstTurns.resolve([]);
+  firstHistory.resolve([row(OLD_MSG, "user", "늦은 첫 기록")]);
   await tick();
   controls = runner.render();
-  assert.equal(controls.activeConversationId, "member:2");
+  assert.equal(controls.activeConversationId, `member:${SECOND}`);
   assert.equal(controls.draft, "둘째 방 초안");
 
-  secondHistory.resolve([
-    { id: 21, sequence_no: 1, role: "human", content: "둘째 질문", status: "completed" },
-    { id: 22, sequence_no: 2, role: "ai", content: "둘째 답변", status: "completed" },
+  secondHistory.resolve([row(USER_MSG, "user", "둘째 질문"), row(ASSISTANT_MSG, "assistant", "둘째 답변")]);
+  await tick();
+  controls = runner.render();
+  assert.deepEqual(controls.messages.map(message => [message.id, message.role, message.content]), [[USER_MSG, "user", "둘째 질문"], [ASSISTANT_MSG, "assistant", "둘째 답변"]]);
+  assert.equal(controls.draft, "둘째 방 초안");
+
+  controls.onSelectConversation(`member:${FIRST}`);
+  assert.deepEqual(historyCalls, [["member", FIRST], ["member", SECOND], ["member", FIRST]]);
+});
+
+test("guest reload lists cookie-owned sessions and restores history in guest mode", async () => {
+  global.__memberAuth = { status: "anonymous", user: null };
+  const calls = [];
+  global.__chatApi = {
+    ...baseApi,
+    listChatSessions: async mode => { calls.push(["list", mode]); return [rooms[0]]; },
+    fetchChatHistory: async (mode, sessionId) => { calls.push(["history", mode, sessionId]); return [row(USER_MSG, "user", "비회원 질문"), row(ASSISTANT_MSG, "assistant", "비회원 답")]; },
+  };
+  const runner = hookRunner();
+  let controls = runner.render();
+  runner.flushEffects();
+  await tick();
+  controls = runner.render();
+  assert.equal(controls.activeConversationId, `guest:${FIRST}`);
+  assert.deepEqual(controls.messages.map(message => message.content), ["비회원 질문", "비회원 답"]);
+  assert.ok(calls.some(call => call[0] === "list" && call[1] === "guest"));
+  assert.deepEqual(calls.filter(call => call[0] === "history"), [["history", "guest", FIRST]]);
+  global.__memberAuth = { status: "authenticated", user: { id: 7 } };
+});
+
+test("history reload surfaces a stopped turn's status without dropping it", async () => {
+  global.__memberAuth = { status: "authenticated", user: { id: 7 } };
+  global.__chatApi = {
+    ...baseApi,
+    listChatSessions: async () => [rooms[0]],
+    fetchChatHistory: async () => [row(USER_MSG, "user", "질문", "stopped"), row(ASSISTANT_MSG, "assistant", "", "stopped")],
+  };
+  const runner = hookRunner();
+  let controls = runner.render();
+  runner.flushEffects();
+  await tick();
+  controls = runner.render();
+  assert.deepEqual(controls.messages.map(message => [message.id, message.status]), [[USER_MSG, "stopped"], [ASSISTANT_MSG, "stopped"]]);
+});
+
+test("live delta/tool events keep SSE order, update tools in place, and clear once the turn settles", async () => {
+  global.__memberAuth = { status: "anonymous", user: null };
+  let onTool, onDelta, release;
+  const persisted = [row(USER_MSG, "user", "잠실 맛집 알려 주세요"), row(ASSISTANT_MSG, "assistant", "답변", "completed", [{ id: "call-1", tool_name: "search_places", status: "completed" }])];
+  global.__chatApi = {
+    ...baseApi,
+    listChatSessions: async () => [],
+    fetchChatHistory: async () => persisted,
+    sendChatMessage: (mode, body, signal, callbacks) => { ({ onTool, onDelta } = callbacks); return new Promise(resolve => {
+      onDelta("찾아"); onDelta("볼게요");
+      onTool({ id: "call-1", tool_name: "search_places", status: "running" });
+      onTool({ id: "call-1", tool_name: "search_places", status: "completed" });
+      onDelta(" 부분");
+      release = () => resolve({ reply: "답변", sessionId: FIRST, provider: "guest", model: "m", ready: true, assistantMessageId: ASSISTANT_MSG, tools: [{ id: "call-1", toolName: "search_places", status: "completed", kind: "tool", parentId: null }] });
+    }); },
+  };
+  const runner = hookRunner();
+  let controls = runner.render();
+  runner.flushEffects();
+  await tick();
+  controls = runner.render();
+  controls.onDraftChange("잠실 맛집 알려 주세요");
+  controls = runner.render();
+  controls.onSend();
+  await tick();
+  controls = runner.render();
+  assert.deepEqual(controls.timeline, [
+    { kind: "text", text: "찾아볼게요", parentId: null },
+    { kind: "tools", tools: [{ id: "call-1", toolName: "search_places", status: "completed", kind: "tool", parentId: null }] },
+    { kind: "text", text: " 부분", parentId: null },
   ]);
-  secondTurns.resolve([{ id: "11111111-1111-4111-8111-111111111111", question: "둘째 질문", status: "completed", base_sequence: 0, human_message_id: 21, assistant_message_id: 22, progress }]);
+  release();
   await tick();
   controls = runner.render();
-  assert.equal(controls.messages.at(-1).content, "둘째 답변");
-  assert.equal(controls.messages.at(-1).progress[0].label, "조회 완료");
-  assert.equal(controls.draft, "둘째 방 초안");
+  assert.deepEqual(controls.timeline, []);
+  assert.equal(controls.messages.at(-1).content, "답변");
+  await tick();
+  controls = runner.render();
+  assert.deepEqual(controls.messages.at(-1).tools, [{ id: "call-1", toolName: "search_places", status: "completed", kind: "tool", parentId: null }]);
+  global.__memberAuth = { status: "authenticated", user: { id: 7 } };
+});
 
-  controls.onSelectConversation("member:1");
-  assert.deepEqual(historyCalls, [1, 2, 1]);
+test("Stop aborts only the local stream, clears loading and shows the unsaved notice", async () => {
+  global.__memberAuth = { status: "anonymous", user: null };
+  const sends = [];
+  global.__chatApi = {
+    ...baseApi,
+    listChatSessions: async () => [],
+    sendChatMessage: (mode, body, signal) => {
+      sends.push([mode, body.content]);
+      return new Promise((_, reject) => signal.addEventListener("abort", () => reject(new Error("요청이 중단됐어요.")), { once: true }));
+    },
+  };
+  const runner = hookRunner();
+  let controls = runner.render();
+  runner.flushEffects();
+  await tick();
+  controls = runner.render();
+  controls.onDraftChange("잠실 맛집 알려 주세요");
+  controls = runner.render();
+  controls.onSend();
+  controls = runner.render();
+  assert.equal(controls.pending, "잠실 맛집 알려 주세요");
+  controls.onCancel();
+  await tick();
+  controls = runner.render();
+  assert.equal(controls.pending, "");
+  assert.equal(controls.failed, "");
+  assert.equal(controls.error, "");
+  assert.equal(controls.notice, "답변 받기를 중단했어요. 받던 답변은 저장되지 않아요.");
+  assert.equal(controls.draft, "잠실 맛집 알려 주세요");
+  assert.deepEqual(sends, [["guest", "잠실 맛집 알려 주세요"]]);
+  global.__memberAuth = { status: "authenticated", user: { id: 7 } };
+});
+
+// Stop clears `pending` inside its own click, so React reuses that <button> node as the submit/send button.
+// Without preventDefault the browser's default activation then re-submits the restored draft (seen in the real UI).
+for (const [path, exportName] of [["components/chat-workspace", "ChatWorkspace"], ["components/chat-popup", "ChatPopup"]]) {
+  test(`${exportName} stop button cancels without the default submit activation`, () => {
+    const source = readFileSync(join(frontend, `${path}.tsx`), "utf8")
+      .replace(/^import "@\/styles\/[^"]+";$/m, "")
+      .replace('from "react"', 'from "../test-surface-react"')
+      .replace('from "next/link"', 'from "../test-surface-stub"')
+      .replace('from "next/image"', 'from "../test-surface-stub"')
+      .replace('from "@/lib/chat/types"', 'from "../lib/chat/types"')
+      .replace('from "@/lib/member-auth"', 'from "../test-member-auth"')
+      .replace(/from "\.\/(chat-provider|icons|chat-answer|chat-course-card|chat-pending|chat-progress|chat-usage)"/g, 'from "../test-surface-stub"');
+    writeFileSync(join(scratch, `${path}.js`), ts.transpileModule(source, {
+      fileName: `${path}.tsx`, compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+    }).outputText);
+    writeFileSync(join(scratch, "test-surface-react.js"), "exports.useEffect = () => {}; exports.useRef = current => ({ current }); exports.useState = value => [value, () => {}];");
+    writeFileSync(join(scratch, "test-surface-stub.js"), "const Stub = () => null; module.exports = new Proxy({ __esModule: true, default: Stub, useChat: () => global.__chat }, { get: (target, key) => key in target ? target[key] : Stub });");
+    global.__memberAuth = { status: "anonymous", user: null };
+    let cancelled = 0;
+    global.__chat = new Proxy({
+      messages: [], conversations: [{ id: "initial-chat", title: "새 대화" }], activeConversationId: "initial-chat",
+      draft: "잠실 맛집 알려 주세요", pending: "잠실 맛집 알려 주세요", streaming: "", timeline: [], failed: "", error: "", notice: "",
+      editingMessageId: null, status: { provider: "guest", model: "m", ready: true }, statusLoading: false, statusError: "",
+      onCancel: () => { cancelled += 1; },
+    }, { get: (target, key) => key in target ? target[key] : () => {} });
+    const require = createRequire(join(scratch, "entry.cjs"));
+    const Surface = require(`./${path}.js`)[exportName];
+    const find = node => {
+      if (!node || typeof node !== "object") return null;
+      if (Array.isArray(node)) { for (const child of node) { const hit = find(child); if (hit) return hit; } return null; }
+      if (node.props?.["aria-label"] === "답변 생성 중단") return node;
+      return find(node.props?.children);
+    };
+    const stop = find(Surface({}));
+    assert.ok(stop, "stop button renders while a reply is pending");
+    let prevented = false;
+    stop.props.onClick({ preventDefault: () => { prevented = true; } });
+    assert.equal(cancelled, 1);
+    assert.equal(prevented, true);
+    global.__memberAuth = { status: "authenticated", user: { id: 7 } };
+  });
+}
+
+test("uncertain failure whose turn history shows completed clears failure state and only the auto-restored draft", async () => {
+  global.__memberAuth = { status: "anonymous", user: null };
+  for (const newer of [null, "새 질문"]) {
+    const history = deferred();
+    global.__chatApi = {
+      ...baseApi,
+      listChatSessions: async () => [],
+      fetchChatHistory: () => history.promise,
+      sendChatMessage: async () => { const { ChatClientError } = createRequire(join(scratch, "entry.cjs"))("./test-chat-client.js"); const error = new ChatClientError("연결이 끊겼어요."); error.sessionId = FIRST; throw error; },
+    };
+    const runner = hookRunner();
+    let controls = runner.render();
+    runner.flushEffects();
+    await tick();
+    controls = runner.render();
+    controls.onDraftChange("잠실 맛집");
+    controls = runner.render();
+    controls.onSend();
+    await tick();
+    controls = runner.render();
+    assert.equal(controls.failed, "잠실 맛집");
+    assert.equal(controls.draft, "잠실 맛집");
+    if (newer) { controls.onDraftChange(newer); controls = runner.render(); }
+    history.resolve([row(USER_MSG, "user", "잠실 맛집"), row(ASSISTANT_MSG, "assistant", "답변")]);
+    await tick();
+    controls = runner.render();
+    assert.deepEqual([controls.failed, controls.error, controls.notice, controls.draft], ["", "", "", newer ?? ""]);
+    assert.equal(controls.messages.at(-1).content, "답변");
+  }
+  global.__memberAuth = { status: "authenticated", user: { id: 7 } };
 });

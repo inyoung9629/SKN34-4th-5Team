@@ -15,7 +15,7 @@
 
 **RAG 기반 구장 안내 · 야구 DB 조회 에이전트 · 경기 전후 직관 코스 추천**
 
-SKN34 3차 프로젝트 · 5팀 [TODO: 팀명]
+SKN34 3차 프로젝트 · 5팀 [야구는 질병이야]
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![Django](https://img.shields.io/badge/Django-6.1-092E20?logo=django&logoColor=white)

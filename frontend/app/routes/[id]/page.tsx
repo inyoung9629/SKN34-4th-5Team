@@ -11,6 +11,7 @@ import { RouteDetailSkeleton } from "@/components/route-skeleton";
 import { routeContentToText } from "@/lib/route-content";
 import { coursePointLabel, withCourseStart } from "@/lib/drawn-course";
 import { useMemberAuth } from "@/lib/member-auth";
+import { stadiums } from "@/lib/stadiums";
 import { deleteRoute, loadRouteLike, recordRouteView, retryRoutes, toggleRouteLike, useLikedRoutes, useRoutes, useRoutesError, useRoutesReady } from "@/lib/routes";
 
 function DeleteRouteDialog({ title, error, busy, onCancel, onDelete }: { title: string; error: string; busy: boolean; onCancel: () => void; onDelete: () => void }) {
@@ -92,7 +93,7 @@ export default function RouteDetailPage({ params }: { params: Promise<{ id: stri
       </header>
 
       <section className="route-detail-map" aria-label="코스 지도와 게시글">
-        <RouteMap stops={route.stops} allowOriginSelection={authenticated && !route.isSample} mapFirst travelAside={
+        <RouteMap stops={route.stops} stadium={stadiums.find(stadium => stadium.name === route.stadium)} allowOriginSelection={authenticated && !route.isSample} mapFirst travelAside={
         <aside className="route-detail-sidebar">
           {route.isSample && <div className="route-summary-box"><span className="route-summary-symbol" aria-hidden="true">↗</span><h2>설레는 직관,<br />이 코스로 시작해볼까요?</h2><p>마음에 드는 코스에 좋아요를 남기고<br />나만의 하루도 작성해보세요.</p><button className={`button route-like-button${liked ? " is-liked" : ""}`} aria-pressed={liked} disabled={!authenticated} onClick={() => { if (!authenticated) return; void toggleRouteLike(route.id).then(nextLiked => { setError(""); setFeedback(nextLiked ? "이 코스에 좋아요를 남겼어요." : "좋아요를 취소했어요."); }).catch(caught => setError(caught instanceof Error ? caught.message : "좋아요를 저장하지 못했어요.")); }}><svg viewBox="0 0 24 24" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" /></svg>{liked ? "좋아요 취소" : "좋아요"}<span>{route.likes}</span></button><button type="button" className="button button-secondary route-share-button" onClick={shareRoute}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M5 12v8h14v-8"/></svg>공유하기</button>{authenticated && <button type="button" className="button button-primary" onClick={() => { if (window.confirm("코스 만들기 페이지로 이동하시겠습니까?")) router.push(`/routes/new?copy=${encodeURIComponent(route.id)}`); }}>코스 수정하기</button>}{authenticated && <Link className="route-sidebar-write" href="/routes/new">나만의 코스 작성하기 <span aria-hidden="true">→</span></Link>}</div>}
           {route.owned && authenticated && <div className="route-owner-actions"><p>{route.legacy ? "다시 저장하기 전까지 이 브라우저에만 남는 이전 코스예요." : "이 브라우저에 편집 권한이 저장된 공개 코스예요."}</p><div><Link href={`/routes/new?edit=${encodeURIComponent(route.id)}`}>수정하기</Link><button type="button" onClick={() => { setDeleteError(""); setConfirmDelete(true); }}>삭제하기</button></div></div>}

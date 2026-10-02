@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 from django.core.exceptions import ValidationError
 from django.core.management.base import CommandError
 from django.db import IntegrityError, transaction
+from .stadium_locations import reviewed_locations
 
 
 def stable_id(model, natural_key):
@@ -202,7 +203,11 @@ class BaseballDataLoaderV1:
 
         operations = {row["stadium_code"]: row for row in self.rows("preprocessed/구장운영정보.csv")}
         stadiums = {}
+        locations = reviewed_locations(self.root)
         for row in self.rows("preprocessed/stadium_coordinates.csv"):
+            point = locations.get(row["stadium_code"])
+            if point:
+                row = {**row, "lng_x": str(point["lng"]), "lat_y": str(point["lat"]), "geocode_source": "OSM_REVIEWED_FIRST_TEAM_2026_09_30"}
             op = operations.get(row["stadium_code"], {})
             stadiums[row["stadium_code"]] = self.add(
                 models.Stadium, row["stadium_code"], stadium_code=row["stadium_code"],

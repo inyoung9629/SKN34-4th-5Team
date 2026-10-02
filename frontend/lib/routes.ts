@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { fetchCourseReaction, fetchCourses, persistCourse, recordCourseView, removeCourse, setCourseReaction } from "./course-api";
 import { createClientId } from "./client-id";
+import { isLodgingReference } from "./google-lodging";
 import { isRichContentDoc, type RichContentDoc } from "./community-rich-content";
 
 export type RouteStop = { name: string; lat: number; lng: number; category: string; placeId?: string; visitId?: string; address?: string; tourContentId?: string; isMapPoint?: boolean; isDrawnPoint?: boolean };
@@ -50,7 +51,7 @@ function isRoute(value: unknown): value is TripRoute {
     && (item.apiId === undefined || typeof item.apiId === "string")
     && (item.start === undefined || (item.start !== null && typeof item.start === "object" && areValidCoordinates((item.start as Record<string, unknown>).lat, (item.start as Record<string, unknown>).lng)))
     && Array.isArray(item.tags) && item.tags.every(tag => typeof tag === "string")
-    && Array.isArray(item.stops) && item.stops.every(stop => stop && typeof stop === "object" && typeof stop.name === "string" && typeof stop.category === "string" && (stop.placeId === undefined || typeof stop.placeId === "string") && (stop.visitId === undefined || typeof stop.visitId === "string") && (stop.address === undefined || typeof stop.address === "string") && (stop.tourContentId === undefined || typeof stop.tourContentId === "string") && (stop.isMapPoint === undefined || typeof stop.isMapPoint === "boolean") && (stop.isDrawnPoint === undefined || typeof stop.isDrawnPoint === "boolean") && areValidCoordinates(stop.lat, stop.lng));
+    && Array.isArray(item.stops) && item.stops.every(stop => stop && typeof stop === "object" && typeof stop.name === "string" && typeof stop.category === "string" && (stop.placeId === undefined || typeof stop.placeId === "string") && (stop.visitId === undefined || typeof stop.visitId === "string") && (stop.address === undefined || typeof stop.address === "string") && (stop.tourContentId === undefined || typeof stop.tourContentId === "string") && (stop.isMapPoint === undefined || typeof stop.isMapPoint === "boolean") && (stop.isDrawnPoint === undefined || typeof stop.isDrawnPoint === "boolean") && (isLodgingReference(stop) || areValidCoordinates(stop.lat, stop.lng)));
 }
 
 function parseStoredRoutes(raw: string): TripRoute[] {

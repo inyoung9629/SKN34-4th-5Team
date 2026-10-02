@@ -23,3 +23,8 @@ export type PredictionChoiceWriteDto = Schemas["PredictionChoiceWrite"];
 export type PredictionTeamDto = Schemas["PredictionTeam"];
 export type PredictionVotesDto = Schemas["PredictionVotes"];
 export type PredictionGameDto = Schemas["PredictionGame"];
+
+export type CommunityMemberSummaryDto = Schemas["PublicMember"];
+export type CommunityMemberPostDto = Pick<Schemas["CommunityPost"], "id" | "title" | "board" | "teamCode" | "createdAt">;
+export type CommunityMemberCommentDto = Schemas["CommunityMemberComment"];
+export type CommunityMemberPageDto<T> = Omit<Schemas["CommunityPostPage"], "results"> & { results: T[] };

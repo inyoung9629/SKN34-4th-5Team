@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TRAVEL_MODES, travelDistance, travelTime, type CourseDirections, type TravelMode, type TravelPoint } from "@/lib/course-directions";
 import type { RouteStop } from "@/lib/routes";
+import { canRequestDirections, isLodgingReference, locatedStop } from "@/lib/google-lodging";
 import type { KakaoMap, KakaoMaps, KakaoOverlay } from "@/lib/kakao-maps";
 
 import { coursePointLabel } from "@/lib/drawn-course";
@@ -28,8 +29,15 @@ export function useCourseDirections(stops: RouteStop[], enabled = true, initialS
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{ key: string; data?: CourseDirections; error?: string } | null>(null);
   const startLocation = origin === "current" ? location : origin === "custom" ? customLocation : null;
-  const points = useMemo(() => startLocation ? [startLocation, ...stops] : stops, [startLocation, stops]);
-  const ready = enabled && stops.length > 0 && points.length >= 2 && (origin === "first" || Boolean(startLocation)) && !locating && !picking;
+  const allPoints = useMemo(() => startLocation ? [startLocation, ...stops] : stops, [startLocation, stops]);
+  const points = useMemo(() => allPoints.filter(locatedStop), [allPoints]);
+  const googleCourse = stops.some(stop => isLodgingReference(stop));
+  const unresolved = points.length !== allPoints.length;
+  const ready = enabled && canRequestDirections(stops) && stops.length > 0 && points.length >= 2 && (origin === "first" || Boolean(startLocation)) && !locating && !picking;
+  const direct = useMemo<CourseDirections | undefined>(() => googleCourse && !unresolved && points.length >= 2 ? {
+    mode, seconds: null, distance: null,
+    legs: points.slice(1).map((point, index) => ({ status: "error", paths: [[points[index], point]], instructions: [], error: "방문 순서 직선 연결 · 실제 이동 경로/시간 미제공" })),
+  } : undefined, [googleCourse, unresolved, points, mode]);
   const payload = JSON.stringify({ action: "directions", mode, points: points.map(({ lat, lng }) => ({ lat, lng })) });
   const requestKey = `${payload}:${attempt}`;
   useEffect(() => () => { locationRequest.current++; }, []);
@@ -89,7 +97,7 @@ export function useCourseDirections(stops: RouteStop[], enabled = true, initialS
   const current = ready && result?.key === requestKey ? result : null;
   const selectedLeg = legSelection?.key === requestKey ? legSelection.index : null;
   const selectLeg = (index: number | null) => setLegSelection(index === null ? null : { key: requestKey, index });
-  return { selectedLeg, selectLeg, mode, setMode, origin, chooseFirst, chooseCurrent, chooseCustom, pickLocation, cancelPicking, reset, picking, location: startLocation, locating, locationError, points, ready, loading: ready && !current, data: current?.data, error: current?.error, retry: () => setAttempt((value) => value + 1) };
+  return { selectedLeg, selectLeg, mode, setMode, origin, chooseFirst, chooseCurrent, chooseCustom, pickLocation, cancelPicking, reset, picking, location: startLocation, locating, locationError, points, ready, loading: ready && !current, data: googleCourse ? direct : current?.data, googleCourse, unresolved, error: current?.error, retry: () => setAttempt((value) => value + 1) };
 }
 type TravelState = ReturnType<typeof useCourseDirections>;
 
@@ -206,7 +214,8 @@ export function CourseTravelPanel({ travel, stops, onFit, showDirections = true,
     </div>}</>}
     {showDirections && <div className="course-modes" role="group" aria-label="이동 수단">{TRAVEL_MODES.map((item) => <button type="button" key={item.id} aria-pressed={mode === item.id} onClick={() => travel.setMode(item.id)}>{item.label}</button>)}</div>}
     <div aria-live="polite" className="course-travel-status">
-      {travel.picking ? <p>지도에서 출발할 위치를 눌러 주세요. <button type="button" onClick={travel.cancelPicking}>지정 취소</button></p> : travel.locating ? <p>내 위치를 확인하고 있어요.</p> : travel.locationError ? <p role="alert">{travel.locationError}</p> : !showDirections ? <p>{stops.length === 0 ? travel.location ? "출발 위치를 정했어요. 코스에 방문할 장소를 추가해 주세요." : "첫 번째 지점에서 출발하거나, 내 위치·지도에서 출발지를 먼저 정할 수 있어요." : "코스 완성을 누르면 예상 이동 시간을 확인할 수 있어요."}</p> : !travel.ready ? <p>{stops.length === 0 ? "코스에 방문 장소를 추가해 주세요." : "코스에 두 곳 이상 담거나 별도의 시작 위치를 설정해 보세요."}</p> : travel.loading ? <p>{TRAVEL_MODES.find((item) => item.id === mode)!.label} 경로를 조회하고 있어요…</p> : travel.error ? <p role="alert">{travel.error}</p> : data && <>
+      {travel.googleCourse && <p>실시간 조회 숙소가 포함되어 현재 실제 길찾기·이동 시간은 제공하지 않아요. {travel.unresolved ? "숙소 위치 확인 버튼으로 조회하면 연결선이 표시돼요." : "지도 선은 방문 순서의 직선 연결이에요."}</p>}
+      {travel.picking ? <p>지도에서 출발할 위치를 눌러 주세요. <button type="button" onClick={travel.cancelPicking}>지정 취소</button></p> : travel.locating ? <p>내 위치를 확인하고 있어요.</p> : travel.locationError ? <p role="alert">{travel.locationError}</p> : travel.googleCourse ? null : !showDirections ? <p>{stops.length === 0 ? travel.location ? "출발 위치를 정했어요. 코스에 방문할 장소를 추가해 주세요." : "첫 번째 지점에서 출발하거나, 내 위치·지도에서 출발지를 먼저 정할 수 있어요." : "코스 완성을 누르면 예상 이동 시간을 확인할 수 있어요."}</p> : !travel.ready ? <p>{stops.length === 0 ? "코스에 방문 장소를 추가해 주세요." : "코스에 두 곳 이상 담거나 별도의 시작 위치를 설정해 보세요."}</p> : travel.loading ? <p>{TRAVEL_MODES.find((item) => item.id === mode)!.label} 경로를 조회하고 있어요…</p> : travel.error ? <p role="alert">{travel.error}</p> : data && <>
         {data.seconds !== null && data.distance !== null ? <p className="course-travel-total"><strong>약 {travelTime(data.seconds)}</strong><span>총 {travelDistance(data.distance)} · 이동 시간</span></p> : <p role="alert">조회하지 못한 구간이 있어 전체 시간을 계산할 수 없어요.</p>}
         <div className="course-leg-focus" role="group" aria-label="지도 구간 강조">
           <button type="button" aria-pressed={travel.selectedLeg === null} onClick={() => travel.selectLeg(null)}>전체</button>
@@ -229,6 +238,6 @@ export function CourseTravelPanel({ travel, stops, onFit, showDirections = true,
       </>}
     </div>
     {showDirections && travel.ready && !travel.loading && <button type="button" className="course-travel-retry" onClick={travel.retry}>경로 다시 조회</button>}
-    {showDirections && <p className="course-travel-note">방문 순서대로 계산한 예상 이동 시간이며, 식사·관람 등 체류 시간은 제외돼요.{mode === "transit" && " 구간별 대중교통 경로를 합산하며 실제 대기·환승 시간은 달라질 수 있어요."}{mode === "car" && " 교통 상황과 주차 시간에 따라 달라질 수 있어요."}</p>}
+    {showDirections && !travel.googleCourse && <p className="course-travel-note">방문 순서대로 계산한 예상 이동 시간이며, 식사·관람 등 체류 시간은 제외돼요.{mode === "transit" && " 구간별 대중교통 경로를 합산하며 실제 대기·환승 시간은 달라질 수 있어요."}{mode === "car" && " 교통 상황과 주차 시간에 따라 달라질 수 있어요."}</p>}
   </section>;
 }

@@ -216,6 +216,8 @@ next-env.d.ts
 
 # RAG 인덱싱 산출물 (벡터는 git 에 안 올림 — HuggingFace/DB 로 공유)
 backend/artifacts/
+# Local collection snapshots and provider comparison data
+/data/preprocessed/stadium_pilot/
 backend/env
 frontend/.env.local
 
@@ -228,7 +230,11 @@ frontend/.member-preview/
 
 # Mailpit runtime data
 /data/mailpit/
-/graphify-out/*
+# Local database backups can contain account and chat data.
+/output/backups/
+# Local browser captures and paid-provider evaluation responses stay private.
+/output/
+**/graphify-out/**
 /data/mailpit/*
 .gstack/*
 .hermes/*
@@ -237,3 +243,12 @@ frontend/.member-preview/
 
 # nginx
 nginx/ssl/
+
+.vscode/**
+
+.agents/*
+.gemini/*
+
+# 규정집 PDF 원본 (31MB) — 청크 CSV는 커밋, 원본은 data/raw/README.md 안내대로 직접 다운로드.
+# 4차 후반 DVC 도입 시 dvc add 대상으로 전환 예정
+data/raw/rules/*.pdf

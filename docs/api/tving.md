@@ -48,7 +48,7 @@ TVING KBO 일정·순위·구단·선수 정보를 요청 시 수집하고 검�
 
 갱신 응답에는 `fetchedAt`, `providerFetchedAt`, `updatedAt`, `lastSyncedAt`, `source:{name,url}`, `stale`, `warning`이 들어간다. DB 재사용 경로에서는 fetched 계열도 저장 동기화 시각으로 표시하므로 **이번 요청이 실제 TVING에 접속했다는 증거가 아니다**. 성공은 HTTP 200이어도 `stale=true`일 수 있다. DB 장애 등 모든 예외가 fallback되는 것은 아니며 바깥 뷰에서 503으로 처리될 수 있다.
 
-TVING 팀순위/개인순위는 시즌 조회이며 과거 날짜별 순위 API가 아니다. `/daily/?date=과거날짜`가 당시 순위를 복원한다고 보장할 수 없다. `ensure_standings_fresh()`는 과거/미래 순위를 저장분으로 제한하지만, 공개 `daily` 경로는 `refresh_daily()`를 직접 호출하므로 그 보호 분기와 다르다. 개인 시즌 순위도 날짜별 스냅샷으로 보존되지 않는다. `ensure_game_range_fresh()`의 미래 연도 제한 역시 내부 호출용이며 공개 월간 endpoint의 입력 제한으로 가정하지 않는다.
+TVING 팀순위/개인순위는 시즌 조회이며 과거 날짜별 순위 API가 아니다. `/daily/?date=과거날짜`가 당시 순위를 복원한다고 보장할 수 없다. `get_standings_freshness()`는 과거/미래 순위를 저장분으로 제한하지만, 공개 `daily` 경로는 `refresh_daily()`를 직접 호출하므로 그 보호 분기와 다르다. 개인 시즌 순위도 날짜별 스냅샷으로 보존되지 않는다. `get_game_range_freshness()`의 미래 연도 제한 역시 내부 호출용이며 공개 월간 endpoint의 입력 제한으로 가정하지 않는다.
 
 ## URL·인증·공통 응답
 

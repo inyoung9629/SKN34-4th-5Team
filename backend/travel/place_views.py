@@ -23,6 +23,8 @@ from .place_service import (
     get_place,
     list_places,
     search_and_sync_places,
+    search_live_lodging,
+    search_live_places,
     update_place,
 )
 from .place_serializers import PlaceErrorSerializer, PlaceListResponseSerializer, PlacePatchSerializer, PlaceSearchResponseSerializer, PlaceSearchSerializer, PlaceSerializer, PlaceWriteSerializer
@@ -111,6 +113,28 @@ class PlaceSearchView(PlaceApiMixin, APIView):
     @extend_schema(operation_id="places_search", request=PlaceSearchSerializer, responses={200: PlaceSearchResponseSerializer, 400: PlaceErrorSerializer, 413: PlaceErrorSerializer, 415: PlaceErrorSerializer, 429: PlaceErrorSerializer, 502: PlaceErrorSerializer, 503: PlaceErrorSerializer}, auth=[])
     def post(self, request):
         return Response(_service_call(search_and_sync_places, request.data))
+
+
+class PlaceLiveSearchView(PlaceApiMixin, APIView):
+    permission_classes = (AllowAny,)
+    throttle_classes = (PlaceSearchThrottle,)
+
+    @extend_schema(operation_id="places_live_search", request=PlaceSearchSerializer, responses={200: PlaceSearchResponseSerializer, 400: PlaceErrorSerializer, 413: PlaceErrorSerializer, 415: PlaceErrorSerializer, 429: PlaceErrorSerializer, 502: PlaceErrorSerializer, 503: PlaceErrorSerializer}, auth=[], description="카카오 주변 장소를 실시간 조회합니다. 응답을 장소 DB에 저장하지 않습니다.")
+    def post(self, request):
+        response = Response(_service_call(search_live_places, request.data))
+        response["Cache-Control"] = "no-store"
+        return response
+
+
+class LodgingSearchView(PlaceApiMixin, APIView):
+    permission_classes = (AllowAny,)
+    throttle_classes = (PlaceSearchThrottle,)
+
+    @extend_schema(operation_id="lodging_search", request=PlaceSearchSerializer, responses={200: PlaceSearchResponseSerializer, 400: PlaceErrorSerializer, 413: PlaceErrorSerializer, 415: PlaceErrorSerializer, 429: PlaceErrorSerializer, 502: PlaceErrorSerializer, 503: PlaceErrorSerializer}, auth=[], description="카카오 AD5 숙박만 실시간 검색합니다. 응답을 장소 DB에 저장하지 않습니다.")
+    def post(self, request):
+        response = Response(_service_call(search_live_lodging, request.data))
+        response["Cache-Control"] = "no-store"
+        return response
 
 
 class PlaceListCreateView(PlaceApiMixin, APIView):

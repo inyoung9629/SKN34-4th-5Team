@@ -10,6 +10,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile.prod
     restart: unless-stopped
+    volumes:
+      - ./data/staging/stadium_places:/data/staging/stadium_places:ro
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY}
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY}
@@ -40,6 +42,7 @@ services:
       DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-}
       EMAIL_USE_TLS: ${EMAIL_USE_TLS:?Set EMAIL_USE_TLS}
       KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY:-}
+      COLLECTED_PLACES_DIR: ${COLLECTED_PLACES_DIR:-/data/staging/stadium_places/20260927T092810Z}
       KMA_SERVICE_KEY: ${KMA_SERVICE_KEY:-}
       KMA_API_KEY: ${KMA_API_KEY:-}
       TOUR_API_KEY: ${TOUR_API_KEY:-}
@@ -52,6 +55,7 @@ services:
       - "127.0.0.1:8000:8000"
     command: >
       sh -c "python manage.py migrate &&
+             python manage.py setup_chat_checkpoints &&
              gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120"
     depends_on:
       minio:

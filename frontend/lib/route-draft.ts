@@ -3,6 +3,7 @@ import type { RouteStop, TripRoute } from "./routes";
 import type { RouteContentFormat } from "./route-content";
 import { getStadium } from "./stadiums";
 import { createClientId } from "./client-id";
+import { isLodgingReference, referenceOnlyStop } from "./google-lodging";
 import { isRichContentDoc, type RichContentDoc } from "./community-rich-content";
 
 export const ROUTE_DRAFT_PREFIX = "kbo-trip-route-draft-v1:";
@@ -42,7 +43,7 @@ const isStop = (value: unknown): value is RouteStop => {
   const stop = value as Record<string, unknown>;
   return hasOnlyKeys(stop, ["name", "lat", "lng", "category", "placeId", "visitId", "address", "tourContentId", "isMapPoint", "isDrawnPoint"])
     && typeof stop.name === "string" && typeof stop.category === "string"
-    && areValidCoordinates(stop.lat, stop.lng)
+    && (isLodgingReference(stop as RouteStop) || areValidCoordinates(stop.lat, stop.lng))
     && ["placeId", "visitId", "address", "tourContentId"].every(key => isOptionalString(stop[key]))
     && ["isMapPoint", "isDrawnPoint"].every(key => stop[key] === undefined || typeof stop[key] === "boolean");
 };
@@ -68,7 +69,7 @@ export function parseRouteDraft(raw: string | null): StoredRouteDraft | undefine
     if (!value || typeof value !== "object") return undefined;
     const draft = value as Record<string, unknown>;
     return draft.version === ROUTE_DRAFT_VERSION && typeof draft.revision === "string" && typeof draft.updatedAt === "string"
-      && !Number.isNaN(Date.parse(draft.updatedAt)) && isRouteDraftData(draft.data) ? draft as StoredRouteDraft : undefined;
+      && !Number.isNaN(Date.parse(draft.updatedAt)) && isRouteDraftData(draft.data) ? { ...draft, data: { ...draft.data, stops: draft.data.stops.map(referenceOnlyStop) } } as StoredRouteDraft : undefined;
   } catch { return undefined; }
 }
 
@@ -88,6 +89,7 @@ export function recoverRouteDraft(stored: ReturnType<typeof readRouteDraft>, mem
 
 export function saveRouteDraft(storage: StorageLike | undefined, context: string, data: RouteDraftData, expectedRaw: string | null): { status: "saved"; draft: StoredRouteDraft; raw: string } | { status: "unchanged"; raw: string | null } | { status: "conflict" | "error" } {
   if (!storage || !isRouteDraftData(data)) return { status: "error" };
+  data = { ...data, stops: data.stops.map(referenceOnlyStop) };
   const key = ROUTE_DRAFT_PREFIX + context;
   try {
     const currentRaw = storage.getItem(key);

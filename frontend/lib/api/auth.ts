@@ -6,7 +6,7 @@ import { memberFetch } from "../member-auth-request";
 export type MemberUser = components["schemas"]["MemberUser"];
 export type MemberUserUpdate = components["schemas"]["PatchedMemberUserUpdate"];
 export type AdminMember = components["schemas"]["AdminMember"];
-export type AdminRoleUpdate = NonNullable<operations["auth_admin_members_role_partial_update"]["requestBody"]>["content"]["application/json"];
+export type AdminRoleUpdate = NonNullable<operations["v1_auth_admin_members_role_partial_update"]["requestBody"]>["content"]["application/json"];
 export type SignInRequest = components["schemas"]["SignInRequest"];
 export type TokenPair = components["schemas"]["TokenPair"];
 export type SignupRequest = components["schemas"]["Signup"];

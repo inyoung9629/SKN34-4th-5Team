@@ -20,7 +20,7 @@ export function MemberAccountSettings({ user, onChanged }: { user: MemberUser; o
         <label><input type="checkbox" name="notify-courses" defaultChecked={user.notifications.courses} />내 코스의 반응</label>
         <label><input type="checkbox" name="notify-announcements" defaultChecked={user.notifications.announcements} />공지·회원 소식</label>
       </fieldset>
-      <p className={styles.settingNote}>설정 값만 저장되며 실제 알림 발송·공개 정책 연결은 별도 작업이에요.</p>
+      <p className={styles.settingNote}>글·댓글 활동 목록의 공개 설정은 멤버 활동 화면에 적용돼요. 본인은 비공개 상태에서도 조회할 수 있어요. 알림 발송과 다른 항목의 공개 정책 연결은 별도 작업이에요.</p>
 
   </div>;
 }

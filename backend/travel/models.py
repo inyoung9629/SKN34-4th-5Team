@@ -51,8 +51,8 @@ class CourseStop(models.Model):
     course = models.ForeignKey(Course, related_name="stops", on_delete=models.CASCADE)
     position = models.PositiveSmallIntegerField()
     name = models.CharField(max_length=255)
-    lat = models.FloatField()
-    lng = models.FloatField()
+    lat = models.FloatField(null=True, blank=True)
+    lng = models.FloatField(null=True, blank=True)
     category = models.CharField(max_length=120)
     place_id = models.CharField(max_length=255, null=True, blank=True)
     visit_id = models.CharField(max_length=255, null=True, blank=True)
@@ -65,6 +65,11 @@ class CourseStop(models.Model):
         ordering = ("position",)
         constraints = (
             models.UniqueConstraint(fields=("course", "position"), name="unique_course_stop_position"),
+            models.CheckConstraint(
+                condition=(Q(place_id__isnull=False) & (Q(place_id__startswith="google-ui-kit:") | Q(place_id__startswith="kakao-lodging:")) & Q(lat__isnull=True) & Q(lng__isnull=True))
+                | ((Q(place_id__isnull=True) | (~Q(place_id__startswith="google-ui-kit:") & ~Q(place_id__startswith="kakao-lodging:"))) & Q(lat__isnull=False) & Q(lng__isnull=False)),
+                name="course_stop_reference_coordinates",
+            ),
             models.CheckConstraint(condition=Q(lat__range=(-90, 90)), name="course_stop_lat_bounds"),
             models.CheckConstraint(condition=Q(lng__range=(-180, 180)), name="course_stop_lng_bounds"),
         )
@@ -135,3 +140,6 @@ class ExternalProviderSnapshot(models.Model):
 
 from .directions_models import DirectionsRoute  # noqa: E402,F401
 from .tourism_models import TourismPlace  # noqa: E402,F401
+from .place_knowledge_models import (  # noqa: E402,F401
+    PlaceKnowledge, PlaceKnowledgeSource, PlaceKnowledgeObservation, PlaceEnrichmentAttempt,
+)

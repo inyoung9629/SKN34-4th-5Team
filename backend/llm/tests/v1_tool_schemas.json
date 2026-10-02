@@ -1,0 +1,321 @@
+{
+ "get_games": {
+  "properties": {
+   "team": {
+    "anyOf": [
+     {
+      "type": "string"
+     },
+     {
+      "type": "null"
+     }
+    ],
+    "default": null,
+    "description": "팀 이름 (예: KIA, 두산). 모르면 비운다",
+    "title": "Team"
+   },
+   "stadium": {
+    "anyOf": [
+     {
+      "type": "string"
+     },
+     {
+      "type": "null"
+     }
+    ],
+    "default": null,
+    "description": "구장 (예: 잠실, JAMSIL). 모르면 비운다",
+    "title": "Stadium"
+   },
+   "date_from": {
+    "anyOf": [
+     {
+      "type": "string"
+     },
+     {
+      "type": "null"
+     }
+    ],
+    "default": null,
+    "description": "YYYY-MM-DD. 비우면 오늘",
+    "title": "Date From"
+   },
+   "date_to": {
+    "anyOf": [
+     {
+      "type": "string"
+     },
+     {
+      "type": "null"
+     }
+    ],
+    "default": null,
+    "description": "YYYY-MM-DD. 비우면 date_from 부터 시즌 끝까지",
+    "title": "Date To"
+   },
+   "status": {
+    "default": "all",
+    "description": "경기 전/끝난 경기/취소",
+    "enum": [
+     "all",
+     "upcoming",
+     "finished",
+     "canceled"
+    ],
+    "title": "Status",
+    "type": "string"
+   },
+   "home_away": {
+    "default": "all",
+    "description": "team 기준 홈경기만/원정만",
+    "enum": [
+     "all",
+     "home",
+     "away"
+    ],
+    "title": "Home Away",
+    "type": "string"
+   },
+   "limit": {
+    "default": 10,
+    "description": "보여줄 경기 수 (1~30). count 는 조건에 맞는 전체 수",
+    "title": "Limit",
+    "type": "integer"
+   }
+  },
+  "title": "GamesInput",
+  "type": "object"
+ },
+ "get_standings": {
+  "properties": {
+   "as_of": {
+    "anyOf": [
+     {
+      "type": "string"
+     },
+     {
+      "type": "null"
+     }
+    ],
+    "default": null,
+    "description": "YYYY-MM-DD. 비우면 가장 최근 순위",
+    "title": "As Of"
+   }
+  },
+  "title": "StandingsInput",
+  "type": "object"
+ },
+ "get_ticket_prices": {
+  "properties": {
+   "team": {
+    "anyOf": [
+     {
+      "type": "string"
+     },
+     {
+      "type": "null"
+     }
+    ],
+    "default": null,
+    "description": "홈 구단 이름. 팀을 모르면 비운다",
+    "title": "Team"
+   },
+   "stadium": {
+    "anyOf": [
+     {
+      "type": "string"
+     },
+     {
+      "type": "null"
+     }
+    ],
+    "default": null,
+    "description": "구장 이름. 팀을 모를 때 사용한다",
+    "title": "Stadium"
+   },
+   "zone_keyword": {
+    "anyOf": [
+     {
+      "type": "string"
+     },
+     {
+      "type": "null"
+     }
+    ],
+    "default": null,
+    "description": "좌석 이름 일부 (예: 테이블, 외야, 1루). 모르면 비운다",
+    "title": "Zone Keyword"
+   },
+   "cheapest_first": {
+    "default": true,
+    "description": "싼 순서로 정렬",
+    "title": "Cheapest First",
+    "type": "boolean"
+   },
+   "limit": {
+    "default": 15,
+    "description": "보여줄 행 수 (1~30)",
+    "title": "Limit",
+    "type": "integer"
+   }
+  },
+  "title": "PricesInput",
+  "type": "object"
+ },
+ "get_ticket_policy": {
+  "properties": {
+   "team": {
+    "description": "구단 이름",
+    "title": "Team",
+    "type": "string"
+   }
+  },
+  "required": [
+   "team"
+  ],
+  "title": "PolicyInput",
+  "type": "object"
+ },
+ "get_baseball_schema": {
+  "properties": {},
+  "title": "NoInput",
+  "type": "object"
+ },
+ "execute_baseball_select": {
+  "properties": {
+   "sql": {
+    "description": "get_baseball_schema 에서 확인한 quoted 테이블만 쓰는 PostgreSQL SELECT 1문장",
+    "title": "Sql",
+    "type": "string"
+   },
+   "params": {
+    "anyOf": [
+     {
+      "additionalProperties": true,
+      "type": "object"
+     },
+     {
+      "type": "null"
+     }
+    ],
+    "default": null,
+    "description": "%(name)s 자리에 넣을 값",
+    "title": "Params"
+   },
+   "max_rows": {
+    "default": 20,
+    "description": "최대 행 수 (1~50)",
+    "title": "Max Rows",
+    "type": "integer"
+   }
+  },
+  "required": [
+   "sql"
+  ],
+  "title": "SelectInput",
+  "type": "object"
+ },
+ "search_kbo_documents": {
+  "properties": {
+   "query": {
+    "description": "검색할 내용 (예: '고척 주차 요금', '보조배터리 반입')",
+    "title": "Query",
+    "type": "string"
+   },
+   "stadium_code": {
+    "anyOf": [
+     {
+      "type": "string"
+     },
+     {
+      "type": "null"
+     }
+    ],
+    "default": null,
+    "description": "구장 코드나 이름. 모르면 비운다",
+    "title": "Stadium Code"
+   },
+   "categories": {
+    "anyOf": [
+     {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     {
+      "type": "null"
+     }
+    ],
+    "default": null,
+    "description": "TRANSPORT, FOOD_IN, FOOD_OUT, CAFE, SPOT, FACILITY, SEAT, CARRY_IN, REENTRY, RULE 중에서. 모르면 비운다",
+    "title": "Categories"
+   }
+  },
+  "required": [
+   "query"
+  ],
+  "title": "SearchInput",
+  "type": "object"
+ },
+ "search_nearby_places": {
+  "properties": {
+   "kind": {
+    "description": "stay 숙박 · walk 산책/공원 · indoor 실내놀거리 · store 편의점",
+    "enum": [
+     "stay",
+     "walk",
+     "indoor",
+     "store"
+    ],
+    "title": "Kind",
+    "type": "string"
+   },
+   "stadium_code": {
+    "anyOf": [
+     {
+      "type": "string"
+     },
+     {
+      "type": "null"
+     }
+    ],
+    "default": null,
+    "description": "구장 코드나 이름. 모르면 비운다",
+    "title": "Stadium Code"
+   },
+   "keyword": {
+    "anyOf": [
+     {
+      "type": "string"
+     },
+     {
+      "type": "null"
+     }
+    ],
+    "default": null,
+    "description": "세부 종류 (예: 호텔, 게스트하우스, 볼링장)",
+    "title": "Keyword"
+   }
+  },
+  "required": [
+   "kind"
+  ],
+  "title": "NearbyInput",
+  "type": "object"
+ },
+ "plan_course": {
+  "properties": {
+   "request": {
+    "description": "사용자의 코스 요청을 그대로 (구장·일행·경기 전후·이동수단·숙박 여부가 들어가게)",
+    "title": "Request",
+    "type": "string"
+   }
+  },
+  "required": [
+   "request"
+  ],
+  "title": "CourseInput",
+  "type": "object"
+ }
+}

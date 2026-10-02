@@ -124,3 +124,9 @@ python backend/manage.py runserver 0.0.0.0:8000
 - **문서 범위:** 앱 README는 현재 코드의 계약을 설명합니다. `manage.py check` 통과나 문서 작성만으로 실제 DB·외부 API·LLM 통합 테스트 통과를 의미하지 않습니다.
 
 [VS Code 환경 안내](../docs/guides/환경설정_my_venv.md)
+
+## 채팅 사용량(크레딧)
+
+- 1 credit = 1000 토큰(입력+출력 같은 비율). 기본 제공량은 비회원 500 크레딧(500,000 토큰) 한 번(충전 없음), 회원 `USAGE_TIMEZONE`(기본 Asia/Seoul) 달마다 999,999 크레딧(999,999,000 토큰). `USAGE_GUEST_TOKENS`·`USAGE_MEMBER_MONTHLY_TOKENS` 환경 변수로 변경할 수 있으며, 제공량 변경은 기존 사용량·예약·정산 내역을 초기화하지 않는다.
+- `GET /api/v{1,2}/chat/usage/`: 요청자 본인 잔액. POST/PUT 메시지는 생성 전에 예약하고 잔액이 없으면 `402 {"code": "usage_exhausted"}`, 스트림 도중 예약 소진은 SSE `error {"code": "usage_exhausted"}`.
+- 계량·정산 규칙과 한계(호출 전 입력+출력 상한 검사, 크래시 예약 수동 정산, JEV usage, 게스트 쿠키 재발급)는 `llm/service/usage.py` 머리말에 있다. 요금·결제는 아직 없다.

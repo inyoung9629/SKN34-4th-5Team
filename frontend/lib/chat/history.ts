@@ -1,8 +1,11 @@
-import type { ChatMessage, ChatProgressOperation } from "./types";
-import type { ChatMessageDto, ChatTurnHistoryDto } from "./wire";
-import { parseProgressEvent, reduceProgress } from "./progress";
+import type { ChatMessage, ChatToolCall } from "./types";
+import { buildTimeline } from "./types";
+import type { ChatMessageDto, ChatToolCallDto } from "./wire";
 
-type OrderedMessage = { order: number; message: ChatMessage };
+export const fromToolDto = (tool: ChatToolCallDto): ChatToolCall => ({
+  id: tool.id, toolName: tool.tool_name, status: tool.status, kind: tool.kind ?? "tool", parentId: tool.parent_id ?? null,
+  ...(tool.title ? { title: tool.title } : {}), ...(tool.summary ? { summary: tool.summary } : {}), ...(tool.detail ? { detail: tool.detail } : {}),
+});
 
 export function commitChatLoad(signal: AbortSignal, isCurrent: () => boolean, commit: () => void): boolean {
   if (signal.aborted || !isCurrent()) return false;
@@ -10,28 +13,16 @@ export function commitChatLoad(signal: AbortSignal, isCurrent: () => boolean, co
   return true;
 }
 
-export function restoreChatMessages(history: ChatMessageDto[], turns: ChatTurnHistoryDto[]): ChatMessage[] {
-  const restored: OrderedMessage[] = history.map(item => ({
-    order: item.sequence_no * 2,
-    message: { id: item.id, role: item.role === "human" ? "user" : "assistant", content: item.content },
-  }));
-
-  for (const turn of turns) {
-    let human = turn.human_message_id === null ? undefined : restored.find(item => item.message.id === turn.human_message_id);
-    if (!human) {
-      human = { order: (turn.base_sequence + 1) * 2, message: { role: "user", content: turn.question, ...(turn.human_message_id === null ? {} : { id: turn.human_message_id }) } };
-      restored.push(human);
-    }
-    const progress = turn.progress.reduce<ChatProgressOperation[]>((operations, raw) => {
-      const event = parseProgressEvent(raw, turn.id);
-      return event ? reduceProgress(operations, event) : operations;
-    }, []);
-    const assistant = turn.assistant_message_id === null ? undefined : restored.find(item => item.message.id === turn.assistant_message_id);
-    if (assistant) {
-      assistant.message = { ...assistant.message, ...(progress.length ? { progress } : {}), turnStatus: turn.status };
-    } else if (progress.length || turn.status !== "completed") {
-      restored.push({ order: human.order + 1, message: { role: "assistant", content: "", progress, turnStatus: turn.status } });
-    }
-  }
-  return restored.sort((left, right) => left.order - right.order).map(item => item.message);
+// The server returns every stored item in canonical turn order (project_history); preserve that
+// order as-is, do not re-sort by id. A turn with no answer (pending/failed/stopped before any
+// reply) has only the user row, which then carries that turn's tools; once answered, tools move
+// to the assistant row and the user row's tools are empty.
+export function restoreChatMessages(history: ChatMessageDto[]): ChatMessage[] {
+  return history.map(item => {
+    const tools = item.tools.map(fromToolDto), timeline = buildTimeline(item.steps ?? [], tools);
+    return {
+      id: item.id, role: item.role, content: item.content, status: item.status,
+      ...(tools.length ? { tools } : {}), ...(timeline.length ? { timeline } : {}),
+    };
+  });
 }

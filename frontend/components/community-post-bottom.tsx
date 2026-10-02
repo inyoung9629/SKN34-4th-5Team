@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { createCommunityComment, deleteCommunityComment, fetchCommunityComments, updateCommunityComment, type CommunityComment } from "@/lib/community-api";
 import { useMemberAuth } from "@/lib/member-auth";
 import { getTeamBoard, getTeamBoardHref, type TeamCommunityPost } from "@/lib/team-community";
+import { CommunityMemberLink } from "./community-member-link";
 import styles from "./community-interactions.module.css";
 
 const errorMessage = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
@@ -100,7 +101,7 @@ function CommunityPostBottomContent({ post, posts, teamCode, isFree = false, wri
   return <>
     <section className={styles.authorProfile} aria-label="작성자 프로필">
       <img src="/images/default-avatar.svg" width="56" height="56" alt="작성자 기본 프로필" />
-      <div><strong>{post.author}</strong><p>{!isFree && <>{getTeamBoard(post.teamCode)?.shortName} · </>}작성자</p></div>
+      <div><strong><CommunityMemberLink memberId={post.authorId} nickname={post.author} /></strong><p>{!isFree && <>{getTeamBoard(post.teamCode)?.shortName} · </>}작성자</p></div>
     </section>
     <section className={styles.comments} aria-label="댓글">
       <header><h3>댓글 <b>{loading ? (post.commentCount ?? 0) : comments.length}</b></h3><div><button type="button" aria-pressed={order === "oldest"} onClick={() => { if (order !== "oldest") { setLoading(true); setError(""); setOrder("oldest"); } }}>등록순</button><button type="button" aria-pressed={order === "newest"} onClick={() => { if (order !== "newest") { setLoading(true); setError(""); setOrder("newest"); } }}>최신순</button><button type="button" disabled={loading} onClick={() => { setLoading(true); setError(""); setReload(value => value + 1); }}>↻ 새로고침</button></div></header>
@@ -110,7 +111,7 @@ function CommunityPostBottomContent({ post, posts, teamCode, isFree = false, wri
             <textarea aria-label="수정할 댓글 내용" value={editingContent} onChange={event => setEditingContent(event.target.value)} maxLength={2000} required />
             <div><button type="submit" disabled={saving}>저장</button><button type="button" disabled={saving} onClick={() => setEditingId(null)}>취소</button></div>
           </form> : <>
-            <div className={styles.commentMeta}><strong>{comment.author}</strong><time dateTime={comment.createdAt}>{new Date(comment.createdAt).toLocaleString("ko-KR")}</time></div>
+            <div className={styles.commentMeta}><strong><CommunityMemberLink memberId={comment.authorId} nickname={comment.author} /></strong><time dateTime={comment.createdAt}>{new Date(comment.createdAt).toLocaleString("ko-KR")}</time></div>
             <p>{comment.content}</p>
             {comment.authorId === actorId && <div className={styles.commentActions}><button type="button" disabled={saving} onClick={() => { setEditingId(comment.id); setEditingContent(comment.content); }}>수정</button><button type="button" disabled={saving} onClick={() => void removeComment(comment.id)}>삭제</button></div>}
           </>}
