@@ -9,6 +9,34 @@ const { coursePointLabel, renumberMapPoints, undoDrawnPoint, withCourseStart, wi
 const point = (id) => ({ placeId: id, name: "", category: "직접 지정", lat: 37.51, lng: 127.07, isMapPoint: true });
 const cafe = { placeId: "cafe", name: "동네 카페", category: "카페", lat: 37.515, lng: 127.073 };
 
+test("chatbot visits are removed before their separate origin and the final origin can be removed", () => {
+  let stops = [{ ...cafe, isDrawnPoint: true, visitId: "chat-cafe" }, { ...point("stadium"), name: "구장" }];
+  let history = [], start = { lat: 37.52, lng: 127.08, name: "내 출발지" };
+  for (const expected of ["구장", cafe.name, start.name]) {
+    const result = undoDrawnPoint(stops, withUntrackedPoints(stops, history), start);
+    assert.equal(result.removed.name, expected);
+    assert.equal(result.clearStart, expected === "내 출발지");
+    stops = result.stops; history = result.history;
+    if (result.clearStart) start = undefined;
+  }
+  assert.deepEqual(stops, []);
+  assert.equal(start, undefined);
+  assert.equal(undoDrawnPoint(stops, history, start).removed, undefined);
+});
+
+test("right click does not clear a separate origin while protected preexisting visits remain", () => {
+  const result = undoDrawnPoint([cafe], [], { lat: 37.52, lng: 127.08 });
+  assert.equal(result.clearStart, false);
+  assert.deepEqual(result.stops, [cafe]);
+});
+
+test("an origin without a name or visits can be cleared, including stale draw history", () => {
+  const result = undoDrawnPoint([], ["already-deleted"], { lat: 37.52, lng: 127.08 });
+  assert.equal(result.clearStart, true);
+  assert.equal(result.removed.name, "출발지");
+  assert.deepEqual(result.history, []);
+});
+
 test("saved separate origin is restored before visits without mutating their stored order", () => {
   const stops = renumberMapPoints([point("a"), cafe]);
   const before = JSON.stringify(stops);

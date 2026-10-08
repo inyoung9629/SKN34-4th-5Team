@@ -70,7 +70,7 @@ def _team(value, field, score_required):
 
 
 def _source_url():
-    value = os.getenv("PREDICTION_SOURCE_URL", "http://127.0.0.1:8000/tving/daily/").strip()
+    value = os.getenv("PREDICTION_SOURCE_URL", "http://127.0.0.1:8000/api/v1/tving/daily/").strip()
     parsed = urlsplit(value)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password or parsed.query or parsed.fragment:
         _fail("경기 원천 URL 설정이 올바르지 않습니다.")

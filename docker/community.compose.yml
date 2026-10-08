@@ -52,7 +52,7 @@ services:
     environment:
       APP_ORIGIN: http://127.0.0.1:${COMMUNITY_PORT:-18110}
       AUTH_FRONTEND_ORIGIN: http://127.0.0.1:${COMMUNITY_PORT:-18110}
-      CHAT_BACKEND_URL: http://backend:8000/chat/
+      CHAT_BACKEND_URL: http://backend:8000/api/v1/chat/
       KBO_COLLECTOR_ENABLED: "true"
       NEXT_PUBLIC_API_URL: ""
       NEXT_TELEMETRY_DISABLED: "1"

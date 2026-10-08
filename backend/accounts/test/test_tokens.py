@@ -26,7 +26,7 @@ class JWTPasswordRegressionTest(APITestCase):
     password = "InitialSafe9!"
     changed_password = "ChangedSafe8!"
     reset_password = "RecoveredSafe7!"
-    protected_url = "/chat/sessions/"
+    protected_url = "/api/v1/chat/sessions/"
 
     @classmethod
     def setUpTestData(cls):

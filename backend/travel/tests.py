@@ -42,6 +42,21 @@ def course_data(**changes):
 
 
 class CourseApiTests(TestCase):
+    def test_travel_modes_default_to_walk_and_survive_create_edit_read(self):
+        created = self.create_course()
+        self.assertEqual(created.data["travelMode"], "walk")
+        self.assertEqual(created.data["legModes"], {})
+        key = "37.500000,127.100000>37.510000,127.070000"
+        url = f"/api/v1/courses/{created.data['id']}/"
+        response = self.client.patch(url, {"travelMode": "walk", "legModes": {key: "transit"}},
+                                     format="json", HTTP_X_COURSE_EDIT_TOKEN=created.data["editToken"])
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(self.client.get(url).data["legModes"], {key: "transit"})
+        for value in ({key: "flight"}, {"bad": "car"}, {"99.000000,127.100000>37.510000,127.070000": "walk"}):
+            response = self.client.patch(url, {"legModes": value}, format="json", HTTP_X_COURSE_EDIT_TOKEN=created.data["editToken"])
+            self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.client.get(url).data["legModes"], {key: "transit"})
+
     def setUp(self):
         cache.clear()
         self.client = APIClient()
@@ -51,16 +66,16 @@ class CourseApiTests(TestCase):
     def test_guests_can_read_but_cannot_create_edit_or_delete_courses(self):
         created = self.create_course()
         guest = APIClient()
-        url = f"/courses/{created.data['id']}/"
-        self.assertEqual(guest.get("/courses/").status_code, 200)
+        url = f"/api/v1/courses/{created.data['id']}/"
+        self.assertEqual(guest.get("/api/v1/courses/").status_code, 200)
         self.assertEqual(guest.get(url).status_code, 200)
-        self.assertEqual(guest.post("/courses/", course_data(), format="json").status_code, 401)
+        self.assertEqual(guest.post("/api/v1/courses/", course_data(), format="json").status_code, 401)
         self.assertEqual(guest.patch(url, {"title": "변경"}, format="json", HTTP_X_COURSE_EDIT_TOKEN=created.data["editToken"]).status_code, 401)
         self.assertEqual(guest.delete(url, HTTP_X_COURSE_EDIT_TOKEN=created.data["editToken"]).status_code, 401)
         self.assertEqual(Course.objects.get(pk=created.data["id"]).title, course_data()["title"])
 
     def create_course(self):
-        response = self.client.post("/courses/", course_data(), format="json")
+        response = self.client.post("/api/v1/courses/", course_data(), format="json")
         self.assertEqual(response.status_code, 201, response.data)
         return response
 
@@ -71,8 +86,8 @@ class CourseApiTests(TestCase):
         self.assertTrue(check_password(token, course.edit_token_hash))
         self.assertEqual(list(course.stops.values_list("position", flat=True)), [0, 1])
 
-        detail = self.client.get(f"/courses/{course.pk}/")
-        listing = self.client.get("/courses/")
+        detail = self.client.get(f"/api/v1/courses/{course.pk}/")
+        listing = self.client.get("/api/v1/courses/")
         self.assertEqual(detail.status_code, 200)
         self.assertEqual(detail.data["stops"], course_data()["stops"])
         self.assertNotIn("editToken", detail.data)
@@ -81,13 +96,13 @@ class CourseApiTests(TestCase):
         self.assertRegex(detail.data["routeNumber"], r"^\d{6}$")
 
         reversed_stops = list(reversed(course_data()["stops"]))
-        reordered = self.client.post("/courses/", course_data(stops=reversed_stops), format="json")
+        reordered = self.client.post("/api/v1/courses/", course_data(stops=reversed_stops), format="json")
         self.assertEqual(reordered.status_code, 201, reordered.data)
         self.assertEqual([stop["position"] for stop in reordered.data["stops"]], [0, 1])
 
     def test_patch_and_delete_require_the_edit_token(self):
         created = self.create_course()
-        url = f"/courses/{created.data['id']}/"
+        url = f"/api/v1/courses/{created.data['id']}/"
         self.assertEqual(self.client.patch(url, {"title": "변경"}, format="json").status_code, 403)
         self.assertEqual(self.client.patch(url, {"title": "변경"}, format="json", HTTP_X_COURSE_EDIT_TOKEN="wrong").status_code, 403)
         updated = self.client.patch(url, {"title": "변경"}, format="json", HTTP_X_COURSE_EDIT_TOKEN=created.data["editToken"])
@@ -102,8 +117,8 @@ class CourseApiTests(TestCase):
     def test_reaction_is_member_owned_idempotent_and_view_is_token_deduplicated(self):
         created = self.create_course()
         course = Course.objects.get(pk=created.data["id"])
-        reaction_url = f"/courses/{course.pk}/reaction/"
-        view_url = f"/courses/{course.pk}/view/"
+        reaction_url = f"/api/v1/courses/{course.pk}/reaction/"
+        view_url = f"/api/v1/courses/{course.pk}/view/"
         self.assertEqual(APIClient().get(reaction_url).status_code, 401)
 
         user = get_user_model().objects.create_user(username="course-fan")
@@ -134,33 +149,33 @@ class CourseApiTests(TestCase):
         for host in ("localhost:43123", "127.0.0.1:43124"):
             with self.subTest(host=host):
                 response = self.client.post(
-                    "/courses/", course_data(), format="json",
+                    "/api/v1/courses/", course_data(), format="json",
                     HTTP_HOST=host, HTTP_ORIGIN=f"http://{host}",
                 )
                 self.assertEqual(response.status_code, 201, response.data)
 
         created = self.create_course()
-        url = f"/courses/{created.data['id']}/"
+        url = f"/api/v1/courses/{created.data['id']}/"
         forwarded = {
             "HTTP_ORIGIN": "https://evil.example",
             "HTTP_X_FORWARDED_HOST": "evil.example",
             "HTTP_X_FORWARDED_PROTO": "https",
         }
-        self.assertEqual(self.client.post("/courses/", course_data(), format="json", **forwarded).status_code, 403)
+        self.assertEqual(self.client.post("/api/v1/courses/", course_data(), format="json", **forwarded).status_code, 403)
         self.assertEqual(self.client.patch(url, {"title": "거부"}, format="json", **forwarded).status_code, 403)
         self.assertEqual(self.client.delete(url, **forwarded).status_code, 403)
-        self.assertEqual(self.client.post("/courses/", course_data(), format="json", HTTP_ORIGIN="null").status_code, 403)
+        self.assertEqual(self.client.post("/api/v1/courses/", course_data(), format="json", HTTP_ORIGIN="null").status_code, 403)
         self.assertEqual(self.client.post(
-            "/courses/", course_data(), format="json",
+            "/api/v1/courses/", course_data(), format="json",
             HTTP_ORIGIN="http://testserver", HTTP_SEC_FETCH_SITE="cross-site",
         ).status_code, 403)
 
     def test_course_write_body_is_bounded_json(self):
         self.assertEqual(self.client.generic(
-            "POST", "/courses/", b"{}", content_type="text/plain", HTTP_ORIGIN="http://testserver",
+            "POST", "/api/v1/courses/", b"{}", content_type="text/plain", HTTP_ORIGIN="http://testserver",
         ).status_code, 415)
         self.assertEqual(self.client.generic(
-            "POST", "/courses/", b"x" * 256001, content_type="application/json", HTTP_ORIGIN="http://testserver",
+            "POST", "/api/v1/courses/", b"x" * 256001, content_type="application/json", HTTP_ORIGIN="http://testserver",
         ).status_code, 413)
 
     def test_story_format_round_trips_and_images_require_jwt_owner(self):
@@ -177,18 +192,18 @@ class CourseApiTests(TestCase):
             {"type": "image", "id": str(image.pk)},
         ]}
         payload = course_data(content="경기 전 카페\n[이미지]", contentFormat="", contentDoc=document)
-        self.assertEqual(self.client.post("/courses/", payload, format="json").status_code, 400)
+        self.assertEqual(self.client.post("/api/v1/courses/", payload, format="json").status_code, 400)
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(other).access_token}")
-        self.assertEqual(self.client.post("/courses/", payload, format="json").status_code, 400)
+        self.assertEqual(self.client.post("/api/v1/courses/", payload, format="json").status_code, 400)
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(owner).access_token}")
-        created = self.client.post("/courses/", payload, format="json")
+        created = self.client.post("/api/v1/courses/", payload, format="json")
         self.assertEqual(created.status_code, 201, created.data)
         image.refresh_from_db()
         self.assertEqual(str(image.course_id), created.data["id"])
-        detail = self.client.get(f"/courses/{created.data['id']}/")
+        detail = self.client.get(f"/api/v1/courses/{created.data['id']}/")
         self.assertEqual(detail.data["contentDoc"], document)
         changed = self.client.patch(
-            f"/courses/{created.data['id']}/",
+            f"/api/v1/courses/{created.data['id']}/",
             {"content": "경기 전 카페", "contentDoc": {"version": 1, "blocks": [document["blocks"][0]]}},
             format="json", HTTP_X_COURSE_EDIT_TOKEN=created.data["editToken"],
         )
@@ -202,11 +217,11 @@ class CourseApiTests(TestCase):
              "bold": False, "italic": True, "underline": False},
         ]}]}
         payload = course_data(content="직관 준비", contentFormat="", contentDoc=document)
-        self.assertEqual(APIClient().post("/courses/", payload, format="json").status_code, 401)
-        created = self.client.post("/courses/", payload, format="json")
+        self.assertEqual(APIClient().post("/api/v1/courses/", payload, format="json").status_code, 401)
+        created = self.client.post("/api/v1/courses/", payload, format="json")
         self.assertEqual(created.status_code, 201, created.data)
         self.assertEqual(created.data["contentDoc"], document)
-        mismatch = self.client.post("/courses/", course_data(content="다른 글", contentFormat="", contentDoc=document), format="json")
+        mismatch = self.client.post("/api/v1/courses/", course_data(content="다른 글", contentFormat="", contentDoc=document), format="json")
         self.assertEqual(mismatch.status_code, 400)
 
     def test_validation_rejects_invalid_course_shapes(self):
@@ -225,7 +240,7 @@ class CourseApiTests(TestCase):
         )
         for payload in invalid:
             with self.subTest(payload=payload):
-                self.assertEqual(self.client.post("/courses/", payload, format="json").status_code, 400)
+                self.assertEqual(self.client.post("/api/v1/courses/", payload, format="json").status_code, 400)
         self.assertEqual(Course.objects.filter(is_sample=False).count(), 0)
 
     def test_non_finite_coordinates_never_persist(self):
@@ -240,7 +255,7 @@ class CourseApiTests(TestCase):
         )
         for payload in invalid:
             with self.subTest(payload=payload):
-                self.assertEqual(self.client.post("/courses/", payload, format="json").status_code, 400)
+                self.assertEqual(self.client.post("/api/v1/courses/", payload, format="json").status_code, 400)
         self.assertEqual(Course.objects.filter(is_sample=False).count(), 0)
         self.assertEqual(CourseStop.objects.filter(course__is_sample=False).count(), 0)
 
@@ -248,7 +263,7 @@ class CourseApiTests(TestCase):
         course = Course.objects.get(pk=created.data["id"])
         old_stops = list(course.stops.values("position", "name", "lat", "lng"))
         response = self.client.patch(
-            f"/courses/{course.pk}/",
+            f"/api/v1/courses/{course.pk}/",
             {"title": "바뀌면 안 됨", "stops": [{**course_data()["stops"][0], "lng": "NaN"}]},
             format="json",
             HTTP_X_COURSE_EDIT_TOKEN=created.data["editToken"],
@@ -261,7 +276,7 @@ class CourseApiTests(TestCase):
     def test_patch_replacement_requires_every_stop_field_before_mutation(self):
         created = self.create_course()
         course = Course.objects.get(pk=created.data["id"])
-        url = f"/courses/{course.pk}/"
+        url = f"/api/v1/courses/{course.pk}/"
         old_stops = list(course.stops.values())
 
         for field in ("position", "name", "category", "lat", "lng"):
@@ -297,7 +312,7 @@ class CourseApiTests(TestCase):
         with patch.object(CourseStop.objects, "bulk_create", side_effect=RuntimeError("db failure")):
             with self.assertRaises(RuntimeError):
                 self.client.patch(
-                    f"/courses/{course.pk}/",
+                    f"/api/v1/courses/{course.pk}/",
                     {"title": "저장되면 안 됨", "stops": replacement},
                     format="json",
                     HTTP_X_COURSE_EDIT_TOKEN=created.data["editToken"],
@@ -308,9 +323,9 @@ class CourseApiTests(TestCase):
 
     def test_anonymous_write_throttle_uses_the_last_trusted_proxy_address(self):
         created = self.create_course()
-        url = f"/courses/{created.data['id']}/"
+        url = f"/api/v1/courses/{created.data['id']}/"
         cases = (
-            (lambda address: self.client.post("/courses/", course_data(title=""), format="json", HTTP_X_FORWARDED_FOR=address), 400),
+            (lambda address: self.client.post("/api/v1/courses/", course_data(title=""), format="json", HTTP_X_FORWARDED_FOR=address), 400),
             (lambda address: self.client.patch(url, {"title": "변경"}, format="json", HTTP_X_FORWARDED_FOR=address), 403),
             (lambda address: self.client.delete(url, HTTP_X_FORWARDED_FOR=address), 403),
         )
@@ -325,12 +340,12 @@ class CourseApiTests(TestCase):
 
     def test_course_routes_match_the_nginx_stripped_api_prefix(self):
         created = self.create_course()
-        self.assertEqual(reverse("course-list"), "/courses/")
-        self.assertEqual(reverse("course-detail", kwargs={"pk": created.data["id"]}), f"/courses/{created.data['id']}/")
-        self.assertEqual(resolve("/courses/").url_name, "course-list")
-        self.assertEqual(resolve(f"/courses/{created.data['id']}/").url_name, "course-detail")
+        self.assertEqual(reverse("course-list"), "/api/v1/courses/")
+        self.assertEqual(reverse("course-detail", kwargs={"pk": created.data["id"]}), f"/api/v1/courses/{created.data['id']}/")
+        self.assertEqual(resolve("/api/v1/courses/").url_name, "course-list")
+        self.assertEqual(resolve(f"/api/v1/courses/{created.data['id']}/").url_name, "course-detail")
         with self.assertRaises(Resolver404):
-            resolve("/api/courses/")
+            resolve("/courses/")
 
 
 class CourseSampleTests(TestCase):
@@ -376,7 +391,7 @@ class CourseSampleTests(TestCase):
 
     def test_samples_are_read_only_and_can_be_cloned_as_ordinary_courses(self):
         sample = Course.objects.get(source_id="fan-sajik-date")
-        self.assertEqual(APIClient().patch(f"/courses/{sample.pk}/", {"title": "변경"}, format="json", HTTP_X_COURSE_EDIT_TOKEN="wrong").status_code, 401)
+        self.assertEqual(APIClient().patch(f"/api/v1/courses/{sample.pk}/", {"title": "변경"}, format="json", HTTP_X_COURSE_EDIT_TOKEN="wrong").status_code, 401)
         payload = course_data(
             title=sample.title,
             stadium=sample.stadium,
@@ -408,7 +423,7 @@ class CourseSampleTests(TestCase):
         member = get_user_model().objects.create_user(username="sample-clone-member", password="test-pass")
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(member).access_token}")
-        response = client.post("/courses/", payload, format="json")
+        response = client.post("/api/v1/courses/", payload, format="json")
         self.assertEqual(response.status_code, 201, response.data)
         clone = Course.objects.get(pk=response.data["id"])
         self.assertFalse(clone.is_sample)
@@ -419,7 +434,7 @@ class CourseSampleTests(TestCase):
         self.assertFalse(response.data["isSample"])
 
     def test_list_exposes_each_sample_once_with_legacy_id_metadata(self):
-        response = APIClient().get("/courses/")
+        response = APIClient().get("/api/v1/courses/")
         self.assertEqual(response.status_code, 200)
         samples = [course for course in response.data if course["isSample"]]
         self.assertEqual(len(samples), 19)
@@ -457,7 +472,7 @@ class CourseConcurrencyTests(TransactionTestCase):
             client = APIClient()
             client.force_authenticate(get_user_model().objects.get(pk=user.pk))
             barrier.wait(2)
-            response = client.post(f"/courses/{course.pk}/reaction/", {"liked": True}, format="json")
+            response = client.post(f"/api/v1/courses/{course.pk}/reaction/", {"liked": True}, format="json")
             close_old_connections()
             return response.status_code
 
@@ -470,6 +485,8 @@ class CourseConcurrencyTests(TransactionTestCase):
 
 class CourseSampleMigrationTests(TransactionTestCase):
     def test_reverse_noop_and_reapply_preserve_custom_rows_and_do_not_duplicate_samples(self):
+        latest = MigrationExecutor(connection).loader.graph.leaf_nodes()
+        self.addCleanup(lambda: MigrationExecutor(connection).migrate(latest))
         custom = Course.objects.create(
             title="사용자 코스", stadium="잠실야구장", duration="반나절", tags=[], author="익명", edit_token_hash="custom-hash"
         )
@@ -479,9 +496,15 @@ class CourseSampleMigrationTests(TransactionTestCase):
             ("travel", "0006_merge_course_engagement_content_doc"),
             ("community", "0005_communitypostimage_course"),
         ])
-        custom.refresh_from_db()
+        historical = MigrationExecutor(connection).loader.project_state([
+            ("travel", "0006_merge_course_engagement_content_doc"),
+            ("community", "0005_communitypostimage_course"),
+        ]).apps
+        HistoricalCourse = historical.get_model("travel", "Course")
+        HistoricalStop = historical.get_model("travel", "CourseStop")
+        custom = HistoricalCourse.objects.get(pk=custom.pk)
         self.assertEqual(custom.edit_token_hash, "custom-hash")
         self.assertEqual(list(custom.stops.values_list("name", flat=True)), ["사용자 장소"])
-        self.assertEqual(Course.objects.filter(is_sample=True).count(), 19)
-        self.assertEqual(CourseStop.objects.filter(course__is_sample=True).count(), 58)
-        MigrationExecutor(connection).migrate([("travel", "0009_tourismplace_use_common_place")])
+        self.assertEqual(HistoricalCourse.objects.filter(is_sample=True).count(), 19)
+        self.assertEqual(HistoricalStop.objects.filter(course__is_sample=True).count(), 58)
+        MigrationExecutor(connection).migrate(latest)

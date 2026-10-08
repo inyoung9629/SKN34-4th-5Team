@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 from django.core.exceptions import ValidationError
 from django.core.management.base import CommandError
 from django.db import IntegrityError, transaction
+from .stadium_locations import reviewed_locations
 
 
 def stable_id(model, natural_key):
@@ -156,6 +157,12 @@ class BaseballDataLoaderV1:
                     return self.fill_tving_game(existing, values)
                 self.counts[f"{model.__name__}.tving_skipped"] += 1
                 return existing
+            if model.__name__ == "Stadium":
+                media = {name: value for name, value in values.items() if name.startswith(("image_", "parking_map_"))}
+                if media:
+                    manager.filter(pk=existing.pk).update(**media)
+                    for name, value in media.items():
+                        setattr(existing, name, value)
             self.counts[f"{model.__name__}.skipped"] += 1
             return existing
         occupant = manager.filter(pk=pk).first()
@@ -196,13 +203,19 @@ class BaseballDataLoaderV1:
         return game
 
     def import_all(self):
+        from .stadium_guides import parking_values
+
         models = SimpleNamespace(**{name: self.model(name) for name in NATURAL_FIELDS})
         mappings = self.rows("raw/team_stadium_code_map.csv")
         teams = {row["team_code"]: self.add(models.Team, row["team_code"], team_code=row["team_code"], team_name_ko=row["team_name_ko_full"]) for row in mappings}
 
         operations = {row["stadium_code"]: row for row in self.rows("preprocessed/구장운영정보.csv")}
         stadiums = {}
+        locations = reviewed_locations(self.root)
         for row in self.rows("preprocessed/stadium_coordinates.csv"):
+            point = locations.get(row["stadium_code"])
+            if point:
+                row = {**row, "lng_x": str(point["lng"]), "lat_y": str(point["lat"]), "geocode_source": "OSM_REVIEWED_FIRST_TEAM_2026_09_30"}
             op = operations.get(row["stadium_code"], {})
             stadiums[row["stadium_code"]] = self.add(
                 models.Stadium, row["stadium_code"], stadium_code=row["stadium_code"],
@@ -211,6 +224,9 @@ class BaseballDataLoaderV1:
                 facility_manager=nullable(op.get("facility_manager")), game_operator=nullable(op.get("game_operator")),
                 phone_general=nullable(op.get("phone_general")), phone_facility=nullable(op.get("phone_facility")),
                 phone_ticket=nullable(op.get("phone_ticket")), collected_at=timestamp(op["verified_at"]),
+                **{field.name: nullable(row[field.name]) for field in models.Stadium._meta.fields
+                   if field.name.startswith("image_") and field.name in row},
+                **parking_values(row, models.Stadium),
             )
 
         contexts = {}
@@ -254,6 +270,7 @@ class BaseballDataLoaderV1:
             self.add(models.TicketPolicy, row["id"], policy_code=row["id"], team=source_teams[row["team_code"]], game=None, policy_type=row["policy_type"], subtype=row["policy_subtype"], open_at=None, max_tickets=number(row["max_tickets"]), channel_no=1, booking_channel=row["booking_channel_and_condition"], channel_condition=row["content"], collected_at=timestamp(row["updated_at"]))
 
         seat_maps = {}
+        asset_fields = {field.name for field in models.SeatMapAsset._meta.fields}
         for row in self.rows("preprocessed/구장좌석도.csv"):
             context = contexts[(row["season"], row["team_code"], row["stadium_code"])]
             key = f'{row["season"]}:{row["team_code"]}:{row["stadium_code"]}'
@@ -262,6 +279,10 @@ class BaseballDataLoaderV1:
             for asset_no, column in enumerate(("asset_url", "secondary_asset_url"), 1):
                 if row[column] and seat_map:
                     self.add(models.SeatMapAsset, f"{key}:{asset_no}", seat_map=seat_map, asset_no=asset_no, asset_url=row[column], asset_role="PRIMARY" if asset_no == 1 else "SECONDARY")
+
+            if "source_url" in asset_fields and row.get("local_asset_url"):
+                self.add(models.SeatMapAsset, f"{key}:local-diagram", seat_map=seat_map, asset_no=3,
+                         asset_url=row["local_asset_url"], asset_role="LOCAL_DIAGRAM", source_url=nullable(row.get("local_source_url")))
 
         for row in self.rows("preprocessed/구장좌석경험.csv"):
             context = contexts[(row["season"], row["team_code"], row["stadium_code"])]

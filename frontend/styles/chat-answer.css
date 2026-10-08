@@ -1,0 +1,14 @@
+.chat-answer { min-width: 0; max-width: 100%; }
+.chat-answer a { color: #315f9b; text-decoration: underline; text-underline-offset: 3px; }
+.chat-answer img { display: block; max-width: 100%; width: auto; height: auto; max-height: 360px; object-fit: contain; border-radius: 9px; margin: 10px 0; }
+.chat-answer .chat-image-fallback { display: inline-block; padding: 8px 10px; border-radius: 6px; background: #f0f4fa; color: #496580; font-size: .9em; }
+.chat-answer .chat-table-scroll { max-width: 100%; overflow-x: auto; }
+.chat-answer table { border-collapse: collapse; font-size: .93em; }
+.chat-answer th, .chat-answer td { padding: 6px 10px; border: 1px solid #e3ebf7; }
+.chat-answer th { background: #f0f4fa; font-weight: 650; }
+.chat-answer blockquote { border-left: 3px solid #b7c7dd; padding-left: 12px; }
+.chat-answer li > p + p { margin-top: 7px; }
+.chat-answer a:focus-visible, .chat-answer .chat-table-scroll:focus-visible { outline: 2px solid #315f9b; outline-offset: 3px; }
+.chat-answer a.chat-detail-link { display: inline-block; box-sizing: border-box; min-height: 44px; max-width: 100%; padding: 10px 14px; border: 1px solid #b7c7dd; border-radius: 8px; background: #f0f4fa; line-height: 1.5; text-decoration: none; white-space: normal; overflow-wrap: anywhere; }
+.chat-answer a.chat-detail-link:hover { background: #e3ebf7; border-color: #315f9b; }
+.chat-answer .chat-detail-link > span[aria-hidden] { white-space: nowrap; }

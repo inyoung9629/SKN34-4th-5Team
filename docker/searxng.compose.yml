@@ -1,0 +1,22 @@
+name: project-search-dev
+
+# Standalone local experiment. Does not recreate the application's containers.
+services:
+  searxng:
+    # Tested official image: SearXNG 2026.9.30-a9d990033.
+    image: docker.io/searxng/searxng@sha256:a07a5cd2da2c63d66e559f9e4d3a3db106cfc6c32fb0ac70abe91cc28bcd7350
+    ports:
+      - "127.0.0.1:8888:8080"
+    environment:
+      SEARXNG_BASE_URL: http://127.0.0.1:8888/
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?Run docker/start-searxng.ps1}
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    restart: "no"
+    mem_limit: 512m
+    cpus: 1
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"

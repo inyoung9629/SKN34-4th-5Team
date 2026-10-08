@@ -54,6 +54,7 @@ jobs:
           host: ${{ secrets.PROD_EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 30m
           script: |
             set -eu
             cd ~/dev
@@ -62,7 +63,7 @@ jobs:
             docker compose stop mailpit || true
             docker compose -f docker-compose.prod.yml up -d --build backend frontend nginx minio
             docker compose -f docker-compose.prod.yml exec -T nginx nginx -t
-            curl --fail --silent --show-error --insecure https://localhost/api/healthz/
+            curl --fail --silent --show-error --insecure https://localhost/api/v1/healthz/
             curl --fail --silent --show-error --insecure https://localhost/
             docker image prune -af --filter "until=24h"
             docker builder prune -af --filter "until=24h"
@@ -83,10 +84,7 @@ jobs:
             exit 0
           fi
 
-          if [ "$CI_RESULT" = "success" ] && [ "$DEPLOY_RESULT" = "success" ]; then
-            STATUS="✅ [운영 배포 성공]"
-            DETAILS="main 브랜치의 운영 배포와 검증이 완료되었습니다."
-          elif [ "$CI_RESULT" = "failure" ]; then
+          if [ "$CI_RESULT" = "failure" ]; then
             STATUS="❌ [운영 CI 실패]"
             DETAILS="운영 배포 전 CI 검증에서 오류가 발생했습니다."
           else

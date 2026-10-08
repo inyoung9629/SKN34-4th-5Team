@@ -1,4 +1,5 @@
 import { stadiums as presentation } from "@/lib/stadiums";
+import { safeChatUrl } from "@/lib/media-url";
 import type { Stadium } from "@/lib/stadiums";
 import type { BaseballStadium } from "./types";
 
@@ -10,7 +11,21 @@ export function adaptStadium(row: BaseballStadium): Stadium | null {
     code: row.stadium_code, name: row.stadium_name_ko, address: row.address,
     lng, lat, region: visual?.region ?? "미분류",
     teams: [...new Set(row.home_teams.map((team) => team.name))], color: visual?.color ?? "blue",
-    seatingMap: visual?.seatingMap ?? { src: "/images/stadium-day.jpg", sourceUrl: "" },
-    cardImage: visual?.cardImage ?? { src: "/images/stadium-day.jpg", sourceUrl: "", credit: "프로젝트 기본 이미지", creditUrl: "/images/SOURCES.md" },
+    seatingMap: row.seatingMap && safeChatUrl(row.seatingMap.imageUrl, true) ? {
+      src: row.seatingMap.imageUrl, sourceUrl: safeChatUrl(row.seatingMap.sourceUrl ?? "") ?? "",
+      season: row.seatingMap.season, teamCode: row.seatingMap.team_code,
+    } : undefined,
+    parkingMap: row.parkingMap && safeChatUrl(row.parkingMap.imageUrl, true) && row.parkingMap.width && row.parkingMap.height && row.parkingMap.kind ? {
+      stadiumCode: row.stadium_code, stadiumName: row.stadium_name_ko,
+      src: row.parkingMap.imageUrl, width: row.parkingMap.width, height: row.parkingMap.height,
+      kind: row.parkingMap.kind, title: row.parkingMap.title ?? "", summary: row.parkingMap.summary ?? "",
+      visualNotes: row.parkingMap.visualNotes ?? [], capturedAt: row.parkingMap.capturedAt ?? "",
+      sourcePageUrl: safeChatUrl(row.parkingMap.sourceUrl ?? "") ?? "", credit: row.parkingMap.credit ?? "",
+    } : undefined,
+    cardImage: row.image_url && safeChatUrl(row.image_url, true) ? {
+      src: row.image_url, sourceUrl: safeChatUrl(row.image_source_url ?? "") ?? "",
+      credit: row.image_credit ?? "", creditUrl: safeChatUrl(row.image_credit_url ?? "") ?? "",
+      licenseUrl: safeChatUrl(row.image_license_url ?? ""), objectPosition: visual?.photoPosition,
+    } : undefined,
   };
 }

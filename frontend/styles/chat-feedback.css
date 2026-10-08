@@ -1,0 +1,15 @@
+.answer-feedback { margin-top: 4px; font-size: 12px; color: var(--muted, #667085); }
+.answer-feedback-actions, .answer-feedback form > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.answer-feedback button { min-height: 32px; padding: 5px 10px; border: 1px solid currentColor; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; }
+.answer-feedback-actions { flex-wrap: nowrap; align-items: center; gap: 4px; opacity: 0; pointer-events: none; }
+.workspace-message:hover .answer-feedback-actions, .workspace-message:focus-within .answer-feedback-actions, .chat-popup-message:hover .answer-feedback-actions, .chat-popup-message:focus-within .answer-feedback-actions { opacity: 1; pointer-events: auto; }
+@media (hover: none), (pointer: coarse) { .answer-feedback-actions { opacity: 1; pointer-events: auto; } }
+.answer-feedback-actions button { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; min-height: 30px; padding: 0; border-color: transparent; }
+.answer-feedback-actions button:hover:not(:disabled) { background: var(--surface, #f1f5fa); }
+.answer-feedback button[aria-pressed="true"] { color: var(--primary, #185cc4); font-weight: 700; background: var(--surface, #f1f5fa); }
+.answer-feedback button:disabled { opacity: .55; cursor: wait; }
+.answer-feedback form { display: grid; gap: 8px; margin-top: 10px; max-width: 420px; }
+.answer-feedback select, .answer-feedback textarea { width: 100%; min-width: 0; padding: 8px; border: 1px solid currentColor; border-radius: 6px; background: var(--surface, #fff); color: var(--text, #222); font: inherit; }
+.answer-feedback p { margin: 4px 0; }
+.answer-feedback [role="alert"] { color: #b42318; }
+.answer-feedback :focus-visible { outline: 2px solid var(--primary, #185cc4); outline-offset: 3px; }

@@ -1,0 +1,160 @@
+"""travel domain tools."""
+import math
+from uuid import UUID
+from urllib.parse import quote
+from langchain_core.tools import ToolException
+from pydantic import Field, StrictBool, StrictFloat, StrictInt, model_validator
+from django.db.models import Q
+from travel.models import Course
+
+from .common import LimitInput, ToolInput, _result, _tool
+
+KAKAO_CATEGORIES = ("FD6", "CE7", "AT4", "CT1", "CS2", "AD5")
+
+class PlacesInput(ToolInput):
+    method: str = Field(pattern="^(keyword|category)$")
+    query: str | None = Field(default=None, min_length=1, max_length=100)
+    category: str | None = None
+    latitude: StrictFloat = Field(ge=-90, le=90)
+    longitude: StrictFloat = Field(ge=-180, le=180)
+    radius: StrictInt | None = Field(default=None, ge=1, le=20_000)
+    page: StrictInt = Field(default=1, ge=1, le=3)
+    limit: StrictInt = Field(default=15, ge=1, le=15)
+    sort: str = Field(default="distance", pattern="^(accuracy|distance)$")
+
+    @model_validator(mode="after")
+    def validate_search(self):
+        if not math.isfinite(self.latitude) or not math.isfinite(self.longitude):
+            raise ValueError("좌표는 유한한 숫자여야 합니다.")
+        if self.category is not None and self.category not in KAKAO_CATEGORIES:
+            raise ValueError("허용되지 않은 카테고리입니다.")
+        if self.method == "keyword" and not self.query:
+            raise ValueError("키워드 검색에는 query가 필요합니다.")
+        if self.method == "category" and self.category is None:
+            raise ValueError("카테고리 검색에는 category가 필요합니다.")
+        return self
+
+class CourseSearchInput(LimitInput):
+    query: str | None = Field(default=None, min_length=1, max_length=100)
+    stadium: str | None = Field(default=None, min_length=1, max_length=120)
+    tag: str | None = Field(default=None, min_length=1, max_length=80)
+    include_stops: StrictBool = Field(default=False, description="공개 방문 장소 포함. 이동 상세는 저장된 content_doc에 있으며 get_directions로 별도 조회한다.")
+
+    @model_validator(mode="after")
+    def any_filter(self):
+        if not any((self.query, self.stadium, self.tag)):
+            raise ValueError("검색 조건이 하나 이상 필요합니다.")
+        return self
+
+class CourseInput(ToolInput):
+    course_id: UUID
+
+class DirectionsInput(ToolInput):
+    mode: str = Field(pattern="^(car|walk|transit)$")
+    points: list[dict[str, StrictFloat]] = Field(min_length=2, max_length=13)
+
+    @model_validator(mode="after")
+    def validate_points(self):
+        for point in self.points:
+            if set(point) != {"lat", "lng"} or not math.isfinite(point["lat"]) or not math.isfinite(point["lng"]):
+                raise ValueError("각 지점에는 유한한 lat, lng만 있어야 합니다.")
+            if abs(point["lat"]) > 90 or abs(point["lng"]) > 180:
+                raise ValueError("좌표 범위를 확인하세요.")
+        return self
+
+class TourismInput(ToolInput):
+    stadium_code: str = Field(pattern="^(JAMSIL|GOCHEOK|MUNHAK|SUWON|DAEJEON|DAEGU|GWANGJU|SAJIK|CHANGWON)$")
+    latitude: StrictFloat = Field(ge=-90, le=90)
+    longitude: StrictFloat = Field(ge=-180, le=180)
+
+def _course_item(course, include_stops=False):
+    item = {
+        "id": str(course.pk), "route_number": course.route_number, "title": course.title,
+        "stadium": course.stadium, "description": course.description, "content": course.content,
+        "content_format": course.content_format, "content_doc": course.content_doc, "duration": course.duration, "cover": course.cover,
+        "detailPath": f"/routes/{quote(course.source_id if course.source_id is not None else str(course.pk), safe='')}",
+        "tags": course.tags, "start_lat": course.start_lat, "start_lng": course.start_lng,
+        "author": course.author, "likes": course.likes, "views": course.views,
+        "is_sample": course.is_sample, "created_at": course.created_at.isoformat(),
+        "updated_at": course.updated_at.isoformat(),
+    }
+    if include_stops:
+        item["stops"] = list(course.stops.order_by("position").values(
+            "position", "name", "lat", "lng", "category", "place_id", "address",
+            "tour_content_id", "is_map_point", "is_drawn_point",
+        ))
+    return item
+
+def create_travel_tools():
+
+    def search_places(method, latitude, longitude, query=None, category=None, radius=None, page=1, limit=15, sort="distance"):
+        """기존 장소 서비스로 검색하고 그 서비스가 제공자 결과를 동기화한다."""
+        try:
+            from travel.place_service import PlaceError, search_and_sync_places
+        except ModuleNotFoundError as error:
+            if error.name != "travel.place_service":
+                raise
+            raise ToolException("장소 검색 서비스 통합이 필요합니다.") from None
+        payload = {
+            "method": method, "lat": latitude, "lng": longitude,
+            "page": page, "size": limit, "sort": sort,
+        }
+        if query is not None:
+            payload["keyword"] = query
+        if category is not None:
+            payload["category"] = category
+        if radius is not None:
+            payload["radius"] = radius
+        try:
+            return search_and_sync_places(payload)
+        except PlaceError as error:
+            raise ToolException(error.message) from None
+
+    def search_courses(query=None, stadium=None, tag=None, limit=20, include_stops=False):
+        """공개 코스를 제목·설명·구장·태그로 검색한다."""
+        courses = Course.objects.all()
+        if query:
+            courses = courses.filter(Q(title__icontains=query) | Q(description__icontains=query) | Q(content__icontains=query))
+        if stadium:
+            courses = courses.filter(stadium__icontains=stadium)
+        if tag:
+            courses = courses.filter(tags__contains=[tag])
+        if include_stops:
+            courses = courses.prefetch_related("stops")
+        items = [_course_item(course, include_stops) for course in courses.order_by("-created_at", "id")[:limit]]
+        return _result(items)
+
+    def get_course(course_id):
+        """UUID로 공개 코스와 방문 장소를 조회한다."""
+        course = Course.objects.prefetch_related("stops").filter(pk=course_id).first()
+        return {"item": _course_item(course, True) if course else None}
+
+    def get_directions(mode, points):
+        """기존 공개 길찾기 서비스로 선택 지점 사이 경로를 조회한다."""
+        from travel.directions_provider import DirectionsError, fetch_directions
+        try:
+            return fetch_directions(mode, points)
+        except DirectionsError as error:
+            message = "길찾기 요청이 많아요. 잠시 후 다시 시도해 주세요." if error.status == 429 else "길찾기 정보를 불러오지 못했습니다."
+            raise ToolException(message) from None
+
+    def search_tourism(stadium_code, latitude, longitude):
+        """기존 한국관광공사 연동 서비스로 구장 주변 관광지를 조회한다."""
+        from rest_framework.exceptions import ValidationError
+        from travel.tourism_provider import TourismProviderError
+        from travel.tourism_service import search_tourism as service
+        try:
+            return service({"stadium": stadium_code, "lat": latitude, "lng": longitude})
+        except ValidationError:
+            raise ToolException("관광지 검색 위치를 확인해 주세요.") from None
+        except TourismProviderError:
+            raise ToolException("관광지 정보를 불러오지 못했습니다.") from None
+
+    specs = (
+        (search_places, 'search_places', '기존 장소 서비스로 주변 장소를 검색하고 최신 결과를 동기화한다.', PlacesInput),
+        (search_courses, 'search_courses', '공개 코스를 검색한다.', CourseSearchInput),
+        (get_course, 'get_course', 'UUID로 공개 코스 상세를 조회한다.', CourseInput),
+        (get_directions, 'get_directions', '기존 길찾기 서비스로 2~13개 지점의 경로를 조회한다.', DirectionsInput),
+        (search_tourism, 'search_tourism', '한국관광공사 연동 서비스로 구장 주변 관광지를 조회한다.', TourismInput),
+    )
+    return tuple(_tool(*spec) for spec in specs)

@@ -10,7 +10,7 @@ from django.utils.dateparse import parse_datetime
 from baseball.data_loader import stable_id
 from baseball.models import (
     Game, Player, PlayerCareerRecord, PlayerSeasonRecord, ScheduleDay,
-    StandingHistory, Team, TeamProfile, TeamRoster, TeamSeasonRecord,
+    Stadium, StandingHistory, Team, TeamProfile, TeamRoster, TeamSeasonRecord,
     TeamTopPlayer,
 )
 
@@ -19,10 +19,25 @@ KST = ZoneInfo("Asia/Seoul")
 TEAM_MAP = {"SS": "SAMSUNG", "KT": "KT", "LG": "LG", "HT": "KIA", "OB": "DOOSAN", "NC": "NC", "HH": "HANWHA", "LT": "LOTTE", "SK": "SSG", "WO": "KIWOOM"}
 RAW_STATUS = {"scheduled": "PREV", "live": "NOW", "final": "END", "cancelled": "CANCEL", "postponed": "CANCEL", "suspended": "SUSPENDED", "unknown": "UNKNOWN"}
 NORMAL_STATUS = {"PREV": "scheduled", "READY": "scheduled", "NOW": "live", "END": "final", "CANCEL": "cancelled", "SUSPENDED": "suspended"}
+STADIUM_CODES = {"잠실": "JAMSIL", "고척": "GOCHEOK", "문학": "MUNHAK", "인천": "MUNHAK",
+                 "수원": "SUWON", "대전": "DAEJEON", "대구": "DAEGU", "광주": "GWANGJU",
+                 "사직": "SAJIK", "창원": "CHANGWON"}
 
 
 class RelationalDataError(ValueError):
     pass
+
+
+def stadium_for(name):
+    """Resolve only a provider venue name, never infer a venue from the home team."""
+    normalized = "".join((name or "").split()).casefold()
+    if not normalized:
+        return None
+    code = STADIUM_CODES.get(normalized)
+    matches = [stadium for stadium in Stadium.objects.all()
+               if stadium.stadium_code == code
+               or "".join(stadium.stadium_name_ko.split()).casefold() == normalized]
+    return matches[0] if len(matches) == 1 else None
 
 
 def team_for(code):
@@ -100,6 +115,7 @@ def _game_values(game, now, raw=False):
         "game_date": day, "game_time": game_time, "home_score": home.get("score"), "away_score": away.get("score"),
         "status_code": status, "collected_at": now, "source": "tving",
         "source_external_code": game["id"], "source_stadium_name": game["stadium"],
+        "stadium": stadium_for(game["stadium"]),
         "source_status_label": game["statusLabel"] if "statusLabel" in game else game["status"], "source_fetched_at": now, "last_synced_at": now,
         "source_home_code": home["code"], "source_home_name": home["name"], "source_away_code": away["code"], "source_away_name": away["name"],
         "home_starting_pitcher": home.get("startingPitcher"), "away_starting_pitcher": away.get("startingPitcher"),
@@ -157,7 +173,7 @@ def _upsert_game(game, now, raw=False, reserved_pk=None, reserved_else=frozenset
         for field, value in values.items(): setattr(row, field, value)
         row.save(update_fields=(*values, "updated_at"))
         return row, True
-    row = Game(id=_new_game_id(game["id"]), game_code=f"tving:{game['id']}", home_team=home_team, away_team=away_team, stadium=None, postseason_stage=None, game_type="UNKNOWN", **values)
+    row = Game(id=_new_game_id(game["id"]), game_code=f"tving:{game['id']}", home_team=home_team, away_team=away_team, postseason_stage=None, game_type="UNKNOWN", **values)
     try:
         with transaction.atomic(): row.save(force_insert=True)
     except IntegrityError:
@@ -324,6 +340,25 @@ def read_daily(day):
     return {"date": day, "games": [_game_json(game) for game in games], "standings": [standing(row) for row in standings], "individualRankings": {"pitchers": [ranking(row) for row in pitchers], "hitters": [ranking(row) for row in hitters]}, "sourceUpdatedAt": None, "mode": "fixed-interval"}
 
 
+def read_next_game_day(day):
+    """수집된 일정 중 다음 예정 경기일을 찾는다. 취소 경기와 달력에서 빠진 경기는 제외한다."""
+    markers = ScheduleDay.objects.filter(date__gt=day, status="ready", game_count__gt=0).order_by("date")
+    for marker in markers.iterator():
+        rows = list(Game.objects.filter(
+            game_date=marker.date, source="tving", source_external_code__in=marker.game_codes,
+        ).select_related("home_team", "away_team", "stadium").order_by("game_time", "source_external_code"))
+        if len(rows) != marker.game_count:
+            raise RelationalDataError("incomplete next game day")
+        games = [row for row in rows if row.status_code == "scheduled"]
+        if games:
+            synced = [marker.source_fetched_at, marker.last_synced_at]
+            synced += [value for row in games for value in (row.source_fetched_at, row.last_synced_at)]
+            if any(value is None for value in synced):
+                raise RelationalDataError("missing next game sync time")
+            return [_game_json(row) for row in games], min(synced)
+    return [], None
+
+
 def read_month(month, today):
     year, number = int(month[:4]), int(month[5:])
     import calendar
@@ -355,7 +390,7 @@ def read_team(code):
         categories = []
         active = {tuple(value) for value in profile.top_keys.get(kind, [])}
         for name in dict.fromkeys(row.category for row in top_rows if row.athlete_type == kind and (row.category, row.player_id) in active):
-            categories.append({"title": name, "athletes": [{"rank": row.rank, "name": row.player.name, "code": row.player_id, "value": row.value, "imageUrl": row.image_url} for row in top_rows if row.athlete_type == kind and row.category == name and (row.category, row.player_id) in active]})
+            categories.append({"title": name, "athletes": [{"rank": row.rank, "name": row.player.name, "code": row.player_id, "value": row.value, "imageUrl": row.image_url or row.player.image_url} for row in top_rows if row.athlete_type == kind and row.category == name and (row.category, row.player_id) in active]})
         rankings[kind] = categories
     if any(
         {row.player_id for row in TeamRoster.objects.filter(team=team, position=position) if row.player_id in profile.roster_codes.get(position, [])}
@@ -373,13 +408,13 @@ def read_team(code):
     return {"code": code, "teamName": team.team_name_ko, "shortName": profile.short_name, "teamImageUrl": profile.image_url, "backgroundImage": profile.background_image_url, "seasonTitle": profile.season_title, "mainRecords": [{"title": row.title, "value": row.value} for row in records if row.category == "main"], "boxRecords": [{"title": row.title, "value": row.value} for row in records if row.category == "box"], "schedule": [{key: value for key, value in _game_json(game, raw=True).items() if key != "date"} for game in games], "rankings": rankings, "rosters": rosters, "shortcuts": shortcuts}
 
 
-def read_athlete(code):
-    player = Player.objects.filter(external_code=code, profile_last_synced_at__isnull=False, detail_last_synced_at__isnull=False).select_related("team").first()
-    if not player:
+def read_athlete(code, *, player=None):
+    player = player or Player.objects.filter(external_code=code).select_related("team").first()
+    if not player or not player.profile_last_synced_at or not player.detail_last_synced_at:
         return None
     team_code = next(key for key, value in TEAM_MAP.items() if value == player.team.team_code)
-    season_records = player.season_records.filter(record_kind="detail", record_key__in=player.detail_record_keys).order_by("id")
-    career = list(player.career_records.filter(position__in=player.career_positions).order_by("position"))
-    if season_records.count() != len(player.detail_record_keys) or len(career) != len(player.career_positions):
+    season_records = sorted((row for row in player.season_records.all() if row.record_kind == "detail" and row.record_key in player.detail_record_keys), key=lambda row: row.pk)
+    career = sorted((row for row in player.career_records.all() if row.position in player.career_positions), key=lambda row: row.position)
+    if len(season_records) != len(player.detail_record_keys) or len(career) != len(player.career_positions):
         return None
     return {"profile": {"code": code, "name": player.name, "imageUrl": player.image_url, "positions": player.positions, "backNumber": player.back_number, "joinDate": player.join_date, "birthDate": player.birth_date, "body": player.body, "education": player.education, "draftOrder": player.draft_order, "team": {"name": player.team.team_name_ko, "code": team_code, "color": player.team_color, "logoUrl": player.team_logo_url}}, "seasonTitle": player.season_title or "시즌 기록", "seasonRecords": [{"title": row.title, "value": row.value, "rank": row.rank_label, "isFirstRank": row.is_first_rank, "graphs": row.graphs} for row in season_records], "careerTitle": player.career_title or (career[0].title if career else "통산 기록"), "careerColumns": career[0].columns if career else [], "careerRows": [row.metrics for row in career]}

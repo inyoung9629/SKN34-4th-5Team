@@ -1,0 +1,214 @@
+{
+  "description": "광주·잠실 외부 음식점·술집·카페의 사전 확인 목록. 평점은 카카오 평점이 아닌 다이닝코드 확인 당시 수치이며, 사진 검토는 위생 인증이 아니다. 검색어는 후보 검색용이며 실제 메뉴 증명은 기존 메뉴 검증을 따른다.",
+  "places": [
+    {
+      "placeId": "1509452426",
+      "stadium": "GWANGJU",
+      "name": "야키토리잇토",
+      "aliases": [],
+      "lat": 35.17845181160838,
+      "lng": 126.8739262792296,
+      "address": "전남광주통합특별시 북구 대자실로 14-1",
+      "providerDetail": "음식점 > 술집 > 일본식주점",
+      "detail": "음식점 > 술집 > 일본식주점",
+      "kind": "BAR",
+      "status": "approved",
+      "rating": 5.0,
+      "ratingCount": 4,
+      "ratingSource": "다이닝코드",
+      "reviewUrl": "https://www.diningcode.com/profile.php?rid=GMTCrE9EuZ6j",
+      "checkedAt": "2026-10-07",
+      "searchTerms": [
+        "야키토리",
+        "꼬치"
+      ],
+      "interior": {
+        "status": "acceptable",
+        "basis": "photo_review",
+        "sourceUrl": "https://blog.naver.com/PostView.nhn?blogId=qls5012&logNo=224406795176&redirect=Dlog&widgetTypeCall=true",
+        "photoPublishedAt": "2026-09-10",
+        "note": "공개 사진에서 정돈된 목재 카운터와 오픈 주방, 진열대를 확인했다."
+      }
+    },
+    {
+      "placeId": "1587059333",
+      "stadium": "GWANGJU",
+      "name": "파쿠야 용봉점",
+      "aliases": [],
+      "lat": 35.1791266182271,
+      "lng": 126.893304118866,
+      "address": "전남광주통합특별시 북구 설죽로217번길 37-2",
+      "providerDetail": "음식점 > 술집 > 호프,요리주점",
+      "detail": "음식점 > 술집 > 호프,요리주점",
+      "kind": "BAR",
+      "status": "approved",
+      "rating": 4.6,
+      "ratingCount": 3,
+      "ratingSource": "다이닝코드",
+      "reviewUrl": "https://www.diningcode.com/profile.php?rid=vkFxAPMcDjBO",
+      "checkedAt": "2026-10-07",
+      "searchTerms": [
+        "이자카야",
+        "술집"
+      ],
+      "interior": {
+        "status": "acceptable",
+        "basis": "photo_review",
+        "sourceUrl": "https://www.diningcode.com/profile.php?rid=vkFxAPMcDjBO",
+        "photoPublishedAt": "2024-05-06",
+        "note": "실내 사진에서 정돈된 바 진열대와 목재 테이블, 오픈 주방을 확인했다. 사진 촬영 시점과 현재 상태는 다를 수 있다."
+      }
+    },
+    {
+      "placeId": "1063103478",
+      "stadium": "GWANGJU",
+      "name": "하랑은상자초밥&모밀 운암점",
+      "aliases": [
+        "하랑은상자초밥",
+        "하랑은 운암점"
+      ],
+      "lat": 35.1836258406998,
+      "lng": 126.87158746979829,
+      "address": "전남광주통합특별시 북구 북문대로 168",
+      "providerDetail": "음식점 > 일식 > 초밥,롤",
+      "detail": "음식점 > 일식 > 초밥,롤",
+      "kind": "FOOD",
+      "status": "approved",
+      "rating": 5.0,
+      "ratingCount": 2,
+      "ratingSource": "다이닝코드",
+      "reviewUrl": "https://www.diningcode.com/profile.php?rid=b5efEaq9MKgQ",
+      "checkedAt": "2026-10-07",
+      "searchTerms": [
+        "초밥",
+        "모밀",
+        "돈까스"
+      ],
+      "interior": {
+        "status": "acceptable",
+        "basis": "photo_review",
+        "sourceUrl": "https://www.diningcode.com/profile.php?rid=b5efEaq9MKgQ",
+        "photoPublishedAt": null,
+        "note": "실내 사진에서 밝은 테이블 공간과 정돈된 식기, 벤치 좌석을 확인했다."
+      }
+    },
+    {
+      "placeId": "123618728",
+      "stadium": "GWANGJU",
+      "name": "스타벅스 광주신안DT점",
+      "aliases": [],
+      "lat": 35.171594404585306,
+      "lng": 126.8948211403407,
+      "address": "전남광주통합특별시 북구 서암대로 93",
+      "providerDetail": "음식점 > 카페 > 커피전문점 > 스타벅스",
+      "detail": "음식점 > 카페 > 커피전문점 > 스타벅스",
+      "kind": "CAFE",
+      "status": "approved",
+      "rating": 3.9,
+      "ratingCount": 4,
+      "ratingSource": "다이닝코드",
+      "reviewUrl": "https://www.diningcode.com/profile.php?rid=1yMtsL5Gcsk2",
+      "checkedAt": "2026-10-07",
+      "searchTerms": [
+        "커피",
+        "스타벅스"
+      ],
+      "interior": {
+        "status": "acceptable",
+        "basis": "photo_review",
+        "sourceUrl": "https://www.diningcode.com/profile.php?rid=1yMtsL5Gcsk2",
+        "photoPublishedAt": null,
+        "note": "공개 사진에서 정돈된 카운터와 진열대, 목재 테이블을 확인했다. 전체 홀을 확인한 것은 아니다."
+      }
+    },
+    {
+      "placeId": "437494532",
+      "stadium": "JAMSIL",
+      "name": "상무초밥 잠실점",
+      "aliases": [],
+      "lat": 37.5114641915132,
+      "lng": 127.081213020683,
+      "address": "서울 송파구 올림픽로 96",
+      "providerDetail": "음식점 > 일식 > 초밥,롤 > 상무초밥",
+      "detail": "음식점 > 일식 > 초밥,롤 > 상무초밥",
+      "kind": "FOOD",
+      "status": "approved",
+      "rating": 4.2,
+      "ratingCount": 8,
+      "ratingSource": "다이닝코드",
+      "reviewUrl": "https://www.diningcode.com/profile.php?rid=1odHJBIMlTtX",
+      "checkedAt": "2026-10-07",
+      "searchTerms": [
+        "초밥",
+        "돈까스",
+        "우동"
+      ],
+      "interior": {
+        "status": "acceptable",
+        "basis": "photo_review",
+        "sourceUrl": "https://www.diningcode.com/profile.php?rid=1odHJBIMlTtX",
+        "photoPublishedAt": null,
+        "note": "실내 사진에서 목재 테이블과 벤치 좌석, 정돈된 셀프 서비스 공간을 확인했다."
+      }
+    },
+    {
+      "placeId": "362946062",
+      "stadium": "JAMSIL",
+      "name": "크레스타운 잠실점",
+      "aliases": [],
+      "lat": 37.5110738135661,
+      "lng": 127.078913146676,
+      "address": "서울 송파구 백제고분로 63",
+      "providerDetail": "음식점 > 카페",
+      "detail": "음식점 > 카페",
+      "kind": "CAFE",
+      "status": "approved",
+      "rating": 4.2,
+      "ratingCount": 5,
+      "ratingSource": "다이닝코드",
+      "reviewUrl": "https://www.diningcode.com/profile.php?rid=O5vFUfI4l1VQ",
+      "checkedAt": "2026-10-07",
+      "searchTerms": [
+        "커피",
+        "브런치"
+      ],
+      "interior": {
+        "status": "acceptable",
+        "basis": "photo_review",
+        "sourceUrl": "https://www.diningcode.com/profile.php?rid=O5vFUfI4l1VQ",
+        "photoPublishedAt": null,
+        "note": "실내 사진에서 밝은 홀과 간격을 둔 좌석, 정돈된 카운터를 확인했다."
+      }
+    },
+    {
+      "placeId": "777232005",
+      "stadium": "JAMSIL",
+      "name": "이치고",
+      "aliases": [],
+      "lat": 37.5074969292484,
+      "lng": 127.080098071762,
+      "address": "서울 송파구 백제고분로11길 6-7",
+      "providerDetail": "음식점 > 일식",
+      "detail": "음식점 > 술집 > 일본식주점",
+      "kind": "BAR",
+      "status": "approved",
+      "rating": 4.8,
+      "ratingCount": 7,
+      "ratingSource": "다이닝코드",
+      "reviewUrl": "https://www.diningcode.com/profile.php?rid=iaLuGBavDnv9",
+      "checkedAt": "2026-10-07",
+      "searchTerms": [
+        "이자카야",
+        "사시미",
+        "고등어봉초밥"
+      ],
+      "interior": {
+        "status": "acceptable",
+        "basis": "photo_review",
+        "sourceUrl": "https://blog.naver.com/PostView.nhn?blogId=kimparksa0807&logNo=224414333486&redirect=Dlog&widgetTypeCall=true",
+        "photoPublishedAt": "2026-09-17",
+        "note": "공개 사진에서 정돈된 테이블과 의자, 칸막이 좌석을 확인했다."
+      }
+    }
+  ]
+}

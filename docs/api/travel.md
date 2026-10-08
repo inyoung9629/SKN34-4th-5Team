@@ -4,6 +4,10 @@
 
 ## 공통 규칙
 
+2026-10-02 구장 영역 필터: 지도와 동일한 초록 경계 안의 먹거리·시설은 내부로 분류하며, 빨간 단지 중 초록 밖의 장소는 카카오 검색 응답과 챗봇·RAG 후보에서 제외합니다. 검색 결과에 선택적인 `stadiumArea: {scope: "internal" | "external", stadium: string | null}`가 포함됩니다. 필터로 현재 페이지가 비어도 공급자가 다음 페이지를 제공하면 `hasNextPage`는 유지됩니다. 저장 데이터는 삭제하지 않습니다. [분류 우선순위와 적용 경로](course-policy-v1.md#2026-10-02-구장-단지-검색-필터)를 참고하세요.
+
+2026-10-02부터 코스 작성 지도의 주변 장소 목록은 `POST /api/v1/places/live/`로 카카오를 실시간 조회합니다. 조회 결과를 Place DB에 자동 저장하지 않으며, 주변 핀은 선택 전에는 표시하지 않습니다. 숙박은 기존 `/api/v1/places/lodging/`에서 필요할 때 조회하고 구장 시설은 별도 목록을 유지합니다. 챗봇의 자동 코스 후보는 이번 변경 대상이 아니므로 [수집 장소/RAG](collected-places.md)를 계속 사용합니다. 길찾기·날씨 제공자는 유지합니다.
+
 - 기본 인증은 [설정](../../backend/config/settings.py)의 JWT(`Authorization: Bearer <access-token>`). `AllowAny`는 토큰 없이 호출 가능하다는 뜻이지 잘못된 JWT를 무시한다는 뜻은 아니다. `/weather/`만 인증 클래스 자체를 비활성화한다.
 - 아래 표는 업무 메서드다. 미지원 메서드는 405이며 DRF의 OPTIONS 등은 별도다. 페이지네이션은 명시된 API에만 있다.
 - 코스·장소 쓰기와 길찾기는 JSON 요청이다. 오류 형식은 API별로 다르므로 모든 실패를 `{error: ...}`로 처리하면 안 된다.
@@ -20,6 +24,8 @@
 | `/courses/<uuid:pk>/reaction/` | GET / POST | 로그인 | 200 `{liked, likes}` |
 | `/courses/<uuid:pk>/view/` | POST | 공개 + 조회 토큰 | 200 `{views}` |
 | `/places/search/` | POST | 공개 | 200 `{places, hasNextPage, syncedAt}` |
+| `/places/live/` | POST | 공개 | 200 같은 검색 응답, DB 읽기·쓰기 없음, `Cache-Control: no-store` |
+| `/places/collected/` | GET | 공개 | 200 수집 장소 목록·출처·스냅샷 정보; [상세 계약](collected-places.md) |
 | `/places/` | GET | 공개 | 200 `{count, page, page_size, results}` |
 | `/places/` | POST | 활성 staff | 201 장소 |
 | `/places/<int:pk>/` | GET | 공개 | 200 장소 |
@@ -85,7 +91,15 @@
 - PATCH는 위 필드 중 `kakao_place_id`를 제외한 비어 있지 않은 부분 객체. ID·동기화 시각 등 알 수 없거나 불변인 필드는 거부한다. 생성·수정·삭제는 인증된 `is_active && is_staff`만 가능하며 서비스에서도 재검증한다.
 - 응답: `id, kakao_place_id, name, address, road_address, category_group_code, category_group_name, category_name, phone, lat, lng, url, created_at, updated_at, last_synced_at`. 수동 변경은 공급자 동기화 시각을 갱신하지 않는다.
 
-### 카카오 실시간 검색과 저장
+### 지도용 카카오 실시간 조회 (2026-10-02)
+
+- 브라우저 경로 `POST /api/v1/places/live/`. 입력·응답 형식은 아래 기존 검색 API와 같지만 Place 테이블을 읽거나 갱신하지 않는다. 기존 `/places/search/`의 저장 동작은 호환용으로 유지한다.
+- 서버의 카카오 REST 키와 기존 타임아웃·동시성·호출 제한을 사용한다. 브라우저로 REST 키를 보내지 않으며 검색 실패 시 소상공인 수집본·유료 웹검색으로 자동 대체하지 않는다.
+- 지도 목록은 검토된 구장 좌표 기준 2.5km, 검색식 17개(숙박 제외), 검색식별 최대 3페이지×15건, 동시 요청 2개다. 페이지 결과를 Kakao ID로 중복 제거하고 즉시 목록에 반영한다. 실제 호출 수는 다음 페이지 유무에 따라 줄어들며 전체 상점 목록을 보장하지 않는다.
+- 지도 생성은 장소 검색을 기다리지 않는다. 검색어·분류 필터 변경은 이미 조회한 결과만 필터링하고 구장 변경·화면 이탈은 이전 요청을 취소한다. 원본 응답은 화면 메모리에서만 사용한다. 이 조회의 무저장 정책과 사용자가 명시적으로 저장한 기존 코스 데이터는 별개다.
+- 구장 시설 이름·주소 및 검토된 전체 구장 테두리 안의 결과는 외부 주변 목록에서 분리한다. 내부 시설은 기존 전용 목록을 사용한다. 핀은 선택한 장소의 작은 점과 코스 순서 핀만 표시한다. 새 프론트 선택 박스는 추가하지 않는다.
+
+### 카카오 실시간 검색과 저장 (기존 호환 API)
 
 POST `/places/search/` 입력은 `method, lat, lng, page, size, sort` 필수, `keyword, category, radius` 선택이다.
 

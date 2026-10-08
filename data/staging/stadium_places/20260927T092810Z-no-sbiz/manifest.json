@@ -1,0 +1,748 @@
+{
+  "schema_version": 2,
+  "started_at": "20260927T092810Z",
+  "radius_m": 2500,
+  "distance_type": "straight_line",
+  "lodging_source": "GOOGLE_PLACES",
+  "stadiums": {
+    "JAMSIL": {
+      "code": "JAMSIL",
+      "name": "잠실야구장",
+      "lat": 37.5161987797456,
+      "lng": 127.075940589715,
+      "sources": {
+        "GOOGLE": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:35:24.501998+00:00",
+          "completed_at": "2026-09-27T09:36:40.068934+00:00",
+          "query_count": 344,
+          "capped_queries": 95,
+          "unresolved_search_cells": 2,
+          "max_queries": 512,
+          "unqueried_cells_at_request_limit": 0,
+          "capped_cells_at_depth_limit": 2,
+          "max_depth": 6,
+          "unique_returned_ids": 1293,
+          "within_radius_ids": 966,
+          "missing_id_rows": 0,
+          "outside_radius_or_invalid_location": 327,
+          "coverage": "partial_capped",
+          "business_status_counts": {
+            "OPERATIONAL": 966
+          },
+          "primary_type_counts": {
+            "lodging": 717,
+            "hotel": 126,
+            "resort_hotel": 11,
+            "motel": 44,
+            "golf_course": 2,
+            "inn": 3,
+            "bed_and_breakfast": 26,
+            "guest_house": 13,
+            "private_guest_room": 3,
+            "hostel": 14,
+            "extended_stay_hotel": 2,
+            "consultant": 1,
+            "campground": 1,
+            "camping_cabin": 1,
+            "service": 1,
+            "tourist_attraction": 1
+          },
+          "broad_lodging_type": 717,
+          "other_or_missing_primary_type": 5,
+          "field_present_counts": {
+            "name": 966,
+            "address": 966,
+            "lat": 966,
+            "lng": 966,
+            "primary_type": 966,
+            "business_status": 966
+          },
+          "storage_policy": "place_ids_only; details retrieved live",
+          "note": "Google search results, not a census or confirmation of current operation"
+        },
+        "PARK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:37:07.255569+00:00",
+          "completed_at": "2026-09-27T09:37:13.870973+00:00",
+          "national_api_rows": 18295,
+          "selected_records": 50,
+          "note": "Representative points only; not trail shapes or confirmed entrances"
+        },
+        "TOUR_WALK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:37:13.870973+00:00",
+          "completed_at": "2026-09-27T09:37:14.137637+00:00",
+          "api_rows": 18,
+          "selected_records": 8,
+          "content_types_requested": [
+            12,
+            28
+          ],
+          "note": "Title-matched walking candidates; no lodging, route geometry or completeness guarantee"
+        }
+      }
+    },
+    "GOCHEOK": {
+      "code": "GOCHEOK",
+      "name": "고척스카이돔",
+      "lat": 37.4982125677913,
+      "lng": 126.867088741096,
+      "sources": {
+        "GOOGLE": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:31:46.611957+00:00",
+          "completed_at": "2026-09-27T09:32:14.834442+00:00",
+          "query_count": 113,
+          "capped_queries": 30,
+          "unresolved_search_cells": 0,
+          "max_queries": 320,
+          "max_depth": 6,
+          "unique_returned_ids": 433,
+          "within_radius_ids": 317,
+          "missing_id_rows": 0,
+          "outside_radius_or_invalid_location": 116,
+          "coverage": "search_completed_not_exhaustive",
+          "business_status_counts": {
+            "OPERATIONAL": 317
+          },
+          "primary_type_counts": {
+            "lodging": 173,
+            "hotel": 36,
+            "unknown": 3,
+            "private_guest_room": 2,
+            "motel": 57,
+            "campground": 2,
+            "inn": 20,
+            "resort_hotel": 1,
+            "bed_and_breakfast": 15,
+            "extended_stay_hotel": 1,
+            "hostel": 3,
+            "guest_house": 3,
+            "educational_institution": 1
+          },
+          "broad_lodging_type": 173,
+          "other_or_missing_primary_type": 4,
+          "field_present_counts": {
+            "name": 317,
+            "address": 317,
+            "lat": 317,
+            "lng": 317,
+            "primary_type": 314,
+            "business_status": 317
+          },
+          "storage_policy": "place_ids_only; details retrieved live",
+          "note": "Google search results, not a census or confirmation of current operation"
+        },
+        "PARK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:37:26.658859+00:00",
+          "completed_at": "2026-09-27T09:37:26.717199+00:00",
+          "national_api_rows": 18295,
+          "selected_records": 63,
+          "note": "Representative points only; not trail shapes or confirmed entrances"
+        },
+        "TOUR_WALK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:37:26.719218+00:00",
+          "completed_at": "2026-09-27T09:37:27.005000+00:00",
+          "api_rows": 25,
+          "selected_records": 14,
+          "content_types_requested": [
+            12,
+            28
+          ],
+          "note": "Title-matched walking candidates; no lodging, route geometry or completeness guarantee"
+        }
+      }
+    },
+    "MUNHAK": {
+      "code": "MUNHAK",
+      "name": "인천 SSG 랜더스필드",
+      "lat": 37.4350819826381,
+      "lng": 126.690759830613,
+      "sources": {
+        "GOOGLE": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:32:14.834442+00:00",
+          "completed_at": "2026-09-27T09:32:28.180131+00:00",
+          "query_count": 57,
+          "capped_queries": 15,
+          "unresolved_search_cells": 0,
+          "max_queries": 320,
+          "max_depth": 6,
+          "unique_returned_ids": 194,
+          "within_radius_ids": 129,
+          "missing_id_rows": 0,
+          "outside_radius_or_invalid_location": 65,
+          "coverage": "search_completed_not_exhaustive",
+          "business_status_counts": {
+            "OPERATIONAL": 128,
+            "CLOSED_TEMPORARILY": 1
+          },
+          "primary_type_counts": {
+            "campground": 5,
+            "hotel": 38,
+            "lodging": 57,
+            "unknown": 3,
+            "motel": 18,
+            "camping_cabin": 1,
+            "bed_and_breakfast": 3,
+            "guest_house": 1,
+            "resort_hotel": 1,
+            "inn": 2
+          },
+          "broad_lodging_type": 57,
+          "other_or_missing_primary_type": 3,
+          "field_present_counts": {
+            "name": 129,
+            "address": 129,
+            "lat": 129,
+            "lng": 129,
+            "primary_type": 126,
+            "business_status": 129
+          },
+          "storage_policy": "place_ids_only; details retrieved live",
+          "note": "Google search results, not a census or confirmation of current operation"
+        },
+        "PARK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:37:34.454743+00:00",
+          "completed_at": "2026-09-27T09:37:34.514826+00:00",
+          "national_api_rows": 18295,
+          "selected_records": 78,
+          "note": "Representative points only; not trail shapes or confirmed entrances"
+        },
+        "TOUR_WALK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:37:34.514826+00:00",
+          "completed_at": "2026-09-27T09:37:34.749426+00:00",
+          "api_rows": 2,
+          "selected_records": 1,
+          "content_types_requested": [
+            12,
+            28
+          ],
+          "note": "Title-matched walking candidates; no lodging, route geometry or completeness guarantee"
+        }
+      }
+    },
+    "SUWON": {
+      "code": "SUWON",
+      "name": "수원 KT 위즈 파크",
+      "lat": 37.2978428909635,
+      "lng": 127.011348102567,
+      "sources": {
+        "GOOGLE": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:32:28.187323+00:00",
+          "completed_at": "2026-09-27T09:32:55.182469+00:00",
+          "query_count": 117,
+          "capped_queries": 30,
+          "unresolved_search_cells": 0,
+          "max_queries": 320,
+          "max_depth": 6,
+          "unique_returned_ids": 446,
+          "within_radius_ids": 407,
+          "missing_id_rows": 0,
+          "outside_radius_or_invalid_location": 39,
+          "coverage": "search_completed_not_exhaustive",
+          "business_status_counts": {
+            "OPERATIONAL": 407
+          },
+          "primary_type_counts": {
+            "lodging": 243,
+            "private_guest_room": 5,
+            "motel": 61,
+            "inn": 27,
+            "hotel": 39,
+            "bed_and_breakfast": 25,
+            "guest_house": 4,
+            "hostel": 3
+          },
+          "broad_lodging_type": 243,
+          "other_or_missing_primary_type": 0,
+          "field_present_counts": {
+            "name": 407,
+            "address": 407,
+            "lat": 407,
+            "lng": 407,
+            "primary_type": 407,
+            "business_status": 407
+          },
+          "storage_policy": "place_ids_only; details retrieved live",
+          "note": "Google search results, not a census or confirmation of current operation"
+        },
+        "PARK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:37:41.979782+00:00",
+          "completed_at": "2026-09-27T09:37:42.035499+00:00",
+          "national_api_rows": 18295,
+          "selected_records": 63,
+          "note": "Representative points only; not trail shapes or confirmed entrances"
+        },
+        "TOUR_WALK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:37:42.039509+00:00",
+          "completed_at": "2026-09-27T09:37:42.315751+00:00",
+          "api_rows": 21,
+          "selected_records": 5,
+          "content_types_requested": [
+            12,
+            28
+          ],
+          "note": "Title-matched walking candidates; no lodging, route geometry or completeness guarantee"
+        }
+      }
+    },
+    "DAEJEON": {
+      "code": "DAEJEON",
+      "name": "대전 한화생명 볼파크",
+      "lat": 36.3173370007388,
+      "lng": 127.428013823451,
+      "sources": {
+        "GOOGLE": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:32:55.182469+00:00",
+          "completed_at": "2026-09-27T09:33:30.171941+00:00",
+          "query_count": 143,
+          "capped_queries": 36,
+          "unresolved_search_cells": 0,
+          "max_queries": 320,
+          "max_depth": 6,
+          "unique_returned_ids": 457,
+          "within_radius_ids": 417,
+          "missing_id_rows": 0,
+          "outside_radius_or_invalid_location": 40,
+          "coverage": "search_completed_not_exhaustive",
+          "business_status_counts": {
+            "OPERATIONAL": 416,
+            "CLOSED_TEMPORARILY": 1
+          },
+          "primary_type_counts": {
+            "inn": 62,
+            "motel": 127,
+            "hotel": 59,
+            "lodging": 148,
+            "hostel": 2,
+            "bed_and_breakfast": 5,
+            "private_guest_room": 1,
+            "guest_house": 8,
+            "campground": 4,
+            "resort_hotel": 1
+          },
+          "broad_lodging_type": 148,
+          "other_or_missing_primary_type": 0,
+          "field_present_counts": {
+            "name": 417,
+            "address": 417,
+            "lat": 417,
+            "lng": 417,
+            "primary_type": 417,
+            "business_status": 417
+          },
+          "storage_policy": "place_ids_only; details retrieved live",
+          "note": "Google search results, not a census or confirmation of current operation"
+        },
+        "PARK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:37:48.842339+00:00",
+          "completed_at": "2026-09-27T09:37:48.889903+00:00",
+          "national_api_rows": 18295,
+          "selected_records": 33,
+          "note": "Representative points only; not trail shapes or confirmed entrances"
+        },
+        "TOUR_WALK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:37:48.889903+00:00",
+          "completed_at": "2026-09-27T09:37:49.111763+00:00",
+          "api_rows": 14,
+          "selected_records": 3,
+          "content_types_requested": [
+            12,
+            28
+          ],
+          "note": "Title-matched walking candidates; no lodging, route geometry or completeness guarantee"
+        }
+      }
+    },
+    "DAEGU": {
+      "code": "DAEGU",
+      "name": "대구 삼성 라이온즈 파크",
+      "lat": 35.8411289243023,
+      "lng": 128.681236372268,
+      "sources": {
+        "GOOGLE": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:33:30.171941+00:00",
+          "completed_at": "2026-09-27T09:33:32.433721+00:00",
+          "query_count": 9,
+          "capped_queries": 2,
+          "unresolved_search_cells": 0,
+          "max_queries": 320,
+          "max_depth": 6,
+          "unique_returned_ids": 40,
+          "within_radius_ids": 21,
+          "missing_id_rows": 0,
+          "outside_radius_or_invalid_location": 19,
+          "coverage": "search_completed_not_exhaustive",
+          "business_status_counts": {
+            "OPERATIONAL": 21
+          },
+          "primary_type_counts": {
+            "hotel": 10,
+            "lodging": 8,
+            "inn": 1,
+            "motel": 2
+          },
+          "broad_lodging_type": 8,
+          "other_or_missing_primary_type": 0,
+          "field_present_counts": {
+            "name": 21,
+            "address": 21,
+            "lat": 21,
+            "lng": 21,
+            "primary_type": 21,
+            "business_status": 21
+          },
+          "storage_policy": "place_ids_only; details retrieved live",
+          "note": "Google search results, not a census or confirmation of current operation"
+        },
+        "PARK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:37:50.555814+00:00",
+          "completed_at": "2026-09-27T09:37:50.603621+00:00",
+          "national_api_rows": 18295,
+          "selected_records": 22,
+          "note": "Representative points only; not trail shapes or confirmed entrances"
+        },
+        "TOUR_WALK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:37:50.603621+00:00",
+          "completed_at": "2026-09-27T09:37:50.877471+00:00",
+          "api_rows": 0,
+          "selected_records": 0,
+          "content_types_requested": [
+            12,
+            28
+          ],
+          "note": "Title-matched walking candidates; no lodging, route geometry or completeness guarantee"
+        }
+      }
+    },
+    "GWANGJU": {
+      "code": "GWANGJU",
+      "name": "광주-KIA 챔피언스 필드",
+      "lat": 35.1694249627659,
+      "lng": 126.888805470329,
+      "sources": {
+        "GOOGLE": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:33:32.438733+00:00",
+          "completed_at": "2026-09-27T09:34:00.748551+00:00",
+          "query_count": 119,
+          "capped_queries": 31,
+          "unresolved_search_cells": 0,
+          "max_queries": 320,
+          "max_depth": 6,
+          "unique_returned_ids": 438,
+          "within_radius_ids": 337,
+          "missing_id_rows": 0,
+          "outside_radius_or_invalid_location": 101,
+          "coverage": "search_completed_not_exhaustive",
+          "business_status_counts": {
+            "OPERATIONAL": 336,
+            "CLOSED_TEMPORARILY": 1
+          },
+          "primary_type_counts": {
+            "motel": 151,
+            "lodging": 101,
+            "inn": 28,
+            "guest_house": 6,
+            "hotel": 38,
+            "bed_and_breakfast": 6,
+            "hostel": 2,
+            "private_guest_room": 3,
+            "camping_cabin": 1,
+            "unknown": 1
+          },
+          "broad_lodging_type": 101,
+          "other_or_missing_primary_type": 1,
+          "field_present_counts": {
+            "name": 337,
+            "address": 337,
+            "lat": 337,
+            "lng": 337,
+            "primary_type": 336,
+            "business_status": 337
+          },
+          "storage_policy": "place_ids_only; details retrieved live",
+          "note": "Google search results, not a census or confirmation of current operation"
+        },
+        "PARK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:37:58.355242+00:00",
+          "completed_at": "2026-09-27T09:37:58.395212+00:00",
+          "national_api_rows": 18295,
+          "selected_records": 82,
+          "note": "Representative points only; not trail shapes or confirmed entrances"
+        },
+        "TOUR_WALK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:37:58.408703+00:00",
+          "completed_at": "2026-09-27T09:37:58.623873+00:00",
+          "api_rows": 2,
+          "selected_records": 0,
+          "content_types_requested": [
+            12,
+            28
+          ],
+          "note": "Title-matched walking candidates; no lodging, route geometry or completeness guarantee"
+        }
+      }
+    },
+    "SAJIK": {
+      "code": "SAJIK",
+      "name": "사직야구장",
+      "lat": 35.194366802896,
+      "lng": 129.059900885997,
+      "sources": {
+        "GOOGLE": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:34:00.748551+00:00",
+          "completed_at": "2026-09-27T09:34:35.672781+00:00",
+          "query_count": 149,
+          "capped_queries": 41,
+          "unresolved_search_cells": 2,
+          "max_queries": 320,
+          "max_depth": 6,
+          "unique_returned_ids": 416,
+          "within_radius_ids": 332,
+          "missing_id_rows": 0,
+          "outside_radius_or_invalid_location": 84,
+          "coverage": "partial_capped",
+          "business_status_counts": {
+            "OPERATIONAL": 332
+          },
+          "primary_type_counts": {
+            "hotel": 77,
+            "motel": 118,
+            "bed_and_breakfast": 8,
+            "lodging": 93,
+            "inn": 22,
+            "private_guest_room": 3,
+            "resort_hotel": 2,
+            "hostel": 6,
+            "guest_house": 1,
+            "extended_stay_hotel": 2
+          },
+          "broad_lodging_type": 93,
+          "other_or_missing_primary_type": 0,
+          "field_present_counts": {
+            "name": 332,
+            "address": 332,
+            "lat": 332,
+            "lng": 332,
+            "primary_type": 332,
+            "business_status": 332
+          },
+          "storage_policy": "place_ids_only; details retrieved live",
+          "note": "Google search results, not a census or confirmation of current operation"
+        },
+        "PARK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:38:06.069984+00:00",
+          "completed_at": "2026-09-27T09:38:06.119635+00:00",
+          "national_api_rows": 18295,
+          "selected_records": 46,
+          "note": "Representative points only; not trail shapes or confirmed entrances"
+        },
+        "TOUR_WALK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:38:06.124651+00:00",
+          "completed_at": "2026-09-27T09:38:06.365826+00:00",
+          "api_rows": 1,
+          "selected_records": 0,
+          "content_types_requested": [
+            12,
+            28
+          ],
+          "note": "Title-matched walking candidates; no lodging, route geometry or completeness guarantee"
+        }
+      }
+    },
+    "CHANGWON": {
+      "code": "CHANGWON",
+      "name": "창원 NC 파크",
+      "lat": 35.2219848625101,
+      "lng": 128.579580117268,
+      "sources": {
+        "GOOGLE": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:34:35.686232+00:00",
+          "completed_at": "2026-09-27T09:35:00.059699+00:00",
+          "query_count": 101,
+          "capped_queries": 25,
+          "unresolved_search_cells": 0,
+          "max_queries": 320,
+          "max_depth": 6,
+          "unique_returned_ids": 291,
+          "within_radius_ids": 283,
+          "missing_id_rows": 0,
+          "outside_radius_or_invalid_location": 8,
+          "coverage": "search_completed_not_exhaustive",
+          "business_status_counts": {
+            "OPERATIONAL": 283
+          },
+          "primary_type_counts": {
+            "lodging": 55,
+            "motel": 124,
+            "inn": 52,
+            "hotel": 45,
+            "bed_and_breakfast": 4,
+            "campground": 1,
+            "hostel": 2
+          },
+          "broad_lodging_type": 55,
+          "other_or_missing_primary_type": 0,
+          "field_present_counts": {
+            "name": 283,
+            "address": 283,
+            "lat": 283,
+            "lng": 283,
+            "primary_type": 283,
+            "business_status": 283
+          },
+          "storage_policy": "place_ids_only; details retrieved live",
+          "note": "Google search results, not a census or confirmation of current operation"
+        },
+        "PARK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:38:11.705593+00:00",
+          "completed_at": "2026-09-27T09:38:11.747465+00:00",
+          "national_api_rows": 18295,
+          "selected_records": 56,
+          "note": "Representative points only; not trail shapes or confirmed entrances"
+        },
+        "TOUR_WALK": {
+          "status": "ok",
+          "started_at": "2026-09-27T09:38:11.747465+00:00",
+          "completed_at": "2026-09-27T09:38:11.997548+00:00",
+          "api_rows": 13,
+          "selected_records": 3,
+          "content_types_requested": [
+            12,
+            28
+          ],
+          "note": "Title-matched walking candidates; no lodging, route geometry or completeness guarantee"
+        }
+      }
+    }
+  },
+  "snapshot_id": "20260927T092810Z-no-sbiz",
+  "files": {
+    "CHANGWON/google_lodging_ids.jsonl": {
+      "sha256": "5c756956e62d84ca27d858d91cc34f7ac8711064db49fb28fcfcbcbcb7c791c7",
+      "bytes": 19244,
+      "rows": 283
+    },
+    "CHANGWON/public_places.jsonl": {
+      "sha256": "de7903623422a568e8de8e7bdc79a724eb86e623b270787b99ce7f3b4c589dd9",
+      "bytes": 52998,
+      "rows": 59
+    },
+    "DAEGU/google_lodging_ids.jsonl": {
+      "sha256": "ffcbed7452d0df2d5a1a3cebd6f94c6aab2a82bea90d5ddcd287d8ad84afc510",
+      "bytes": 1428,
+      "rows": 21
+    },
+    "DAEGU/public_places.jsonl": {
+      "sha256": "cba7b7f7d98c0cc3c046eaf267b6249fb471dc1cb2f84f18d5257d0c88e0f875",
+      "bytes": 18933,
+      "rows": 22
+    },
+    "DAEJEON/google_lodging_ids.jsonl": {
+      "sha256": "9591b77c7ed9049dc285fd4fb6627ffe6cdcf289ee59cae61e3159d6b7964599",
+      "bytes": 28356,
+      "rows": 417
+    },
+    "DAEJEON/public_places.jsonl": {
+      "sha256": "9aef854d46f36b64c7972f7a0b47e28e7c8971d0d3d95a7660d442eaf275c541",
+      "bytes": 31107,
+      "rows": 36
+    },
+    "GOCHEOK/google_lodging_ids.jsonl": {
+      "sha256": "8a99ce0e9ffc8e83353c0867c7079fc1d1691f42678fc900d310629f8491a1fb",
+      "bytes": 21556,
+      "rows": 317
+    },
+    "GOCHEOK/public_places.jsonl": {
+      "sha256": "1cc8dbf42ea3fbbcd8a80cbc534299c54f3923e728319fb19627f6b4a30194b5",
+      "bytes": 70271,
+      "rows": 77
+    },
+    "GWANGJU/google_lodging_ids.jsonl": {
+      "sha256": "1988500bdd3fc8b98b8fc86bb5ecb6a73d85a62a5e424cdc7574f3d8664b81e6",
+      "bytes": 22916,
+      "rows": 337
+    },
+    "GWANGJU/public_places.jsonl": {
+      "sha256": "876f81a033cf3e34bd3e69f3a2c468c961e9cfe34b81debb252780ce9f03802b",
+      "bytes": 71990,
+      "rows": 82
+    },
+    "JAMSIL/google_lodging_ids.jsonl": {
+      "sha256": "155145469264245345e0b809aca431496fac9ba0fec27265b7d45bb406b58f74",
+      "bytes": 65688,
+      "rows": 966
+    },
+    "JAMSIL/public_places.jsonl": {
+      "sha256": "6c8f38647800f8bd4c9d0ea9c19a34786765efb08807f60fbcf163f54570a878",
+      "bytes": 52083,
+      "rows": 58
+    },
+    "MUNHAK/google_lodging_ids.jsonl": {
+      "sha256": "4644975b627998e3bc3d2eb18291f5243f02da0481760a85e257449f15216b9c",
+      "bytes": 8772,
+      "rows": 129
+    },
+    "MUNHAK/public_places.jsonl": {
+      "sha256": "87de127243848951b420cc02d922cb9b417eda715d9c9e5c95fbac113d423e37",
+      "bytes": 70450,
+      "rows": 79
+    },
+    "SAJIK/google_lodging_ids.jsonl": {
+      "sha256": "f6dd5ecf4edb4adcb93855ce7f6b9888fc55bebd54ce17fc87b96f0c6582e7d2",
+      "bytes": 22576,
+      "rows": 332
+    },
+    "SAJIK/public_places.jsonl": {
+      "sha256": "433a59ed3b31a87be1904d1fdc438dd1fe70879db272b393bb8f214a3ff02772",
+      "bytes": 40904,
+      "rows": 46
+    },
+    "SUWON/google_lodging_ids.jsonl": {
+      "sha256": "7a901308881e0b302e4ff697edc5be74d374b46c33dcec62d0acc6b79ec6e349",
+      "bytes": 27676,
+      "rows": 407
+    },
+    "SUWON/public_places.jsonl": {
+      "sha256": "87e4c1f7bcf414b2714020833e634af5423ed405b51ab6583f9da87754d6e4bb",
+      "bytes": 62663,
+      "rows": 68
+    }
+  },
+  "totals": {
+    "google_lodging_ids.jsonl": 3209,
+    "public_places.jsonl": 527
+  },
+  "revision": {
+    "date": "2026-10-04",
+    "reason": "Remove SBIZ records; retain original PARK, TOUR and Google ID records",
+    "removed_source": "SBIZ",
+    "removed_records": {
+      "public": 36500,
+      "review": 387
+    }
+  }
+}

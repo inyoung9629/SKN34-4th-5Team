@@ -54,7 +54,7 @@ export async function fetchStadiumWeather(
   const query = new URLSearchParams({ stadium, date, time });
   try {
     for (let attempt = 0; ; attempt += 1) {
-      const response = await fetcher(`/api/weather/?${query}`, {
+      const response = await fetcher(`/api/v1/weather/?${query}`, {
         cache: "no-store",
         redirect: "error",
         signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(12000)]) : AbortSignal.timeout(12000),

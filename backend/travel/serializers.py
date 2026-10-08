@@ -1,4 +1,5 @@
 import math
+import re
 
 from django.db import transaction
 from drf_spectacular.utils import extend_schema_serializer
@@ -24,18 +25,35 @@ class CourseStopSerializer(serializers.ModelSerializer):
     tourContentId = serializers.CharField(source="tour_content_id", required=False, allow_blank=True, allow_null=True)
     isMapPoint = serializers.BooleanField(source="is_map_point", required=False, allow_null=True)
     isDrawnPoint = serializers.BooleanField(source="is_drawn_point", required=False, allow_null=True)
-    lat = FiniteFloatField(min_value=-90, max_value=90)
-    lng = FiniteFloatField(min_value=-180, max_value=180)
+    lat = FiniteFloatField(min_value=-90, max_value=90, allow_null=True)
+    lng = FiniteFloatField(min_value=-180, max_value=180, allow_null=True)
 
     class Meta:
         model = CourseStop
         fields = ("position", "name", "lat", "lng", "category", "placeId", "visitId", "address", "tourContentId", "isMapPoint", "isDrawnPoint")
 
+    def validate(self, attrs):
+        place_id = attrs.get("place_id") or ""
+        if place_id.startswith(("google-ui-kit:", "kakao-lodging:")):
+            if not re.fullmatch(r"google-ui-kit:[A-Za-z0-9_-]{1,220}|kakao-lodging:(?:all|hotel|motel|inn):[0-9]{1,100}", place_id):
+                raise serializers.ValidationError("숙소 장소 ID를 확인해 주세요.")
+            if attrs.get("lat") is not None or attrs.get("lng") is not None:
+                raise serializers.ValidationError("숙소는 좌표를 저장하지 않고 ID만 저장합니다.")
+            # Both providers' lodging content is live-only, including drafts.
+            return {"position": attrs["position"], "place_id": place_id,
+                    "visit_id": attrs.get("visit_id"), "name": "선택한 숙소",
+                    "category": "숙박", "lat": None, "lng": None}
+        if attrs.get("lat") is None or attrs.get("lng") is None:
+            raise serializers.ValidationError("일반 장소의 위도와 경도를 입력해 주세요.")
+        return attrs
+
     def to_representation(self, instance):
-        return {key: value for key, value in super().to_representation(instance).items() if value is not None}
+        return {key: value for key, value in super().to_representation(instance).items() if value is not None or key in ("lat", "lng")}
 
 
 class CourseSerializer(serializers.ModelSerializer):
+    travelMode = serializers.ChoiceField(source="travel_mode", choices=("walk", "car", "transit"), required=False)
+    legModes = serializers.DictField(source="leg_modes", child=serializers.ChoiceField(choices=("walk", "car", "transit")), required=False)
     sampleId = serializers.CharField(source="source_id", read_only=True)
     isSample = serializers.BooleanField(source="is_sample", read_only=True)
     routeNumber = serializers.CharField(source="route_number", read_only=True)
@@ -50,13 +68,25 @@ class CourseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Course
-        fields = ("id", "sampleId", "routeNumber", "title", "stadium", "description", "content", "contentDoc", "contentFormat", "duration", "cover", "tags", "startLat", "startLng", "author", "likes", "views", "isSample", "createdAt", "updatedAt", "stops")
+        fields = ("id", "sampleId", "routeNumber", "title", "stadium", "description", "content", "contentDoc", "contentFormat", "duration", "cover", "tags", "startLat", "startLng", "travelMode", "legModes", "author", "likes", "views", "isSample", "createdAt", "updatedAt", "stops")
         read_only_fields = ("id", "sampleId", "routeNumber", "description", "cover", "author", "likes", "views", "isSample", "createdAt", "updatedAt")
 
     def validate_title(self, value):
         value = value.strip()
         if not value:
             raise serializers.ValidationError("코스 이름을 입력해 주세요.")
+        return value
+
+    def validate_legModes(self, value):
+        if len(value) > 144:
+            raise serializers.ValidationError("구간 이동수단 설정이 너무 많아요.")
+        for key in value:
+            if not re.fullmatch(r"-?\d{1,3}\.\d{6},-?\d{1,3}\.\d{6}>-?\d{1,3}\.\d{6},-?\d{1,3}\.\d{6}", key):
+                raise serializers.ValidationError("이동 구간 좌표를 확인해 주세요.")
+            for point in key.split(">"):
+                lat, lng = map(float, point.split(","))
+                if not -90 <= lat <= 90 or not -180 <= lng <= 180:
+                    raise serializers.ValidationError("이동 구간 좌표를 확인해 주세요.")
         return value
 
     def validate_tags(self, value):
@@ -137,8 +167,8 @@ class CourseSerializer(serializers.ModelSerializer):
 class CourseStopWriteSerializer(serializers.Serializer):
     position = serializers.IntegerField(min_value=0)
     name = serializers.CharField(max_length=255)
-    lat = FiniteFloatField(min_value=-90, max_value=90)
-    lng = FiniteFloatField(min_value=-180, max_value=180)
+    lat = FiniteFloatField(min_value=-90, max_value=90, allow_null=True)
+    lng = FiniteFloatField(min_value=-180, max_value=180, allow_null=True)
     category = serializers.CharField(max_length=120)
     placeId = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
     visitId = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
@@ -160,6 +190,8 @@ class CourseStopResponseSerializer(CourseStopWriteSerializer):
 
 @extend_schema_serializer(component_name="CourseCreateRequest")
 class CourseCreateRequestSerializer(serializers.Serializer):
+    travelMode = serializers.ChoiceField(choices=("walk", "car", "transit"), required=False)
+    legModes = serializers.DictField(child=serializers.ChoiceField(choices=("walk", "car", "transit")), required=False)
     title = serializers.CharField(max_length=80)
     stadium = serializers.CharField(max_length=120)
     content = serializers.CharField(max_length=12000, required=False, allow_blank=True)
@@ -183,6 +215,8 @@ class CoursePatchRequestSerializer(CourseCreateRequestSerializer):
 
 @extend_schema_serializer(component_name="Course")
 class CourseResponseSerializer(serializers.Serializer):
+    travelMode = serializers.ChoiceField(choices=("walk", "car", "transit"), required=False)
+    legModes = serializers.DictField(child=serializers.ChoiceField(choices=("walk", "car", "transit")), required=False)
     id = serializers.UUIDField()
     sampleId = serializers.CharField(required=False)
     routeNumber = serializers.RegexField(r"^\d{6}$")

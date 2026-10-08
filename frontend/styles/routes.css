@@ -121,6 +121,19 @@
 
 .route-card { position: relative; }
 .route-card-title-link::after { content: ""; position: absolute; inset: 0; z-index: 1; }
+.route-card-like-button { position: relative; z-index: 2; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 8px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: #52647b; font: inherit; font-size: 12px; font-variant-numeric: tabular-nums; cursor: pointer; }
+.route-card-like-button svg { width: 16px; height: 16px; flex-shrink: 0; }
+.route-card-like-button.is-liked { color: #2369dc; background: #edf4ff; }
+.route-card-like-button:hover:not(:disabled) { background: var(--soft); border-color: var(--border); }
+.route-card-like-button:focus-visible, .route-card-like-retry:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+.route-card-like-button:disabled, .route-card-like-retry:disabled { cursor: not-allowed; opacity: .6; }
+.route-card-like-notice { position: relative; z-index: 2; margin: 12px 0 0; padding: 12px; border-radius: 8px; background: var(--soft); color: #354359; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.route-card-like-notice p { margin: 0; }
+.route-card-like-retry { min-height: 44px; margin-top: 8px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); color: #245aca; font: inherit; cursor: pointer; }
+@media (max-width: 640px) {
+  .route-card-footer { flex-wrap: wrap; gap: 12px; }
+  .route-card-metrics { margin-left: auto; }
+}
 .course-card-share { position: relative; z-index: 2; margin: -4px 0 12px; }
 .course-card-share button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 11px; border: 1px solid #c9dcfa; border-radius: 7px; background: #f2f7ff; color: #246bf3; font-size: 12px; cursor: pointer; }
 .course-card-share p { font-size: 12px; margin: 8px 0; color: #52647e; }

@@ -5,19 +5,46 @@ x-logging: &default-logging
     max-file: "3"
 
 services:
+  qdrant:
+    image: qdrant/qdrant:v1.19.2
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY}
+    volumes:
+      - qdrant_data:/qdrant/storage
+    # No host ports: only backend services on the Compose network can connect.
+    logging: *default-logging
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
     restart: unless-stopped
+    volumes:
+      - ./data/staging/stadium_places:/data/staging/stadium_places:ro
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY}
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY}
       CHAT_CHECKPOINT_SIGNING_KEY: ${CHAT_CHECKPOINT_SIGNING_KEY:?Set CHAT_CHECKPOINT_SIGNING_KEY}
       CHAT_TRUST_PROXY_HEADERS: "true"
+      CHAT_STREAM_IDLE_TIMEOUT_SECONDS: ${CHAT_STREAM_IDLE_TIMEOUT_SECONDS:-300}
+      # 1000 tokens = 1 credit; guest lifetime 500, member monthly 999999 credits.
+      USAGE_GUEST_TOKENS: ${USAGE_GUEST_TOKENS:-500000}
+      USAGE_MEMBER_MONTHLY_TOKENS: ${USAGE_MEMBER_MONTHLY_TOKENS:-999999000}
       DEBUG: ${DEBUG:-false}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:?Set EMBEDDING_MODEL}
-      LLM_MODEL: ${LLM_MODEL:-gpt-5.6-luna}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY}
+      QDRANT_DOCUMENT_COLLECTION: ${QDRANT_DOCUMENT_COLLECTION:-kbo_documents_openai}
+      LLM_MODEL: ${LLM_MODEL:-gpt-6-luna}
+      COURSE_WEB_VERIFICATION_ENABLED: ${COURSE_WEB_VERIFICATION_ENABLED:-false}
+      PLACE_EVIDENCE_STORAGE_POLICIES: ${PLACE_EVIDENCE_STORAGE_POLICIES:-[]}
+      RAG_DB_HOST: ${RAG_DB_HOST:-}
+      RAG_DB_PORT: ${RAG_DB_PORT:-5432}
+      RAG_DB_NAME: ${RAG_DB_NAME:-}
+      RAG_DB_USER: ${RAG_DB_USER:-}
+      RAG_DB_PASSWORD: ${RAG_DB_PASSWORD:-}
+      RAG_DB_SSLMODE: ${RAG_DB_SSLMODE:-require}
       AUTH_FRONTEND_ORIGIN: ${AUTH_FRONTEND_ORIGIN:?Set AUTH_FRONTEND_ORIGIN}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?Set DJANGO_ALLOWED_HOSTS}
       DB_HOST: ${DB_HOST:?Set DB_HOST}
@@ -40,6 +67,7 @@ services:
       DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-}
       EMAIL_USE_TLS: ${EMAIL_USE_TLS:?Set EMAIL_USE_TLS}
       KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY:-}
+      COLLECTED_PLACES_DIR: ${COLLECTED_PLACES_DIR:-/data/staging/stadium_places/20260927T092810Z-no-sbiz}
       KMA_SERVICE_KEY: ${KMA_SERVICE_KEY:-}
       KMA_API_KEY: ${KMA_API_KEY:-}
       TOUR_API_KEY: ${TOUR_API_KEY:-}
@@ -52,8 +80,11 @@ services:
       - "127.0.0.1:8000:8000"
     command: >
       sh -c "python manage.py migrate &&
-             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120"
+             python manage.py setup_chat_checkpoints &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --worker-class gthread --threads 4 --timeout 120"
     depends_on:
+      qdrant:
+        condition: service_started
       minio:
         condition: service_healthy
     healthcheck:
@@ -127,3 +158,4 @@ services:
 
 volumes:
   minio_data:
+  qdrant_data:

@@ -210,7 +210,7 @@ class PublicStadiumList(BaseballPublicMixin, generics.ListAPIView):
     pagination_class = BaseballPages
 
     def get_queryset(self):
-        queryset = models.Stadium.objects.prefetch_related("home_contexts__team").order_by("stadium_code")
+        queryset = models.Stadium.objects.prefetch_related("home_contexts__team", "home_contexts__seat_maps__assets").order_by("stadium_code")
         query = self.request.query_params.get("q", "").strip()[:150]
         return queryset.filter(Q(stadium_name_ko__icontains=query) | Q(address__icontains=query) | Q(home_contexts__team__team_name_ko__icontains=query)).distinct() if query else queryset
 
@@ -220,7 +220,7 @@ class PublicStadiumDetail(BaseballPublicMixin, generics.RetrieveAPIView):
     serializer_class = PublicStadiumSerializer
     lookup_field = "stadium_code"
     lookup_url_kwarg = "code"
-    queryset = models.Stadium.objects.prefetch_related("home_contexts__team")
+    queryset = models.Stadium.objects.prefetch_related("home_contexts__team", "home_contexts__seat_maps__assets")
 
 
 class StadiumChildren(BaseballPublicMixin, generics.ListAPIView):

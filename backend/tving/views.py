@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -18,8 +19,23 @@ from .service import (
     TvingAuthorizationError, TvingError, TvingInputError, create_snapshot,
     create_player, delete_player, delete_snapshot, details_status, player_entity,
     refresh_athlete, refresh_daily, refresh_month, refresh_team, search_entities,
-    search_snapshots, update_player, update_snapshot,
+    search_snapshots, update_player, update_snapshot, with_next_games,
 )
+
+
+def _run_local_crawler_if_needed():
+    # 로컬 프로필에서만 화면 요청 기반의 일일 크롤링을 허용한다.
+    profiles = {
+        profile.strip()
+        for profile in os.getenv("COMPOSE_PROFILES", "").split(",")
+        if profile.strip()
+    }
+    if "local" not in profiles:
+        return
+
+    from crawling.local_scheduler import run_if_needed_today
+
+    run_if_needed_today()
 
 
 def _error(error):
@@ -52,6 +68,9 @@ class RefreshView(APIView):
             today = datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
             argument = today[:7] if today.startswith("2026-") else "2026-12"
         try:
+            # 일정·순위 데이터 요청 전에 로컬 크롤러를 하루 한 번만 실행한다.
+            if self.argument in {"date", "month"}:
+                _run_local_crawler_if_needed()
             return Response({"data": self.refresh(argument), "error": None}, headers={"Cache-Control": "no-store"})
         except TvingError as error:
             return _error(error)
@@ -62,9 +81,19 @@ class RefreshView(APIView):
 class DailyView(RefreshView):
     refresh, argument = staticmethod(refresh_daily), "date"
 
-    @extend_schema(parameters=[OpenApiParameter("date", OpenApiTypes.DATE, required=False)], responses={200: DailyResponseSerializer, 400: ErrorResponseSerializer, 503: ErrorResponseSerializer})
+    @extend_schema(parameters=[
+        OpenApiParameter("date", OpenApiTypes.DATE, required=False),
+        OpenApiParameter("next_if_empty", OpenApiTypes.BOOL, required=False,
+                         description="경기가 없으면 다음 예정 경기일의 경기를 반환합니다. date와 순위는 요청 기준일을 유지하고 경기 날짜는 games[].date에 표시됩니다."),
+    ], responses={200: DailyResponseSerializer, 400: ErrorResponseSerializer, 503: ErrorResponseSerializer})
     def get(self, request, value=None):
-        return super().get(request, value)
+        response = super().get(request, value)
+        if response.status_code == 200 and request.query_params.get("next_if_empty", "").lower() in {"true", "1"}:
+            try:
+                response.data["data"] = with_next_games(response.data["data"])
+            except Exception:
+                return _unavailable()
+        return response
 
 
 class MonthView(RefreshView):

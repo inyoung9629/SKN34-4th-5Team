@@ -1,20 +1,20 @@
 """RAG 가 제대로 붙었는지 한 번에 확인 — shell 에 붙여넣기 없이 한 줄로.
 
     docker compose exec backend python manage.py rag_check
-    docker compose exec backend python manage.py rag_check -q "잠실 코스 짜줘"
-    docker compose exec backend python manage.py rag_check --course    # 코스 추천까지 확인
+    docker compose exec backend python manage.py rag_check --invoke -q "잠실 코스 짜줘"
+    docker compose exec backend python manage.py rag_check --invoke --course    # 코스 추천까지 확인
 
 확인 항목
     1) 환경변수   CHAT_USE_RAG · LLM_MODEL · EMBEDDING_MODEL · LANGSMITH_*
     2) 스위치     use_rag() / chat_chain() — 지금 챗봇이 RAG 로 도는지
-    3) 인덱스     llm_documentchunk 건수 (0 이면 build_index 필요)
-    4) 실제 호출  질문 하나를 끝까지 태워 본다 (reasoning_effort 등 모델 파라미터 검증 포함)
+    3) 인덱스     Qdrant 청크 건수 (0 이면 build_index 필요)
+    4) 실제 호출 (--invoke 명시 시만) 질문 하나를 끝까지 태워 본다 (reasoning_effort 등 모델 파라미터 검증 포함)
 """
 import os
 import time
 
-from django.core.management.base import BaseCommand
-from django.db import connection
+from django.core.management.base import BaseCommand, CommandError
+from llm.vector_store import ensure_collection, iter_documents
 
 MASK = ("API_KEY", "PASSWORD", "SECRET", "SIGNING")
 
@@ -32,6 +32,7 @@ class Command(BaseCommand):
     help = "RAG 연결 상태를 점검한다 (환경변수 · 스위치 · 인덱스 · 실제 호출)"
 
     def add_arguments(self, parser):
+        parser.add_argument("--invoke", action="store_true", help="유료 embedding/LLM API로 실제 질문을 실행한다")
         parser.add_argument("-q", "--question", default="LG 지금 몇 위야?")
         parser.add_argument("--course", action="store_true", help="코스 추천 질문으로 확인")
         parser.add_argument("--stadium", default=None, help='예: "잠실야구장"')
@@ -49,75 +50,60 @@ class Command(BaseCommand):
 
         p("\n[2] 스위치")
         try:
-            from llm.rag.pipeline import chat_chain, use_rag
+            from llm.v1.rag.pipeline import chat_chain, use_rag
         except Exception as e:
-            p(ng(f"    pipeline import 실패: {e!r}"))
-            return
+            raise CommandError(f"pipeline import 실패: {e!r}") from e
         on = use_rag()
         p(f"    use_rag()            {ok('True  → RAG 로 답한다') if on else ng('False → 예전 helpful-assistant 체인')}")
         p(f"    chat_chain()         {type(chat_chain()).__name__ if chat_chain() else 'None'}")
         if not on:
             p("    (CHAT_USE_RAG=1 로 두고 backend 를 restart 하세요)")
 
-        p("\n[3] 인덱스")
+        p("\n[3] Qdrant 인덱스")
         try:
-            with connection.cursor() as cur:
-                cur.execute("SELECT count(*) FROM llm_documentchunk")
-                n = cur.fetchone()[0]
-                cur.execute("SELECT metadata->>'category', count(*) FROM llm_documentchunk "
-                            "GROUP BY 1 ORDER BY 2 DESC LIMIT 8")
-                rows = cur.fetchall()
-            p(f"    청크 {ok(str(n)) if n else ng('0 — build_index 필요')} 건")
-            for c, k in rows:
-                p(f"      {c or '(없음)':<12} {k}")
-        except Exception as e:
-            p(ng(f"    DB 조회 실패: {e!r}"))
+            from collections import Counter
+            name = ensure_collection()
+            categories = Counter()
+            n = 0
+            food = stadium = None
+            for doc in iter_documents():
+                m = doc["metadata"]
+                n += 1
+                categories[m.get("category")] += 1
+                if food is None and m.get("category") == "FOOD_OUT":
+                    food = m
+                if stadium is None and m.get("category") == "STADIUM" and m.get("stadium_code") == "JAMSIL":
+                    stadium = m
+            p(f"    {name}: 청크 {n} 건")
+            for category, count in categories.most_common(8):
+                p(f"      {category or '(없음)'}: {count}")
+            if not n:
+                raise CommandError("Qdrant document collection is empty; migrate/build_index first")
+            p("\n[3-1] 코스용 메타데이터")
+            if food:
+                need = ("name", "lat_y", "lng_x", "distance_m", "category_detail", "kakao_place_id", "address", "stadium_code", "doc_id")
+                missing = [key for key in need if not food.get(key)]
+                p(f"    FOOD_OUT 필요 키: {missing or '전부 있음'}")
+            else:
+                p(ng("    FOOD_OUT 청크 없음"))
+            p(f"    JAMSIL STADIUM: {stadium.get('stadium_name_ko')}" if stadium else ng("    JAMSIL STADIUM 청크 없음"))
+        except Exception as exc:
+            raise CommandError(f"Qdrant diagnostic failed: {exc}") from exc
 
-        p("\n[3-1] 코스용 메타데이터 (카카오 장소 청크)")
-        try:
-            import json as _json
-            with connection.cursor() as cur:
-                cur.execute("""SELECT metadata FROM llm_documentchunk
-                               WHERE metadata->>'category' = 'FOOD_OUT' LIMIT 1""")
-                row = cur.fetchone()
-            if not row:
-                p(ng("    FOOD_OUT 청크가 없습니다 — 카카오 장소가 적재 안 됐어요"))
-            else:
-                raw = row[0]
-                p(f"    파이썬 타입   {type(raw).__name__}"
-                  f"{'  (str 로 와서 _meta() 가 파싱합니다)' if isinstance(raw, str) else ''}")
-                m = _json.loads(raw) if isinstance(raw, str) else raw
-                need = ("name", "lat_y", "lng_x", "distance_m", "category_detail",
-                        "kakao_place_id", "address", "stadium_code", "doc_id")
-                miss = [k for k in need if not m.get(k)]
-                p(f"    필요 키      {ok('전부 있음') if not miss else ng('빠짐: ' + ', '.join(miss))}")
-                p(f"    예시         {m.get('name')} · {m.get('category_detail')} · "
-                  f"{m.get('distance_m')}m · ({m.get('lat_y')}, {m.get('lng_x')})")
-            with connection.cursor() as cur:
-                cur.execute("""SELECT metadata FROM llm_documentchunk
-                               WHERE metadata->>'category' = 'STADIUM'
-                                 AND metadata->>'stadium_code' = 'JAMSIL' LIMIT 1""")
-                row = cur.fetchone()
-            if not row:
-                p(ng("    JAMSIL STADIUM 청크 없음 — 코스에 구장 좌표를 못 붙입니다"))
-            else:
-                m = _json.loads(row[0]) if isinstance(row[0], str) else row[0]
-                p(f"    구장 앵커    {m.get('stadium_name_ko')} ({m.get('lat_y')}, {m.get('lng_x')})")
-        except Exception as e:
-            p(ng(f"    확인 실패: {e!r}"))
+        if not o["invoke"]:
+            p(ok("\n읽기 전용 점검 완료 — 실제 유료 호출은 --invoke로 명시하세요"))
+            return
 
         p("\n[4] 실제 호출")
         q = "잠실에서 친구들이랑 첫 직관인데 경기 전후 코스 짜줘. 치킨 좋아해" if o["course"] else o["question"]
         p(f"    질문: {q}")
         try:
-            from llm.rag.pipeline import answer
+            from llm.v1.rag.pipeline import answer
             t0 = time.perf_counter()
             r = answer(q, stadium_name=o["stadium"])
             ms = (time.perf_counter() - t0) * 1000
         except Exception as e:
-            p(ng(f"    실패: {type(e).__name__}: {e}"))
-            p("    (unsupported parameter 류면 ChatOpenAI 의 reasoning_effort 를 빼야 합니다)")
-            return
+            raise CommandError(f"실제 호출 실패: {type(e).__name__}: {e}") from e
         p(f"    route   {r.get('route')}")
         p(f"    소요    {ms:.0f}ms   timing={r.get('timing') or {}}")
         p(f"    근거    {len(r.get('sources') or [])}건")

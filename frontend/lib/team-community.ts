@@ -26,6 +26,12 @@ export function getTeamBoardHref(code?: string, postId?: string) {
   return `/community/teams${params.size ? `?${params.toString()}` : ""}`;
 }
 
+export function getCommunityPostHref(post: { id: string; board: "free" | "teams"; teamCode: string }) {
+  return post.board === "free"
+    ? `/community?post=${encodeURIComponent(post.id)}`
+    : getTeamBoardHref(post.teamCode, post.id);
+}
+
 export function getCommunityWriteHref(board: "free" | "teams", code = "") {
   const params = new URLSearchParams({ board });
   const team = board === "teams" ? getTeamBoard(code) : undefined;

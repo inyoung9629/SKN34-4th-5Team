@@ -3,9 +3,436 @@ info:
   title: KBO Journey API
   version: 1.0.0
 paths:
-  /api/auth/admin/members/:
+  /api/{version}/chat/admin/feedback/:
     get:
-      operationId: auth_admin_members_list
+      operationId: chat_admin_feedback_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: path
+        name: version
+        schema:
+          type: string
+          pattern: ^v1|v2$
+        required: true
+      tags:
+      - chat
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAdminFeedbackList'
+          description: ''
+  /api/{version}/chat/admin/feedback/{id}/:
+    get:
+      operationId: chat_admin_feedback_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: version
+        schema:
+          type: string
+          pattern: ^v1|v2$
+        required: true
+      tags:
+      - chat
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminFeedback'
+          description: ''
+  /api/{version}/chat/sessions/:
+    get:
+      operationId: chat_sessions_list
+      description: |-
+        채팅방 리스트 조회 View
+        URL: /api/v2/chat/sessions/
+
+        GET: 회원/비회원 모두 자신의 대화방 목록을 조회합니다.
+                return list_대화방
+        POST: 회원/비회원 모두 새 대화방을 생성합니다. 비회원은 guest_id 쿠키로 식별합니다.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: path
+        name: version
+        schema:
+          type: string
+          pattern: ^v1|v2$
+        required: true
+      tags:
+      - chat
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedChatSessionList'
+          description: ''
+    post:
+      operationId: chat_sessions_create
+      description: |-
+        채팅방 리스트 조회 View
+        URL: /api/v2/chat/sessions/
+
+        GET: 회원/비회원 모두 자신의 대화방 목록을 조회합니다.
+                return list_대화방
+        POST: 회원/비회원 모두 새 대화방을 생성합니다. 비회원은 guest_id 쿠키로 식별합니다.
+      parameters:
+      - in: path
+        name: version
+        schema:
+          type: string
+          pattern: ^v1|v2$
+        required: true
+      tags:
+      - chat
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChatSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChatSession'
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSession'
+          description: ''
+  /api/{version}/chat/sessions/{session_id}/:
+    put:
+      operationId: chat_sessions_update
+      description: |-
+        URL: /api/v2/chat/sessions/<session_id>/
+
+        PATCH: 대화방 정보를 수정합니다.
+        DELETE: 대화방을 삭제합니다. 대화 checkpoint 는 commit 뒤 지운다(llm.apps 의 post_delete outbox, 실패 시 재시도).
+      parameters:
+      - in: path
+        name: session_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: version
+        schema:
+          type: string
+          pattern: ^v1|v2$
+        required: true
+      tags:
+      - chat
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChatSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChatSession'
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSession'
+          description: ''
+    patch:
+      operationId: chat_sessions_partial_update
+      description: |-
+        URL: /api/v2/chat/sessions/<session_id>/
+
+        PATCH: 대화방 정보를 수정합니다.
+        DELETE: 대화방을 삭제합니다. 대화 checkpoint 는 commit 뒤 지운다(llm.apps 의 post_delete outbox, 실패 시 재시도).
+      parameters:
+      - in: path
+        name: session_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: version
+        schema:
+          type: string
+          pattern: ^v1|v2$
+        required: true
+      tags:
+      - chat
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedChatSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedChatSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedChatSession'
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSession'
+          description: ''
+    delete:
+      operationId: chat_sessions_destroy
+      description: |-
+        URL: /api/v2/chat/sessions/<session_id>/
+
+        PATCH: 대화방 정보를 수정합니다.
+        DELETE: 대화방을 삭제합니다. 대화 checkpoint 는 commit 뒤 지운다(llm.apps 의 post_delete outbox, 실패 시 재시도).
+      parameters:
+      - in: path
+        name: session_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: version
+        schema:
+          type: string
+          pattern: ^v1|v2$
+        required: true
+      tags:
+      - chat
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/{version}/chat/sessions/{session_id}/feedback/:
+    put:
+      operationId: chat_sessions_feedback_update
+      parameters:
+      - in: path
+        name: session_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: version
+        schema:
+          type: string
+          pattern: ^v1|v2$
+        required: true
+      tags:
+      - chat
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FeedbackInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FeedbackInput'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackInput'
+          description: ''
+  /api/{version}/chat/sessions/{session_id}/messages/:
+    get:
+      operationId: chat_sessions_messages_retrieve
+      description: 해당 세션의 채팅목록을 가져온다. 소유하지 않은/존재하지 않는 세션이면 404.
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - json
+          - sse
+      - in: path
+        name: session_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: version
+        schema:
+          type: string
+          pattern: ^v1|v2$
+        required: true
+      tags:
+      - chat
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: chat_sessions_messages_create
+      description: LLM 호출 (SSE 스트리밍). version 으로 chat_v1/chat_v2 의 실제 구현을 직접 고른다.
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - json
+          - sse
+      - in: path
+        name: session_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: version
+        schema:
+          type: string
+          pattern: ^v1|v2$
+        required: true
+      tags:
+      - chat
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+    put:
+      operationId: chat_sessions_messages_update
+      description: 이후 채팅목록을 수정 + LLM 호출. version 으로 chat_v1/chat_v2 의 실제 구현을 직접 고른다.
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - json
+          - sse
+      - in: path
+        name: session_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: version
+        schema:
+          type: string
+          pattern: ^v1|v2$
+        required: true
+      tags:
+      - chat
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: chat_sessions_messages_destroy
+      description: 이후 채팅목록을 삭제한다.
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - json
+          - sse
+      - in: path
+        name: session_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: version
+        schema:
+          type: string
+          pattern: ^v1|v2$
+        required: true
+      tags:
+      - chat
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/{version}/chat/usage/:
+    get:
+      operationId: chat_usage_retrieve
+      description: 'GET /api/v{1,2}/chat/usage/: 요청자 본인(회원 JWT / 비회원 guest_id 쿠키)의
+        토큰 잔액. 조회는 차감하지 않는다.'
+      parameters:
+      - in: path
+        name: version
+        schema:
+          type: string
+          pattern: ^v1|v2$
+        required: true
+      tags:
+      - chat
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/ads/admin/creatives/:
+    get:
+      operationId: v1_ads_admin_creatives_list
       parameters:
       - name: page
         required: false
@@ -14,7 +441,164 @@ paths:
         schema:
           type: integer
       tags:
-      - auth
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAdAdminList'
+          description: ''
+    post:
+      operationId: v1_ads_admin_creatives_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdAdmin'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdAdmin'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdAdmin'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdAdmin'
+          description: ''
+  /api/v1/ads/admin/creatives/{id}/:
+    get:
+      operationId: v1_ads_admin_creatives_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdAdmin'
+          description: ''
+    patch:
+      operationId: v1_ads_admin_creatives_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAdAdmin'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAdAdmin'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAdAdmin'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdAdmin'
+          description: ''
+  /api/v1/ads/events/:
+    post:
+      operationId: v1_ads_events_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdEventInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdEventInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdEventInput'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdEventResult'
+          description: ''
+  /api/v1/ads/slots/:
+    get:
+      operationId: v1_ads_slots_retrieve
+      parameters:
+      - in: query
+        name: placement
+        schema:
+          enum:
+          - home-club-banner
+          - home-route-partner-banner
+          type: string
+          minLength: 1
+        description: |-
+          * `home-club-banner` - 홈 구단 광고
+          * `home-route-partner-banner` - 홈 음식점·시설 광고
+        required: true
+      - in: query
+        name: route_ids
+        schema:
+          type: array
+          items:
+            type: string
+            maxLength: 80
+          maxItems: 3
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdSlotResponse'
+          description: ''
+  /api/v1/auth/admin/members/:
+    get:
+      operationId: v1_auth_admin_members_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -24,9 +608,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedAdminMemberList'
           description: ''
-  /api/auth/admin/members/{id}/role/:
+  /api/v1/auth/admin/members/{id}/role/:
     patch:
-      operationId: auth_admin_members_role_partial_update
+      operationId: v1_auth_admin_members_role_partial_update
       parameters:
       - in: path
         name: id
@@ -34,7 +618,7 @@ paths:
           type: integer
         required: true
       tags:
-      - auth
+      - v1
       requestBody:
         content:
           application/json:
@@ -55,11 +639,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/AdminMember'
           description: ''
-  /api/auth/email/request:
+  /api/v1/auth/email/request:
     post:
-      operationId: auth_email_request_create
+      operationId: v1_auth_email_request_create
       tags:
-      - auth
+      - v1
       requestBody:
         content:
           application/json:
@@ -81,11 +665,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/EmailChangeRequestResponse'
           description: ''
-  /api/auth/email/verify:
+  /api/v1/auth/email/verify:
     post:
-      operationId: auth_email_verify_create
+      operationId: v1_auth_email_verify_create
       tags:
-      - auth
+      - v1
       requestBody:
         content:
           application/json:
@@ -107,14 +691,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/EmailVerificationResponse'
           description: ''
-  /api/auth/logout:
+  /api/v1/auth/logout:
     post:
-      operationId: auth_logout_create
+      operationId: v1_auth_logout_create
       description: |-
         Takes a token and blacklists it. Must be used with the
         `rest_framework_simplejwt.token_blacklist` app installed.
       tags:
-      - auth
+      - v1
       requestBody:
         content:
           application/json:
@@ -136,9 +720,9 @@ paths:
                 properties: {}
                 additionalProperties: false
           description: ''
-  /api/auth/password:
+  /api/v1/auth/password:
     post:
-      operationId: auth_password_create
+      operationId: v1_auth_password_create
       description: |-
         사용자 비밀번호를 변경합니다.
         Url: POST /auth/password
@@ -151,7 +735,7 @@ paths:
         기존 old_password, password, re_password 필드명도 지원합니다.
         Return: HTTP_200_OK
       tags:
-      - auth
+      - v1
       requestBody:
         content:
           application/json:
@@ -169,12 +753,12 @@ paths:
       responses:
         '200':
           description: No response body
-  /api/auth/password/request:
+  /api/v1/auth/password/request:
     post:
-      operationId: auth_password_request_create
+      operationId: v1_auth_password_request_create
       description: |-
         사용자 비밀번호 재설정 url 을 이메일로 전송합니다.
-        Url: /api/auth/password/request
+        Url: /api/v1/auth/password/request
         Args:
             - email
         Return:
@@ -183,7 +767,7 @@ paths:
         2. 비밀번호 재설정용 토큰 발급
         3. 이메일 전송
       tags:
-      - auth
+      - v1
       requestBody:
         content:
           application/json:
@@ -199,14 +783,14 @@ paths:
       responses:
         '200':
           description: No response body
-  /api/auth/signin:
+  /api/v1/auth/signin:
     post:
-      operationId: auth_signin_create
+      operationId: v1_auth_signin_create
       description: |-
         Takes a set of user credentials and returns an access and refresh JSON web
         token pair to prove the authentication of those credentials.
       tags:
-      - auth
+      - v1
       requestBody:
         content:
           application/json:
@@ -226,12 +810,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/TokenPair'
           description: ''
-  /api/auth/signup/:
+  /api/v1/auth/signup/:
     post:
-      operationId: auth_signup_create
+      operationId: v1_auth_signup_create
       description: |-
         회원가입하는 함수입니다.
-        Url : /api/auth/signup/
+        Url : /api/v1/auth/signup/
         Args:
             - username
             - email, first_name, birth_date, gender
@@ -240,7 +824,7 @@ paths:
         Return:
             - HTTP_201_CREATED
       tags:
-      - auth
+      - v1
       requestBody:
         content:
           application/json:
@@ -256,14 +840,14 @@ paths:
       responses:
         '201':
           description: No response body
-  /api/auth/token/refresh/:
+  /api/v1/auth/token/refresh/:
     post:
-      operationId: auth_token_refresh_create
+      operationId: v1_auth_token_refresh_create
       description: |-
         Takes a refresh type JSON web token and returns an access type JSON web
         token if the refresh token is valid.
       tags:
-      - auth
+      - v1
       requestBody:
         content:
           application/json:
@@ -283,18 +867,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/TokenRefreshResponse'
           description: ''
-  /api/auth/user:
+  /api/v1/auth/user:
     get:
-      operationId: auth_user_retrieve
+      operationId: v1_auth_user_retrieve
       description: |-
         로그인한 사용자 정보를 조회합니다.
-        Url: GET /auth/user (Nginx 경유: /api/auth/user)
+        Url: GET /api/v1/auth/user
         Headers: Authorization: Bearer <access_token>
         Return:
             - HTTP_200_OK
             - HTTP_401_UNAUTHORIZED (토큰 미전달 또는 JWT 인증 실패)
       tags:
-      - auth
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -305,16 +889,16 @@ paths:
                 $ref: '#/components/schemas/MemberUser'
           description: ''
     patch:
-      operationId: auth_user_partial_update
+      operationId: v1_auth_user_partial_update
       description: |-
         로그인한 사용자 정보를 조회합니다.
-        Url: GET /auth/user (Nginx 경유: /api/auth/user)
+        Url: GET /api/v1/auth/user
         Headers: Authorization: Bearer <access_token>
         Return:
             - HTTP_200_OK
             - HTTP_401_UNAUTHORIZED (토큰 미전달 또는 JWT 인증 실패)
       tags:
-      - auth
+      - v1
       requestBody:
         content:
           application/json:
@@ -335,11 +919,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/MemberUser'
           description: ''
-  /api/auth/username/request:
+  /api/v1/auth/username/request:
     post:
-      operationId: auth_username_request_create
+      operationId: v1_auth_username_request_create
       tags:
-      - auth
+      - v1
       requestBody:
         content:
           application/json:
@@ -359,9 +943,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/UsernameRequestResponse'
           description: ''
-  /api/baseball/games/:
+  /api/v1/auth/users/{member_id}/public/:
     get:
-      operationId: baseball_games_list
+      operationId: v1_auth_users_public_retrieve
+      parameters:
+      - in: path
+        name: member_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicMember'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/baseball/games/:
+    get:
+      operationId: v1_baseball_games_list
       parameters:
       - name: page
         required: false
@@ -376,7 +994,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -387,9 +1005,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedGameList'
           description: ''
-  /api/baseball/manage/facilities/:
+  /api/v1/baseball/manage/facilities/:
     get:
-      operationId: baseball_manage_facilities_list
+      operationId: v1_baseball_manage_facilities_list
       parameters:
       - name: page
         required: false
@@ -404,7 +1022,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -415,9 +1033,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedFacilityList'
           description: ''
     post:
-      operationId: baseball_manage_facilities_create
+      operationId: v1_baseball_manage_facilities_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -451,9 +1069,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/facilities/{id}/:
+  /api/v1/baseball/manage/facilities/{id}/:
     get:
-      operationId: baseball_manage_facilities_retrieve
+      operationId: v1_baseball_manage_facilities_retrieve
       parameters:
       - in: path
         name: id
@@ -464,7 +1082,7 @@ paths:
         description: A unique value identifying this facility.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -481,7 +1099,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_facilities_partial_update
+      operationId: v1_baseball_manage_facilities_partial_update
       parameters:
       - in: path
         name: id
@@ -492,7 +1110,7 @@ paths:
         description: A unique value identifying this facility.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -538,7 +1156,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_facilities_destroy
+      operationId: v1_baseball_manage_facilities_destroy
       parameters:
       - in: path
         name: id
@@ -549,7 +1167,7 @@ paths:
         description: A unique value identifying this facility.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -579,9 +1197,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/food-store-locations/:
+  /api/v1/baseball/manage/food-store-locations/:
     get:
-      operationId: baseball_manage_food_store_locations_list
+      operationId: v1_baseball_manage_food_store_locations_list
       parameters:
       - name: page
         required: false
@@ -596,7 +1214,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -607,9 +1225,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedFoodStoreLocationList'
           description: ''
     post:
-      operationId: baseball_manage_food_store_locations_create
+      operationId: v1_baseball_manage_food_store_locations_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -643,9 +1261,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/food-store-locations/{id}/:
+  /api/v1/baseball/manage/food-store-locations/{id}/:
     get:
-      operationId: baseball_manage_food_store_locations_retrieve
+      operationId: v1_baseball_manage_food_store_locations_retrieve
       parameters:
       - in: path
         name: id
@@ -656,7 +1274,7 @@ paths:
         description: A unique value identifying this food store location.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -673,7 +1291,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_food_store_locations_partial_update
+      operationId: v1_baseball_manage_food_store_locations_partial_update
       parameters:
       - in: path
         name: id
@@ -684,7 +1302,7 @@ paths:
         description: A unique value identifying this food store location.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -730,7 +1348,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_food_store_locations_destroy
+      operationId: v1_baseball_manage_food_store_locations_destroy
       parameters:
       - in: path
         name: id
@@ -741,7 +1359,7 @@ paths:
         description: A unique value identifying this food store location.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -771,9 +1389,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/food-store-menus/:
+  /api/v1/baseball/manage/food-store-menus/:
     get:
-      operationId: baseball_manage_food_store_menus_list
+      operationId: v1_baseball_manage_food_store_menus_list
       parameters:
       - name: page
         required: false
@@ -788,7 +1406,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -799,9 +1417,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedFoodStoreMenuList'
           description: ''
     post:
-      operationId: baseball_manage_food_store_menus_create
+      operationId: v1_baseball_manage_food_store_menus_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -835,9 +1453,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/food-store-menus/{id}/:
+  /api/v1/baseball/manage/food-store-menus/{id}/:
     get:
-      operationId: baseball_manage_food_store_menus_retrieve
+      operationId: v1_baseball_manage_food_store_menus_retrieve
       parameters:
       - in: path
         name: id
@@ -848,7 +1466,7 @@ paths:
         description: A unique value identifying this food store menu.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -865,7 +1483,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_food_store_menus_partial_update
+      operationId: v1_baseball_manage_food_store_menus_partial_update
       parameters:
       - in: path
         name: id
@@ -876,7 +1494,7 @@ paths:
         description: A unique value identifying this food store menu.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -922,7 +1540,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_food_store_menus_destroy
+      operationId: v1_baseball_manage_food_store_menus_destroy
       parameters:
       - in: path
         name: id
@@ -933,7 +1551,7 @@ paths:
         description: A unique value identifying this food store menu.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -963,9 +1581,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/food-stores/:
+  /api/v1/baseball/manage/food-stores/:
     get:
-      operationId: baseball_manage_food_stores_list
+      operationId: v1_baseball_manage_food_stores_list
       parameters:
       - name: page
         required: false
@@ -980,7 +1598,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -991,9 +1609,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedFoodStoreList'
           description: ''
     post:
-      operationId: baseball_manage_food_stores_create
+      operationId: v1_baseball_manage_food_stores_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -1027,9 +1645,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/food-stores/{id}/:
+  /api/v1/baseball/manage/food-stores/{id}/:
     get:
-      operationId: baseball_manage_food_stores_retrieve
+      operationId: v1_baseball_manage_food_stores_retrieve
       parameters:
       - in: path
         name: id
@@ -1040,7 +1658,7 @@ paths:
         description: A unique value identifying this food store.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -1057,7 +1675,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_food_stores_partial_update
+      operationId: v1_baseball_manage_food_stores_partial_update
       parameters:
       - in: path
         name: id
@@ -1068,7 +1686,7 @@ paths:
         description: A unique value identifying this food store.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -1114,7 +1732,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_food_stores_destroy
+      operationId: v1_baseball_manage_food_stores_destroy
       parameters:
       - in: path
         name: id
@@ -1125,7 +1743,7 @@ paths:
         description: A unique value identifying this food store.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -1155,9 +1773,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/games/:
+  /api/v1/baseball/manage/games/:
     get:
-      operationId: baseball_manage_games_list
+      operationId: v1_baseball_manage_games_list
       parameters:
       - name: page
         required: false
@@ -1172,7 +1790,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -1183,9 +1801,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedGameList'
           description: ''
     post:
-      operationId: baseball_manage_games_create
+      operationId: v1_baseball_manage_games_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -1219,9 +1837,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/games/{id}/:
+  /api/v1/baseball/manage/games/{id}/:
     get:
-      operationId: baseball_manage_games_retrieve
+      operationId: v1_baseball_manage_games_retrieve
       parameters:
       - in: path
         name: id
@@ -1232,7 +1850,7 @@ paths:
         description: A unique value identifying this game.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -1249,7 +1867,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_games_partial_update
+      operationId: v1_baseball_manage_games_partial_update
       parameters:
       - in: path
         name: id
@@ -1260,7 +1878,7 @@ paths:
         description: A unique value identifying this game.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -1306,7 +1924,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_games_destroy
+      operationId: v1_baseball_manage_games_destroy
       parameters:
       - in: path
         name: id
@@ -1317,7 +1935,7 @@ paths:
         description: A unique value identifying this game.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -1347,9 +1965,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/home-contexts/:
+  /api/v1/baseball/manage/home-contexts/:
     get:
-      operationId: baseball_manage_home_contexts_list
+      operationId: v1_baseball_manage_home_contexts_list
       parameters:
       - name: page
         required: false
@@ -1364,7 +1982,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -1375,9 +1993,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedHomeContextList'
           description: ''
     post:
-      operationId: baseball_manage_home_contexts_create
+      operationId: v1_baseball_manage_home_contexts_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -1411,9 +2029,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/home-contexts/{id}/:
+  /api/v1/baseball/manage/home-contexts/{id}/:
     get:
-      operationId: baseball_manage_home_contexts_retrieve
+      operationId: v1_baseball_manage_home_contexts_retrieve
       parameters:
       - in: path
         name: id
@@ -1424,7 +2042,7 @@ paths:
         description: A unique value identifying this home context.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -1441,7 +2059,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_home_contexts_partial_update
+      operationId: v1_baseball_manage_home_contexts_partial_update
       parameters:
       - in: path
         name: id
@@ -1452,7 +2070,7 @@ paths:
         description: A unique value identifying this home context.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -1498,7 +2116,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_home_contexts_destroy
+      operationId: v1_baseball_manage_home_contexts_destroy
       parameters:
       - in: path
         name: id
@@ -1509,7 +2127,7 @@ paths:
         description: A unique value identifying this home context.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -1539,9 +2157,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/postseason-stages/:
+  /api/v1/baseball/manage/postseason-stages/:
     get:
-      operationId: baseball_manage_postseason_stages_list
+      operationId: v1_baseball_manage_postseason_stages_list
       parameters:
       - name: page
         required: false
@@ -1556,7 +2174,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -1567,9 +2185,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedPostseasonStageList'
           description: ''
     post:
-      operationId: baseball_manage_postseason_stages_create
+      operationId: v1_baseball_manage_postseason_stages_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -1603,9 +2221,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/postseason-stages/{id}/:
+  /api/v1/baseball/manage/postseason-stages/{id}/:
     get:
-      operationId: baseball_manage_postseason_stages_retrieve
+      operationId: v1_baseball_manage_postseason_stages_retrieve
       parameters:
       - in: path
         name: id
@@ -1616,7 +2234,7 @@ paths:
         description: A unique value identifying this postseason stage.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -1633,7 +2251,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_postseason_stages_partial_update
+      operationId: v1_baseball_manage_postseason_stages_partial_update
       parameters:
       - in: path
         name: id
@@ -1644,7 +2262,7 @@ paths:
         description: A unique value identifying this postseason stage.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -1690,7 +2308,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_postseason_stages_destroy
+      operationId: v1_baseball_manage_postseason_stages_destroy
       parameters:
       - in: path
         name: id
@@ -1701,7 +2319,7 @@ paths:
         description: A unique value identifying this postseason stage.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -1731,9 +2349,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/seat-map-assets/:
+  /api/v1/baseball/manage/seat-map-assets/:
     get:
-      operationId: baseball_manage_seat_map_assets_list
+      operationId: v1_baseball_manage_seat_map_assets_list
       parameters:
       - name: page
         required: false
@@ -1748,7 +2366,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -1759,9 +2377,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedSeatMapAssetList'
           description: ''
     post:
-      operationId: baseball_manage_seat_map_assets_create
+      operationId: v1_baseball_manage_seat_map_assets_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -1795,9 +2413,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/seat-map-assets/{id}/:
+  /api/v1/baseball/manage/seat-map-assets/{id}/:
     get:
-      operationId: baseball_manage_seat_map_assets_retrieve
+      operationId: v1_baseball_manage_seat_map_assets_retrieve
       parameters:
       - in: path
         name: id
@@ -1808,7 +2426,7 @@ paths:
         description: A unique value identifying this seat map asset.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -1825,7 +2443,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_seat_map_assets_partial_update
+      operationId: v1_baseball_manage_seat_map_assets_partial_update
       parameters:
       - in: path
         name: id
@@ -1836,7 +2454,7 @@ paths:
         description: A unique value identifying this seat map asset.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -1882,7 +2500,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_seat_map_assets_destroy
+      operationId: v1_baseball_manage_seat_map_assets_destroy
       parameters:
       - in: path
         name: id
@@ -1893,7 +2511,7 @@ paths:
         description: A unique value identifying this seat map asset.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -1923,9 +2541,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/seat-maps/:
+  /api/v1/baseball/manage/seat-maps/:
     get:
-      operationId: baseball_manage_seat_maps_list
+      operationId: v1_baseball_manage_seat_maps_list
       parameters:
       - name: page
         required: false
@@ -1940,7 +2558,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -1951,9 +2569,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedSeatMapList'
           description: ''
     post:
-      operationId: baseball_manage_seat_maps_create
+      operationId: v1_baseball_manage_seat_maps_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -1987,9 +2605,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/seat-maps/{id}/:
+  /api/v1/baseball/manage/seat-maps/{id}/:
     get:
-      operationId: baseball_manage_seat_maps_retrieve
+      operationId: v1_baseball_manage_seat_maps_retrieve
       parameters:
       - in: path
         name: id
@@ -2000,7 +2618,7 @@ paths:
         description: A unique value identifying this seat map.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -2017,7 +2635,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_seat_maps_partial_update
+      operationId: v1_baseball_manage_seat_maps_partial_update
       parameters:
       - in: path
         name: id
@@ -2028,7 +2646,7 @@ paths:
         description: A unique value identifying this seat map.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -2074,7 +2692,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_seat_maps_destroy
+      operationId: v1_baseball_manage_seat_maps_destroy
       parameters:
       - in: path
         name: id
@@ -2085,7 +2703,7 @@ paths:
         description: A unique value identifying this seat map.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -2115,9 +2733,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/seat-scopes/:
+  /api/v1/baseball/manage/seat-scopes/:
     get:
-      operationId: baseball_manage_seat_scopes_list
+      operationId: v1_baseball_manage_seat_scopes_list
       parameters:
       - name: page
         required: false
@@ -2132,7 +2750,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -2143,9 +2761,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedSeatScopeList'
           description: ''
     post:
-      operationId: baseball_manage_seat_scopes_create
+      operationId: v1_baseball_manage_seat_scopes_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -2179,9 +2797,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/seat-scopes/{id}/:
+  /api/v1/baseball/manage/seat-scopes/{id}/:
     get:
-      operationId: baseball_manage_seat_scopes_retrieve
+      operationId: v1_baseball_manage_seat_scopes_retrieve
       parameters:
       - in: path
         name: id
@@ -2192,7 +2810,7 @@ paths:
         description: A unique value identifying this seat scope.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -2209,7 +2827,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_seat_scopes_partial_update
+      operationId: v1_baseball_manage_seat_scopes_partial_update
       parameters:
       - in: path
         name: id
@@ -2220,7 +2838,7 @@ paths:
         description: A unique value identifying this seat scope.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -2266,7 +2884,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_seat_scopes_destroy
+      operationId: v1_baseball_manage_seat_scopes_destroy
       parameters:
       - in: path
         name: id
@@ -2277,7 +2895,7 @@ paths:
         description: A unique value identifying this seat scope.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -2307,9 +2925,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/seat-views/:
+  /api/v1/baseball/manage/seat-views/:
     get:
-      operationId: baseball_manage_seat_views_list
+      operationId: v1_baseball_manage_seat_views_list
       parameters:
       - name: page
         required: false
@@ -2324,7 +2942,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -2335,9 +2953,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedSeatViewList'
           description: ''
     post:
-      operationId: baseball_manage_seat_views_create
+      operationId: v1_baseball_manage_seat_views_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -2371,9 +2989,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/seat-views/{id}/:
+  /api/v1/baseball/manage/seat-views/{id}/:
     get:
-      operationId: baseball_manage_seat_views_retrieve
+      operationId: v1_baseball_manage_seat_views_retrieve
       parameters:
       - in: path
         name: id
@@ -2384,7 +3002,7 @@ paths:
         description: A unique value identifying this seat view.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -2401,7 +3019,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_seat_views_partial_update
+      operationId: v1_baseball_manage_seat_views_partial_update
       parameters:
       - in: path
         name: id
@@ -2412,7 +3030,7 @@ paths:
         description: A unique value identifying this seat view.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -2458,7 +3076,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_seat_views_destroy
+      operationId: v1_baseball_manage_seat_views_destroy
       parameters:
       - in: path
         name: id
@@ -2469,7 +3087,7 @@ paths:
         description: A unique value identifying this seat view.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -2499,9 +3117,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/seat-zones/:
+  /api/v1/baseball/manage/seat-zones/:
     get:
-      operationId: baseball_manage_seat_zones_list
+      operationId: v1_baseball_manage_seat_zones_list
       parameters:
       - name: page
         required: false
@@ -2516,7 +3134,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -2527,9 +3145,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedSeatZoneList'
           description: ''
     post:
-      operationId: baseball_manage_seat_zones_create
+      operationId: v1_baseball_manage_seat_zones_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -2563,9 +3181,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/seat-zones/{id}/:
+  /api/v1/baseball/manage/seat-zones/{id}/:
     get:
-      operationId: baseball_manage_seat_zones_retrieve
+      operationId: v1_baseball_manage_seat_zones_retrieve
       parameters:
       - in: path
         name: id
@@ -2576,7 +3194,7 @@ paths:
         description: A unique value identifying this seat zone.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -2593,7 +3211,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_seat_zones_partial_update
+      operationId: v1_baseball_manage_seat_zones_partial_update
       parameters:
       - in: path
         name: id
@@ -2604,7 +3222,7 @@ paths:
         description: A unique value identifying this seat zone.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -2650,7 +3268,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_seat_zones_destroy
+      operationId: v1_baseball_manage_seat_zones_destroy
       parameters:
       - in: path
         name: id
@@ -2661,7 +3279,7 @@ paths:
         description: A unique value identifying this seat zone.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -2691,9 +3309,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/stadium-contents/:
+  /api/v1/baseball/manage/stadium-contents/:
     get:
-      operationId: baseball_manage_stadium_contents_list
+      operationId: v1_baseball_manage_stadium_contents_list
       parameters:
       - name: page
         required: false
@@ -2708,7 +3326,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -2719,9 +3337,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedStadiumContentList'
           description: ''
     post:
-      operationId: baseball_manage_stadium_contents_create
+      operationId: v1_baseball_manage_stadium_contents_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -2755,9 +3373,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/stadium-contents/{id}/:
+  /api/v1/baseball/manage/stadium-contents/{id}/:
     get:
-      operationId: baseball_manage_stadium_contents_retrieve
+      operationId: v1_baseball_manage_stadium_contents_retrieve
       parameters:
       - in: path
         name: id
@@ -2768,7 +3386,7 @@ paths:
         description: A unique value identifying this stadium content.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -2785,7 +3403,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_stadium_contents_partial_update
+      operationId: v1_baseball_manage_stadium_contents_partial_update
       parameters:
       - in: path
         name: id
@@ -2796,7 +3414,7 @@ paths:
         description: A unique value identifying this stadium content.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -2842,7 +3460,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_stadium_contents_destroy
+      operationId: v1_baseball_manage_stadium_contents_destroy
       parameters:
       - in: path
         name: id
@@ -2853,7 +3471,7 @@ paths:
         description: A unique value identifying this stadium content.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -2883,9 +3501,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/stadiums/:
+  /api/v1/baseball/manage/stadiums/:
     get:
-      operationId: baseball_manage_stadiums_list
+      operationId: v1_baseball_manage_stadiums_list
       parameters:
       - name: page
         required: false
@@ -2900,7 +3518,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -2911,9 +3529,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedStadiumList'
           description: ''
     post:
-      operationId: baseball_manage_stadiums_create
+      operationId: v1_baseball_manage_stadiums_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -2947,9 +3565,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/stadiums/{id}/:
+  /api/v1/baseball/manage/stadiums/{id}/:
     get:
-      operationId: baseball_manage_stadiums_retrieve
+      operationId: v1_baseball_manage_stadiums_retrieve
       parameters:
       - in: path
         name: id
@@ -2960,7 +3578,7 @@ paths:
         description: A unique value identifying this stadium.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -2977,7 +3595,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_stadiums_partial_update
+      operationId: v1_baseball_manage_stadiums_partial_update
       parameters:
       - in: path
         name: id
@@ -2988,7 +3606,7 @@ paths:
         description: A unique value identifying this stadium.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -3034,7 +3652,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_stadiums_destroy
+      operationId: v1_baseball_manage_stadiums_destroy
       parameters:
       - in: path
         name: id
@@ -3045,7 +3663,7 @@ paths:
         description: A unique value identifying this stadium.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -3075,9 +3693,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/standing-histories/:
+  /api/v1/baseball/manage/standing-histories/:
     get:
-      operationId: baseball_manage_standing_histories_list
+      operationId: v1_baseball_manage_standing_histories_list
       parameters:
       - name: page
         required: false
@@ -3092,7 +3710,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -3103,9 +3721,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedStandingHistoryList'
           description: ''
     post:
-      operationId: baseball_manage_standing_histories_create
+      operationId: v1_baseball_manage_standing_histories_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -3139,9 +3757,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/standing-histories/{id}/:
+  /api/v1/baseball/manage/standing-histories/{id}/:
     get:
-      operationId: baseball_manage_standing_histories_retrieve
+      operationId: v1_baseball_manage_standing_histories_retrieve
       parameters:
       - in: path
         name: id
@@ -3152,7 +3770,7 @@ paths:
         description: A unique value identifying this standing history.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -3169,7 +3787,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_standing_histories_partial_update
+      operationId: v1_baseball_manage_standing_histories_partial_update
       parameters:
       - in: path
         name: id
@@ -3180,7 +3798,7 @@ paths:
         description: A unique value identifying this standing history.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -3226,7 +3844,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_standing_histories_destroy
+      operationId: v1_baseball_manage_standing_histories_destroy
       parameters:
       - in: path
         name: id
@@ -3237,7 +3855,7 @@ paths:
         description: A unique value identifying this standing history.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -3267,9 +3885,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/teams/:
+  /api/v1/baseball/manage/teams/:
     get:
-      operationId: baseball_manage_teams_list
+      operationId: v1_baseball_manage_teams_list
       parameters:
       - name: page
         required: false
@@ -3284,7 +3902,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -3295,9 +3913,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedTeamList'
           description: ''
     post:
-      operationId: baseball_manage_teams_create
+      operationId: v1_baseball_manage_teams_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -3331,9 +3949,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/teams/{id}/:
+  /api/v1/baseball/manage/teams/{id}/:
     get:
-      operationId: baseball_manage_teams_retrieve
+      operationId: v1_baseball_manage_teams_retrieve
       parameters:
       - in: path
         name: id
@@ -3344,7 +3962,7 @@ paths:
         description: A unique value identifying this team.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -3361,7 +3979,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_teams_partial_update
+      operationId: v1_baseball_manage_teams_partial_update
       parameters:
       - in: path
         name: id
@@ -3372,7 +3990,7 @@ paths:
         description: A unique value identifying this team.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -3418,7 +4036,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_teams_destroy
+      operationId: v1_baseball_manage_teams_destroy
       parameters:
       - in: path
         name: id
@@ -3429,7 +4047,7 @@ paths:
         description: A unique value identifying this team.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -3459,9 +4077,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/ticket-policies/:
+  /api/v1/baseball/manage/ticket-policies/:
     get:
-      operationId: baseball_manage_ticket_policies_list
+      operationId: v1_baseball_manage_ticket_policies_list
       parameters:
       - name: page
         required: false
@@ -3476,7 +4094,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -3487,9 +4105,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedTicketPolicyList'
           description: ''
     post:
-      operationId: baseball_manage_ticket_policies_create
+      operationId: v1_baseball_manage_ticket_policies_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -3523,9 +4141,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/ticket-policies/{id}/:
+  /api/v1/baseball/manage/ticket-policies/{id}/:
     get:
-      operationId: baseball_manage_ticket_policies_retrieve
+      operationId: v1_baseball_manage_ticket_policies_retrieve
       parameters:
       - in: path
         name: id
@@ -3536,7 +4154,7 @@ paths:
         description: A unique value identifying this ticket policy.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -3553,7 +4171,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_ticket_policies_partial_update
+      operationId: v1_baseball_manage_ticket_policies_partial_update
       parameters:
       - in: path
         name: id
@@ -3564,7 +4182,7 @@ paths:
         description: A unique value identifying this ticket policy.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -3610,7 +4228,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_ticket_policies_destroy
+      operationId: v1_baseball_manage_ticket_policies_destroy
       parameters:
       - in: path
         name: id
@@ -3621,7 +4239,7 @@ paths:
         description: A unique value identifying this ticket policy.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -3651,9 +4269,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/ticket-prices/:
+  /api/v1/baseball/manage/ticket-prices/:
     get:
-      operationId: baseball_manage_ticket_prices_list
+      operationId: v1_baseball_manage_ticket_prices_list
       parameters:
       - name: page
         required: false
@@ -3668,7 +4286,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -3679,9 +4297,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedTicketPriceList'
           description: ''
     post:
-      operationId: baseball_manage_ticket_prices_create
+      operationId: v1_baseball_manage_ticket_prices_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -3715,9 +4333,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/ticket-prices/{id}/:
+  /api/v1/baseball/manage/ticket-prices/{id}/:
     get:
-      operationId: baseball_manage_ticket_prices_retrieve
+      operationId: v1_baseball_manage_ticket_prices_retrieve
       parameters:
       - in: path
         name: id
@@ -3728,7 +4346,7 @@ paths:
         description: A unique value identifying this ticket price.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -3745,7 +4363,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_ticket_prices_partial_update
+      operationId: v1_baseball_manage_ticket_prices_partial_update
       parameters:
       - in: path
         name: id
@@ -3756,7 +4374,7 @@ paths:
         description: A unique value identifying this ticket price.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -3802,7 +4420,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_ticket_prices_destroy
+      operationId: v1_baseball_manage_ticket_prices_destroy
       parameters:
       - in: path
         name: id
@@ -3813,7 +4431,7 @@ paths:
         description: A unique value identifying this ticket price.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -3843,9 +4461,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/transports/:
+  /api/v1/baseball/manage/transports/:
     get:
-      operationId: baseball_manage_transports_list
+      operationId: v1_baseball_manage_transports_list
       parameters:
       - name: page
         required: false
@@ -3860,7 +4478,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -3871,9 +4489,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedTransportList'
           description: ''
     post:
-      operationId: baseball_manage_transports_create
+      operationId: v1_baseball_manage_transports_create
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -3907,9 +4525,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/manage/transports/{id}/:
+  /api/v1/baseball/manage/transports/{id}/:
     get:
-      operationId: baseball_manage_transports_retrieve
+      operationId: v1_baseball_manage_transports_retrieve
       parameters:
       - in: path
         name: id
@@ -3920,7 +4538,7 @@ paths:
         description: A unique value identifying this transport.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -3937,7 +4555,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     patch:
-      operationId: baseball_manage_transports_partial_update
+      operationId: v1_baseball_manage_transports_partial_update
       parameters:
       - in: path
         name: id
@@ -3948,7 +4566,7 @@ paths:
         description: A unique value identifying this transport.
         required: true
       tags:
-      - baseball
+      - v1
       requestBody:
         content:
           application/json:
@@ -3994,7 +4612,7 @@ paths:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
     delete:
-      operationId: baseball_manage_transports_destroy
+      operationId: v1_baseball_manage_transports_destroy
       parameters:
       - in: path
         name: id
@@ -4005,7 +4623,7 @@ paths:
         description: A unique value identifying this transport.
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -4035,9 +4653,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseballError'
           description: ''
-  /api/baseball/postseason-stages/:
+  /api/v1/baseball/postseason-stages/:
     get:
-      operationId: baseball_postseason_stages_list
+      operationId: v1_baseball_postseason_stages_list
       parameters:
       - name: page
         required: false
@@ -4052,7 +4670,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -4063,9 +4681,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedPostseasonStageList'
           description: ''
-  /api/baseball/stadiums/:
+  /api/v1/baseball/stadiums/:
     get:
-      operationId: baseball_stadiums_list
+      operationId: v1_baseball_stadiums_list
       parameters:
       - name: page
         required: false
@@ -4080,7 +4698,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -4091,9 +4709,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedPublicStadiumList'
           description: ''
-  /api/baseball/stadiums/{code}/:
+  /api/v1/baseball/stadiums/{code}/:
     get:
-      operationId: baseball_stadiums_retrieve
+      operationId: v1_baseball_stadiums_retrieve
       parameters:
       - in: path
         name: code
@@ -4101,7 +4719,7 @@ paths:
           type: string
         required: true
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -4112,9 +4730,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/PublicStadium'
           description: ''
-  /api/baseball/stadiums/{code}/contents/:
+  /api/v1/baseball/stadiums/{code}/contents/:
     get:
-      operationId: baseball_stadiums_contents_list
+      operationId: v1_baseball_stadiums_contents_list
       parameters:
       - in: path
         name: code
@@ -4134,7 +4752,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -4145,9 +4763,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedStadiumContentList'
           description: ''
-  /api/baseball/stadiums/{code}/facilities/:
+  /api/v1/baseball/stadiums/{code}/facilities/:
     get:
-      operationId: baseball_stadiums_facilities_list
+      operationId: v1_baseball_stadiums_facilities_list
       parameters:
       - in: path
         name: code
@@ -4167,7 +4785,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -4178,9 +4796,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedFacilityList'
           description: ''
-  /api/baseball/stadiums/{code}/food-stores/:
+  /api/v1/baseball/stadiums/{code}/food-stores/:
     get:
-      operationId: baseball_stadiums_food_stores_list
+      operationId: v1_baseball_stadiums_food_stores_list
       parameters:
       - in: path
         name: code
@@ -4200,7 +4818,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -4211,9 +4829,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedPublicFoodStoreList'
           description: ''
-  /api/baseball/stadiums/{code}/seat-maps/:
+  /api/v1/baseball/stadiums/{code}/seat-maps/:
     get:
-      operationId: baseball_stadiums_seat_maps_list
+      operationId: v1_baseball_stadiums_seat_maps_list
       parameters:
       - in: path
         name: code
@@ -4233,7 +4851,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -4244,9 +4862,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedPublicSeatMapList'
           description: ''
-  /api/baseball/stadiums/{code}/seat-scopes/:
+  /api/v1/baseball/stadiums/{code}/seat-scopes/:
     get:
-      operationId: baseball_stadiums_seat_scopes_list
+      operationId: v1_baseball_stadiums_seat_scopes_list
       parameters:
       - in: path
         name: code
@@ -4266,7 +4884,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -4277,9 +4895,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedPublicSeatScopeList'
           description: ''
-  /api/baseball/stadiums/{code}/seat-views/:
+  /api/v1/baseball/stadiums/{code}/seat-views/:
     get:
-      operationId: baseball_stadiums_seat_views_list
+      operationId: v1_baseball_stadiums_seat_views_list
       parameters:
       - in: path
         name: code
@@ -4299,7 +4917,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -4310,9 +4928,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedSeatViewList'
           description: ''
-  /api/baseball/stadiums/{code}/seat-zones/:
+  /api/v1/baseball/stadiums/{code}/seat-zones/:
     get:
-      operationId: baseball_stadiums_seat_zones_list
+      operationId: v1_baseball_stadiums_seat_zones_list
       parameters:
       - in: path
         name: code
@@ -4332,7 +4950,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -4343,9 +4961,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedSeatZoneList'
           description: ''
-  /api/baseball/stadiums/{code}/ticket-prices/:
+  /api/v1/baseball/stadiums/{code}/ticket-prices/:
     get:
-      operationId: baseball_stadiums_ticket_prices_list
+      operationId: v1_baseball_stadiums_ticket_prices_list
       parameters:
       - in: path
         name: code
@@ -4365,7 +4983,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -4376,9 +4994,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedPublicTicketPriceList'
           description: ''
-  /api/baseball/stadiums/{code}/transports/:
+  /api/v1/baseball/stadiums/{code}/transports/:
     get:
-      operationId: baseball_stadiums_transports_list
+      operationId: v1_baseball_stadiums_transports_list
       parameters:
       - in: path
         name: code
@@ -4398,7 +5016,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -4409,9 +5027,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedTransportList'
           description: ''
-  /api/baseball/standings/:
+  /api/v1/baseball/standings/:
     get:
-      operationId: baseball_standings_list
+      operationId: v1_baseball_standings_list
       parameters:
       - name: page
         required: false
@@ -4426,7 +5044,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -4437,11 +5055,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedStandingHistoryList'
           description: ''
-  /api/baseball/teams/:
+  /api/v1/baseball/teams/:
     get:
-      operationId: baseball_teams_list
+      operationId: v1_baseball_teams_list
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -4454,9 +5072,9 @@ paths:
                 items:
                   $ref: '#/components/schemas/PublicTeam'
           description: ''
-  /api/baseball/ticket-policies/:
+  /api/v1/baseball/ticket-policies/:
     get:
-      operationId: baseball_ticket_policies_list
+      operationId: v1_baseball_ticket_policies_list
       parameters:
       - name: page
         required: false
@@ -4471,7 +5089,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -4482,9 +5100,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedTicketPolicyList'
           description: ''
-  /api/baseball/ticket-prices/:
+  /api/v1/baseball/ticket-prices/:
     get:
-      operationId: baseball_ticket_prices_list
+      operationId: v1_baseball_ticket_prices_list
       parameters:
       - name: page
         required: false
@@ -4499,7 +5117,7 @@ paths:
         schema:
           type: integer
       tags:
-      - baseball
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -4510,45 +5128,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedPublicTicketPriceList'
           description: ''
-  /api/chat/guest/:
-    post:
-      operationId: chat_guest_create
+  /api/v1/community/admin/posts/:
+    get:
+      operationId: v1_community_admin_posts_list
+      description: 게시글 목록 (제목·작성자·글 번호 검색). 신고 수를 함께 준다.
       parameters:
       - in: query
-        name: format
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: q
         schema:
           type: string
-          enum:
-          - json
-          - sse
+          maxLength: 200
       tags:
-      - chat
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/GuestChat'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/GuestChat'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/GuestChat'
-        required: true
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            text/event-stream:
-              schema:
-                $ref: '#/components/schemas/GuestChatEventPayload'
-          description: SSE delta, done, or error event payload
-  /api/chat/sessions/:
-    get:
-      operationId: chat_sessions_list
-      tags:
-      - chat
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -4556,98 +5152,37 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ChatSession'
+                $ref: '#/components/schemas/PaginatedAdminPostList'
           description: ''
-    post:
-      operationId: chat_sessions_create
-      tags:
-      - chat
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ChatSession'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ChatSession'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ChatSession'
-      security:
-      - jwtAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ChatSession'
-          description: ''
-  /api/chat/sessions/{session_id}/:
-    patch:
-      operationId: chat_sessions_partial_update
-      parameters:
-      - in: path
-        name: session_id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - chat
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedChatSession'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedChatSession'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedChatSession'
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ChatSession'
-          description: ''
+  /api/v1/community/admin/posts/{source_id}/:
     delete:
-      operationId: chat_sessions_destroy
+      operationId: v1_community_admin_posts_destroy
+      description: 게시글 삭제 (댓글·추천·신고도 함께 삭제된다).
       parameters:
       - in: path
-        name: session_id
+        name: source_id
         schema:
-          type: integer
+          type: string
         required: true
       tags:
-      - chat
+      - v1
       security:
       - jwtAuth: []
       responses:
         '204':
           description: No response body
-  /api/chat/sessions/{session_id}/messages/:
+  /api/v1/community/admin/reports/:
     get:
-      operationId: chat_sessions_messages_list
+      operationId: v1_community_admin_reports_list
+      description: 신고 목록. 처리 대기 중인 신고가 먼저, 그 안에서는 최근 신고 순.
       parameters:
       - in: query
-        name: format
-        schema:
-          type: string
-          enum:
-          - json
-          - sse
-      - in: path
-        name: session_id
+        name: page
         schema:
           type: integer
-        required: true
+          minimum: 1
       tags:
-      - chat
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -4655,76 +5190,69 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ChatMessage'
-            text/event-stream:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ChatMessage'
+                $ref: '#/components/schemas/PaginatedAdminReportList'
           description: ''
+  /api/v1/community/admin/reports/{report_id}/action/:
     post:
-      operationId: chat_sessions_messages_create
+      operationId: v1_community_admin_reports_action_create
+      description: |-
+        신고 처리.
+        hold: 보류(글 유지) / unhold: 보류 취소(처리 대기로 복귀) /
+        hide: 글 숨김(같은 글의 신고도 숨김 처리) /
+        delete: 글 삭제(신고도 함께 삭제). 화면에서 고른 처분(sanction)은 기록용으로만 받고 계정에는 적용하지 않는다.
       parameters:
-      - in: query
-        name: format
-        schema:
-          type: string
-          enum:
-          - json
-          - sse
       - in: path
-        name: session_id
+        name: report_id
         schema:
           type: integer
         required: true
       tags:
-      - chat
+      - v1
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ChatMessage'
+              $ref: '#/components/schemas/AdminReportAction'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ChatMessage'
+              $ref: '#/components/schemas/AdminReportAction'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ChatMessage'
+              $ref: '#/components/schemas/AdminReportAction'
         required: true
       security:
       - jwtAuth: []
       responses:
-        '201':
+        '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ChatNonStreamResponse'
+                $ref: '#/components/schemas/AdminReportActionResult'
           description: ''
-        '200':
-          content:
-            text/event-stream:
-              schema:
-                $ref: '#/components/schemas/MemberChatEventPayload'
-          description: SSE checkpoint, delta, done, or error event payload
-  /api/chat/sessions/{session_id}/turns/:
+  /api/v1/community/comments/:
     get:
-      operationId: chat_sessions_turns_list
+      operationId: v1_community_comments_list
       parameters:
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
+      - in: query
+        name: author_id
         schema:
           type: integer
-      - in: path
-        name: session_id
-        schema:
-          type: integer
+          minimum: 1
         required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
       tags:
-      - chat
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -4732,44 +5260,39 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedChatTurnList'
+                $ref: '#/components/schemas/PaginatedCommunityMemberCommentList'
           description: ''
-  /api/chat/turns/{turn_id}/finalize/:
-    post:
-      operationId: chat_turns_finalize_create
-      parameters:
-      - in: path
-        name: turn_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - chat
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ChatFinalize'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ChatFinalize'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ChatFinalize'
-        required: true
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
+        '400':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ChatFinalizeResponse'
+                type: object
+                additionalProperties: {}
           description: ''
-  /api/community/comments/{comment_id}/:
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/community/comments/{comment_id}/:
     patch:
-      operationId: community_comments_partial_update
+      operationId: v1_community_comments_partial_update
       parameters:
       - in: path
         name: comment_id
@@ -4777,7 +5300,7 @@ paths:
           type: integer
         required: true
       tags:
-      - community
+      - v1
       requestBody:
         content:
           application/json:
@@ -4827,7 +5350,7 @@ paths:
                 additionalProperties: {}
           description: ''
     delete:
-      operationId: community_comments_destroy
+      operationId: v1_community_comments_destroy
       parameters:
       - in: path
         name: comment_id
@@ -4835,7 +5358,7 @@ paths:
           type: integer
         required: true
       tags:
-      - community
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -4862,11 +5385,11 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/community/drafts/:
+  /api/v1/community/drafts/:
     get:
       operationId: community_drafts_list
       tags:
-      - community
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -4886,7 +5409,7 @@ paths:
     post:
       operationId: community_drafts_create
       tags:
-      - community
+      - v1
       requestBody:
         content:
           application/json:
@@ -4922,7 +5445,7 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/community/drafts/{draft_id}/:
+  /api/v1/community/drafts/{draft_id}/:
     get:
       operationId: community_drafts_retrieve
       parameters:
@@ -4933,7 +5456,7 @@ paths:
           format: uuid
         required: true
       tags:
-      - community
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -4967,7 +5490,7 @@ paths:
           format: uuid
         required: true
       tags:
-      - community
+      - v1
       requestBody:
         content:
           application/json:
@@ -5026,7 +5549,7 @@ paths:
           format: uuid
         required: true
       tags:
-      - community
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -5046,9 +5569,9 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/community/drafts/{draft_id}/publish/:
+  /api/v1/community/drafts/{draft_id}/publish/:
     post:
-      operationId: community_drafts_publish_create
+      operationId: v1_community_drafts_publish_create
       parameters:
       - in: header
         name: Idempotency-Key
@@ -5062,7 +5585,7 @@ paths:
           format: uuid
         required: true
       tags:
-      - community
+      - v1
       requestBody:
         content:
           application/json:
@@ -5118,11 +5641,11 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/community/images/:
+  /api/v1/community/images/:
     post:
-      operationId: community_images_create
+      operationId: v1_community_images_create
       tags:
-      - community
+      - v1
       requestBody:
         content:
           multipart/form-data:
@@ -5173,9 +5696,9 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/community/images/{image_id}/:
+  /api/v1/community/images/{image_id}/:
     get:
-      operationId: community_images_retrieve
+      operationId: v1_community_images_retrieve
       parameters:
       - in: path
         name: image_id
@@ -5184,7 +5707,7 @@ paths:
           format: uuid
         required: true
       tags:
-      - community
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -5211,7 +5734,7 @@ paths:
                 additionalProperties: {}
           description: ''
     delete:
-      operationId: community_images_destroy
+      operationId: v1_community_images_destroy
       parameters:
       - in: path
         name: image_id
@@ -5220,7 +5743,7 @@ paths:
           format: uuid
         required: true
       tags:
-      - community
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -5262,10 +5785,16 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/community/posts/:
+  /api/v1/community/posts/:
     get:
-      operationId: community_posts_list
+      operationId: v1_community_posts_list
       parameters:
+      - in: query
+        name: author_id
+        schema:
+          type: integer
+          minimum: 1
+        description: 작성자 활동 목록. JWT 인증 필요, 본인 또는 공개 설정된 회원만 조회 가능.
       - in: query
         name: board
         schema:
@@ -5309,7 +5838,7 @@ paths:
         schema:
           type: string
       tags:
-      - community
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -5334,6 +5863,13 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
         '404':
           content:
             application/json:
@@ -5342,7 +5878,7 @@ paths:
                 additionalProperties: {}
           description: ''
     post:
-      operationId: community_posts_create
+      operationId: v1_community_posts_create
       parameters:
       - in: header
         name: Idempotency-Key
@@ -5350,7 +5886,7 @@ paths:
           type: string
         required: true
       tags:
-      - community
+      - v1
       requestBody:
         content:
           application/json:
@@ -5399,9 +5935,9 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/community/posts/{source_id}/:
+  /api/v1/community/posts/{source_id}/:
     get:
-      operationId: community_posts_retrieve
+      operationId: v1_community_posts_retrieve
       parameters:
       - in: path
         name: source_id
@@ -5409,7 +5945,7 @@ paths:
           type: string
         required: true
       tags:
-      - community
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -5428,7 +5964,7 @@ paths:
                 additionalProperties: {}
           description: ''
     patch:
-      operationId: community_posts_partial_update
+      operationId: v1_community_posts_partial_update
       parameters:
       - in: path
         name: source_id
@@ -5436,7 +5972,7 @@ paths:
           type: string
         required: true
       tags:
-      - community
+      - v1
       requestBody:
         content:
           application/json:
@@ -5486,7 +6022,7 @@ paths:
                 additionalProperties: {}
           description: ''
     delete:
-      operationId: community_posts_destroy
+      operationId: v1_community_posts_destroy
       parameters:
       - in: path
         name: source_id
@@ -5494,7 +6030,7 @@ paths:
           type: string
         required: true
       tags:
-      - community
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -5521,9 +6057,9 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/community/posts/{source_id}/comments/:
+  /api/v1/community/posts/{source_id}/comments/:
     get:
-      operationId: community_posts_comments_list
+      operationId: v1_community_posts_comments_list
       parameters:
       - in: query
         name: order
@@ -5538,7 +6074,7 @@ paths:
           type: string
         required: true
       tags:
-      - community
+      - v1
       responses:
         '200':
           content:
@@ -5563,7 +6099,7 @@ paths:
                 additionalProperties: {}
           description: ''
     post:
-      operationId: community_posts_comments_create
+      operationId: v1_community_posts_comments_create
       parameters:
       - in: path
         name: source_id
@@ -5571,7 +6107,7 @@ paths:
           type: string
         required: true
       tags:
-      - community
+      - v1
       requestBody:
         content:
           application/json:
@@ -5614,9 +6150,9 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/community/posts/{source_id}/reports/:
+  /api/v1/community/posts/{source_id}/reports/:
     post:
-      operationId: community_posts_reports_create
+      operationId: v1_community_posts_reports_create
       parameters:
       - in: path
         name: source_id
@@ -5624,7 +6160,7 @@ paths:
           type: string
         required: true
       tags:
-      - community
+      - v1
       requestBody:
         content:
           application/json:
@@ -5673,9 +6209,9 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/community/posts/{source_id}/vote/:
+  /api/v1/community/posts/{source_id}/vote/:
     get:
-      operationId: community_posts_vote_retrieve
+      operationId: v1_community_posts_vote_retrieve
       parameters:
       - in: path
         name: source_id
@@ -5683,7 +6219,7 @@ paths:
           type: string
         required: true
       tags:
-      - community
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -5708,7 +6244,7 @@ paths:
                 additionalProperties: {}
           description: ''
     post:
-      operationId: community_posts_vote_create
+      operationId: v1_community_posts_vote_create
       parameters:
       - in: path
         name: source_id
@@ -5716,7 +6252,7 @@ paths:
           type: string
         required: true
       tags:
-      - community
+      - v1
       requestBody:
         content:
           application/json:
@@ -5759,9 +6295,9 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/community/predictions/games/:
+  /api/v1/community/predictions/games/:
     get:
-      operationId: community_predictions_games_list
+      operationId: v1_community_predictions_games_list
       parameters:
       - in: query
         name: date
@@ -5773,7 +6309,7 @@ paths:
         schema:
           type: string
       tags:
-      - community
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -5800,9 +6336,9 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/community/predictions/games/{game_id}/:
+  /api/v1/community/predictions/games/{game_id}/:
     get:
-      operationId: community_predictions_games_retrieve
+      operationId: v1_community_predictions_games_retrieve
       parameters:
       - in: path
         name: game_id
@@ -5810,7 +6346,7 @@ paths:
           type: string
         required: true
       tags:
-      - community
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -5828,9 +6364,9 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/community/predictions/games/{game_id}/vote/:
+  /api/v1/community/predictions/games/{game_id}/vote/:
     post:
-      operationId: community_predictions_games_vote_create
+      operationId: v1_community_predictions_games_vote_create
       parameters:
       - in: path
         name: game_id
@@ -5838,7 +6374,7 @@ paths:
           type: string
         required: true
       tags:
-      - community
+      - v1
       requestBody:
         content:
           application/json:
@@ -5895,11 +6431,11 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/courses/:
+  /api/v1/courses/:
     get:
-      operationId: courses_list
+      operationId: v1_courses_list
       tags:
-      - courses
+      - v1
       responses:
         '200':
           content:
@@ -5910,9 +6446,9 @@ paths:
                   $ref: '#/components/schemas/Course'
           description: ''
     post:
-      operationId: courses_create
+      operationId: v1_courses_create
       tags:
-      - courses
+      - v1
       requestBody:
         content:
           application/json:
@@ -5954,9 +6490,9 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/courses/{id}/:
+  /api/v1/courses/{id}/:
     get:
-      operationId: courses_retrieve
+      operationId: v1_courses_retrieve
       parameters:
       - in: path
         name: id
@@ -5965,7 +6501,7 @@ paths:
           format: uuid
         required: true
       tags:
-      - courses
+      - v1
       responses:
         '200':
           content:
@@ -5981,7 +6517,7 @@ paths:
                 additionalProperties: {}
           description: ''
     patch:
-      operationId: courses_partial_update
+      operationId: v1_courses_partial_update
       parameters:
       - in: header
         name: X-Course-Edit-Token
@@ -5996,7 +6532,7 @@ paths:
           format: uuid
         required: true
       tags:
-      - courses
+      - v1
       requestBody:
         content:
           application/json:
@@ -6045,7 +6581,7 @@ paths:
                 additionalProperties: {}
           description: ''
     delete:
-      operationId: courses_destroy
+      operationId: v1_courses_destroy
       parameters:
       - in: header
         name: X-Course-Edit-Token
@@ -6060,7 +6596,7 @@ paths:
           format: uuid
         required: true
       tags:
-      - courses
+      - v1
       responses:
         '204':
           description: 본문 없음
@@ -6092,9 +6628,9 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/courses/{id}/reaction/:
+  /api/v1/courses/{id}/reaction/:
     get:
-      operationId: courses_reaction_retrieve
+      operationId: v1_courses_reaction_retrieve
       parameters:
       - in: path
         name: id
@@ -6103,7 +6639,7 @@ paths:
           format: uuid
         required: true
       tags:
-      - courses
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -6128,7 +6664,7 @@ paths:
                 additionalProperties: {}
           description: ''
     post:
-      operationId: courses_reaction_create
+      operationId: v1_courses_reaction_create
       description: JWT 회원 단위로 원하는 좋아요 상태를 멱등 적용합니다.
       parameters:
       - in: path
@@ -6138,7 +6674,7 @@ paths:
           format: uuid
         required: true
       tags:
-      - courses
+      - v1
       requestBody:
         content:
           application/json:
@@ -6196,9 +6732,9 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/courses/{id}/view/:
+  /api/v1/courses/{id}/view/:
     post:
-      operationId: courses_view_create
+      operationId: v1_courses_view_create
       description: 익명 브라우저가 보낸 UUID capability마다 코스 조회를 한 번만 집계합니다. 이는 사람이나 계정 식별자가
         아닙니다.
       parameters:
@@ -6215,7 +6751,7 @@ paths:
           format: uuid
         required: true
       tags:
-      - courses
+      - v1
       responses:
         '200':
           content:
@@ -6258,7 +6794,7 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/places/:
+  /api/v1/places/:
     get:
       operationId: places_list
       parameters:
@@ -6283,7 +6819,7 @@ paths:
         schema:
           type: integer
       tags:
-      - places
+      - v1
       responses:
         '200':
           content:
@@ -6306,7 +6842,7 @@ paths:
     post:
       operationId: places_create
       tags:
-      - places
+      - v1
       requestBody:
         content:
           application/json:
@@ -6364,7 +6900,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PlaceError'
           description: ''
-  /api/places/{id}/:
+  /api/v1/places/{id}/:
     get:
       operationId: places_retrieve
       parameters:
@@ -6374,7 +6910,7 @@ paths:
           type: integer
         required: true
       tags:
-      - places
+      - v1
       responses:
         '200':
           content:
@@ -6409,7 +6945,7 @@ paths:
           type: integer
         required: true
       tags:
-      - places
+      - v1
       requestBody:
         content:
           application/json:
@@ -6481,7 +7017,7 @@ paths:
           type: integer
         required: true
       tags:
-      - places
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -6511,11 +7047,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/PlaceError'
           description: ''
-  /api/places/search/:
-    post:
-      operationId: places_search
+  /api/v1/places/collected/:
+    get:
+      operationId: collected_places_list
+      parameters:
+      - in: query
+        name: stadium
+        schema:
+          type: string
+        required: true
       tags:
-      - places
+      - v1
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectedPlaceCatalogue'
+          description: ''
+  /api/v1/places/live/:
+    post:
+      operationId: places_live_search
+      description: 카카오 주변 장소를 실시간 조회합니다. 응답을 장소 DB에 저장하지 않습니다.
+      tags:
+      - v1
       requestBody:
         content:
           application/json:
@@ -6565,9 +7120,136 @@ paths:
               schema:
                 $ref: '#/components/schemas/PlaceError'
           description: ''
-  /api/tourism/:
+  /api/v1/places/lodging/:
+    post:
+      operationId: lodging_search
+      description: 카카오 AD5 숙박만 실시간 검색합니다. 응답을 장소 DB에 저장하지 않습니다.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceSearch'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceSearchResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceError'
+          description: ''
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceError'
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceError'
+          description: ''
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceError'
+          description: ''
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceError'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceError'
+          description: ''
+  /api/v1/places/search/:
+    post:
+      operationId: places_search
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceSearch'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceSearchResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceError'
+          description: ''
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceError'
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceError'
+          description: ''
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceError'
+          description: ''
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceError'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceError'
+          description: ''
+  /api/v1/places/stadium-facilities/:
     get:
-      operationId: tourism_retrieve
+      operationId: stadium_facilities_list
+      parameters:
+      - in: query
+        name: stadium
+        schema:
+          type: string
+        required: true
+      tags:
+      - v1
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StadiumFacilityCatalogue'
+          description: ''
+  /api/v1/tourism/:
+    get:
+      operationId: v1_tourism_retrieve
       parameters:
       - in: query
         name: lat
@@ -6587,7 +7269,7 @@ paths:
           type: string
         required: true
       tags:
-      - tourism
+      - v1
       responses:
         '200':
           content:
@@ -6619,11 +7301,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/TourismResponse'
           description: ''
-  /api/travel/directions/:
+  /api/v1/travel/directions/:
     post:
-      operationId: travel_directions_create
+      operationId: v1_travel_directions_create
       tags:
-      - travel
+      - v1
       requestBody:
         content:
           application/json:
@@ -6673,17 +7355,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/DirectionsError'
           description: ''
-  /api/tving/daily/:
+  /api/v1/tving/daily/:
     get:
-      operationId: tving_daily_retrieve
+      operationId: v1_tving_daily_retrieve
       parameters:
       - in: query
         name: date
         schema:
           type: string
           format: date
+      - in: query
+        name: next_if_empty
+        schema:
+          type: boolean
+        description: 경기가 없으면 다음 예정 경기일의 경기를 반환합니다. date와 순위는 요청 기준일을 유지하고 경기 날짜는 games[].date에
+          표시됩니다.
       tags:
-      - tving
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -6706,9 +7394,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
-  /api/tving/details/athletes/{value}/:
+  /api/v1/tving/details/athletes/{value}/:
     get:
-      operationId: tving_details_athletes_retrieve
+      operationId: v1_tving_details_athletes_retrieve
       parameters:
       - in: path
         name: value
@@ -6716,7 +7404,7 @@ paths:
           type: string
         required: true
       tags:
-      - tving
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -6739,11 +7427,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
-  /api/tving/details/status/:
+  /api/v1/tving/details/status/:
     get:
-      operationId: tving_details_status_retrieve
+      operationId: v1_tving_details_status_retrieve
       tags:
-      - tving
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -6760,9 +7448,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
-  /api/tving/details/teams/{value}/:
+  /api/v1/tving/details/teams/{value}/:
     get:
-      operationId: tving_details_teams_retrieve
+      operationId: v1_tving_details_teams_retrieve
       parameters:
       - in: path
         name: value
@@ -6770,7 +7458,7 @@ paths:
           type: string
         required: true
       tags:
-      - tving
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -6793,9 +7481,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
-  /api/tving/entities/:
+  /api/v1/tving/entities/:
     get:
-      operationId: tving_entities_retrieve
+      operationId: v1_tving_entities_retrieve
       parameters:
       - in: query
         name: date
@@ -6828,7 +7516,7 @@ paths:
         schema:
           type: string
       tags:
-      - tving
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -6851,11 +7539,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
-  /api/tving/entities/players/:
+  /api/v1/tving/entities/players/:
     post:
-      operationId: tving_entities_players_create
+      operationId: v1_tving_entities_players_create
       tags:
-      - tving
+      - v1
       requestBody:
         content:
           application/json:
@@ -6901,9 +7589,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
-  /api/tving/entities/players/{code}/:
+  /api/v1/tving/entities/players/{code}/:
     get:
-      operationId: tving_entities_players_retrieve
+      operationId: v1_tving_entities_players_retrieve
       parameters:
       - in: path
         name: code
@@ -6911,7 +7599,7 @@ paths:
           type: string
         required: true
       tags:
-      - tving
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -6935,7 +7623,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
     patch:
-      operationId: tving_entities_players_partial_update
+      operationId: v1_tving_entities_players_partial_update
       parameters:
       - in: path
         name: code
@@ -6943,7 +7631,7 @@ paths:
           type: string
         required: true
       tags:
-      - tving
+      - v1
       requestBody:
         content:
           application/json:
@@ -6995,7 +7683,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
     delete:
-      operationId: tving_entities_players_destroy
+      operationId: v1_tving_entities_players_destroy
       parameters:
       - in: path
         name: code
@@ -7003,7 +7691,7 @@ paths:
           type: string
         required: true
       tags:
-      - tving
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -7027,16 +7715,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
-  /api/tving/schedule/:
+  /api/v1/tving/schedule/:
     get:
-      operationId: tving_schedule_retrieve
+      operationId: v1_tving_schedule_retrieve
       parameters:
       - in: query
         name: month
         schema:
           type: string
       tags:
-      - tving
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -7059,7 +7747,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
-  /api/tving/snapshots/:
+  /api/v1/tving/snapshots/:
     get:
       operationId: tving_snapshots_list
       parameters:
@@ -7097,7 +7785,7 @@ paths:
         schema:
           type: string
       tags:
-      - tving
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -7121,9 +7809,9 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
     post:
-      operationId: tving_snapshots_create
+      operationId: v1_tving_snapshots_create
       tags:
-      - tving
+      - v1
       requestBody:
         content:
           application/json:
@@ -7169,7 +7857,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
-  /api/tving/snapshots/{id}/:
+  /api/v1/tving/snapshots/{id}/:
     get:
       operationId: tving_snapshots_retrieve
       parameters:
@@ -7179,7 +7867,7 @@ paths:
           type: integer
         required: true
       tags:
-      - tving
+      - v1
       security:
       - jwtAuth: []
       - {}
@@ -7203,7 +7891,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
     patch:
-      operationId: tving_snapshots_partial_update
+      operationId: v1_tving_snapshots_partial_update
       parameters:
       - in: path
         name: id
@@ -7211,7 +7899,7 @@ paths:
           type: integer
         required: true
       tags:
-      - tving
+      - v1
       requestBody:
         content:
           application/json:
@@ -7263,7 +7951,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
     delete:
-      operationId: tving_snapshots_destroy
+      operationId: v1_tving_snapshots_destroy
       parameters:
       - in: path
         name: id
@@ -7271,7 +7959,7 @@ paths:
           type: integer
         required: true
       tags:
-      - tving
+      - v1
       security:
       - jwtAuth: []
       responses:
@@ -7295,9 +7983,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: ''
-  /api/weather/:
+  /api/v1/weather/:
     get:
-      operationId: weather_retrieve
+      operationId: v1_weather_retrieve
       parameters:
       - in: query
         name: date
@@ -7318,7 +8006,7 @@ paths:
         description: KST time (HH:MM)
         required: true
       tags:
-      - weather
+      - v1
       security:
       - {}
       responses:
@@ -7354,11 +8042,298 @@ paths:
           description: ''
 components:
   schemas:
-    ActionEnum:
+    AdAdmin:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        advertiser:
+          type: string
+          title: 광고주
+          maxLength: 120
+        title:
+          type: string
+          title: 제목
+          maxLength: 120
+        description:
+          type: string
+          title: 설명
+          maxLength: 250
+        image_url:
+          type: string
+          format: uri
+          title: 이미지 URL
+          maxLength: 1000
+        image_alt:
+          type: string
+          title: 이미지 설명
+          maxLength: 250
+        destination_url:
+          type: string
+          format: uri
+          title: 이동 URL
+          maxLength: 1000
+        button_label:
+          type: string
+          title: 버튼 문구
+          maxLength: 40
+        context_label:
+          type: string
+          title: 지역·분류
+          maxLength: 120
+        placement:
+          allOf:
+          - $ref: '#/components/schemas/PlacementEnum'
+          title: 위치
+        starts_at:
+          type: string
+          format: date-time
+          title: 시작 일시
+        ends_at:
+          type: string
+          format: date-time
+          title: 종료 일시
+        active:
+          type: boolean
+          title: 활성
+        is_test:
+          type: boolean
+          title: 테스트 광고
+        priority:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          title: 우선순위
+        team_code:
+          type: string
+          title: 구단 코드
+          maxLength: 10
+        place:
+          type: integer
+          nullable: true
+          title: 제휴 장소
+        courses:
+          type: array
+          items:
+            type: string
+            format: uuid
+            title: 노출 대상 코스
+          title: 노출 대상 코스
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - advertiser
+      - created_at
+      - destination_url
+      - ends_at
+      - id
+      - image_url
+      - placement
+      - starts_at
+      - title
+      - updated_at
+    AdEventInput:
+      type: object
+      properties:
+        event_id:
+          type: string
+          format: uuid
+        token:
+          type: string
+          maxLength: 2048
+        kind:
+          $ref: '#/components/schemas/AdEventInputKindEnum'
+      required:
+      - event_id
+      - kind
+      - token
+    AdEventInputKindEnum:
       enum:
-      - directions
+      - impression
+      - click
       type: string
-      description: '* `directions` - directions'
+      description: |-
+        * `impression` - 노출
+        * `click` - 클릭
+    AdEventResult:
+      type: object
+      properties:
+        accepted:
+          type: boolean
+        duplicate:
+          type: boolean
+      required:
+      - accepted
+      - duplicate
+    AdPublic:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        advertiser:
+          type: string
+          readOnly: true
+          title: 광고주
+        title:
+          type: string
+          readOnly: true
+          title: 제목
+        description:
+          type: string
+          readOnly: true
+          title: 설명
+        image_url:
+          type: string
+          format: uri
+          readOnly: true
+          title: 이미지 URL
+        image_alt:
+          type: string
+          readOnly: true
+          title: 이미지 설명
+        destination_url:
+          type: string
+          format: uri
+          readOnly: true
+          title: 이동 URL
+        button_label:
+          type: string
+          readOnly: true
+          title: 버튼 문구
+        context_label:
+          type: string
+          readOnly: true
+          title: 지역·분류
+        placement:
+          allOf:
+          - $ref: '#/components/schemas/PlacementEnum'
+          readOnly: true
+          title: 위치
+        starts_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: 시작 일시
+        ends_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: 종료 일시
+        active:
+          type: boolean
+          readOnly: true
+          title: 활성
+      required:
+      - active
+      - advertiser
+      - button_label
+      - context_label
+      - description
+      - destination_url
+      - ends_at
+      - id
+      - image_alt
+      - image_url
+      - placement
+      - starts_at
+      - title
+    AdSlotResponse:
+      type: object
+      properties:
+        ad:
+          allOf:
+          - $ref: '#/components/schemas/AdPublic'
+          nullable: true
+        token:
+          type: string
+        exposure_id:
+          type: string
+          format: uuid
+          nullable: true
+        server_now:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - ad
+      - exposure_id
+      - server_now
+      - token
+      - valid_until
+    AdminFeedback:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        session_id:
+          type: string
+          format: uuid
+          readOnly: true
+        answer_id:
+          type: string
+          readOnly: true
+        message_id:
+          type: integer
+          readOnly: true
+        rating:
+          allOf:
+          - $ref: '#/components/schemas/AdminFeedbackRatingEnum'
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        comment:
+          type: string
+          readOnly: true
+        question:
+          type: string
+          readOnly: true
+        answer:
+          type: string
+          readOnly: true
+        metadata:
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - answer
+      - answer_id
+      - comment
+      - created_at
+      - id
+      - message_id
+      - metadata
+      - question
+      - rating
+      - reason
+      - session_id
+      - updated_at
+    AdminFeedbackRatingEnum:
+      enum:
+      - up
+      - down
+      type: string
+      description: |-
+        * `up` - 좋아요
+        * `down` - 아쉬워요
     AdminMember:
       type: object
       properties:
@@ -7398,6 +8373,224 @@ components:
       - is_staff
       - is_superuser
       - username
+    AdminPost:
+      type: object
+      properties:
+        source_id:
+          type: string
+          readOnly: true
+        post_number:
+          type: string
+          readOnly: true
+        board:
+          allOf:
+          - $ref: '#/components/schemas/BoardEnum'
+          readOnly: true
+        team_code:
+          type: string
+          readOnly: true
+        category:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        author:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        views:
+          type: integer
+          readOnly: true
+        comment_count:
+          type: integer
+          readOnly: true
+        is_sample:
+          type: boolean
+          readOnly: true
+        is_hidden:
+          type: boolean
+          readOnly: true
+        report_count:
+          type: integer
+          readOnly: true
+      required:
+      - author
+      - board
+      - category
+      - comment_count
+      - created_at
+      - is_hidden
+      - is_sample
+      - post_number
+      - report_count
+      - source_id
+      - team_code
+      - title
+      - views
+    AdminPostOwner:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        nickname:
+          type: string
+          readOnly: true
+        is_staff:
+          type: boolean
+          readOnly: true
+          title: Staff status
+          description: Designates whether the user can log into this admin site.
+        is_superuser:
+          type: boolean
+          readOnly: true
+          title: Superuser status
+          description: Designates that this user has all permissions without explicitly
+            assigning them.
+      required:
+      - id
+      - is_staff
+      - is_superuser
+      - nickname
+      - username
+    AdminReport:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        post:
+          allOf:
+          - $ref: '#/components/schemas/AdminReportPost'
+          readOnly: true
+        reporter:
+          type: string
+          readOnly: true
+        reason:
+          allOf:
+          - $ref: '#/components/schemas/ReasonF32Enum'
+          readOnly: true
+        detail:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AdminReportStatusEnum'
+          readOnly: true
+        handled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - created_at
+      - detail
+      - handled_at
+      - id
+      - post
+      - reason
+      - reporter
+      - status
+    AdminReportAction:
+      type: object
+      properties:
+        action:
+          $ref: '#/components/schemas/AdminReportActionActionEnum'
+        sanction:
+          allOf:
+          - $ref: '#/components/schemas/SanctionEnum'
+          default: none
+      required:
+      - action
+    AdminReportActionActionEnum:
+      enum:
+      - hold
+      - unhold
+      - hide
+      - delete
+      type: string
+      description: |-
+        * `hold` - hold
+        * `unhold` - unhold
+        * `hide` - hide
+        * `delete` - delete
+    AdminReportActionResult:
+      type: object
+      properties:
+        action:
+          type: string
+        sanction:
+          type: string
+        status:
+          type: string
+          nullable: true
+      required:
+      - action
+      - sanction
+      - status
+    AdminReportPost:
+      type: object
+      properties:
+        source_id:
+          type: string
+          readOnly: true
+        post_number:
+          type: string
+          readOnly: true
+        board:
+          allOf:
+          - $ref: '#/components/schemas/BoardEnum'
+          readOnly: true
+        team_code:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        author:
+          type: string
+          readOnly: true
+        is_hidden:
+          type: boolean
+          readOnly: true
+        owner:
+          allOf:
+          - $ref: '#/components/schemas/AdminPostOwner'
+          readOnly: true
+          nullable: true
+      required:
+      - author
+      - board
+      - is_hidden
+      - owner
+      - post_number
+      - source_id
+      - team_code
+      - title
+    AdminReportStatusEnum:
+      enum:
+      - pending
+      - held
+      - hidden
+      type: string
+      description: |-
+        * `pending` - pending
+        * `held` - held
+        * `hidden` - hidden
     AthleteData:
       type: object
       properties:
@@ -7511,400 +8704,12 @@ components:
       description: |-
         * `free` - free
         * `teams` - teams
-    ChatCheckpointEvent:
-      type: object
-      properties:
-        turn_id:
-          type: string
-          format: uuid
-        receipt:
-          type: string
-      required:
-      - receipt
-      - turn_id
-    ChatCoursePayload:
-      type: object
-      properties:
-        title:
-          type: string
-        stadium:
-          type: string
-        content:
-          type: string
-        contentFormat:
-          oneOf:
-          - $ref: '#/components/schemas/ContentFormatEnum'
-          - $ref: '#/components/schemas/BlankEnum'
-        duration:
-          type: string
-        tags:
-          type: array
-          items:
-            type: string
-        startLat:
-          type: number
-          format: double
-          nullable: true
-        startLng:
-          type: number
-          format: double
-          nullable: true
-        stops:
-          type: array
-          items:
-            $ref: '#/components/schemas/ChatCourseStop'
-      required:
-      - content
-      - contentFormat
-      - duration
-      - stadium
-      - startLat
-      - startLng
-      - stops
-      - tags
-      - title
-    ChatCoursePlace:
-      type: object
-      properties:
-        phase:
-          $ref: '#/components/schemas/PhaseEnum'
-        name:
-          type: string
-        lat:
-          type: number
-          format: double
-        lng:
-          type: number
-          format: double
-        category:
-          type: string
-        placeId:
-          type: string
-          nullable: true
-        address:
-          type: string
-        placeUrl:
-          oneOf:
-          - type: string
-            format: uri
-          - type: string
-            maxLength: 0
-        distance:
-          type: number
-          format: double
-        reason:
-          type: string
-        time:
-          type: string
-        stayMin:
-          type: integer
-      required:
-      - address
-      - category
-      - distance
-      - lat
-      - lng
-      - name
-      - phase
-      - placeId
-      - placeUrl
-      - reason
-      - stayMin
-      - time
-    ChatCourseStop:
-      type: object
-      properties:
-        position:
-          type: integer
-          minimum: 0
-        name:
-          type: string
-        lat:
-          type: number
-          format: double
-        lng:
-          type: number
-          format: double
-        category:
-          type: string
-        placeId:
-          type: string
-          nullable: true
-        address:
-          type: string
-          nullable: true
-        isMapPoint:
-          type: boolean
-      required:
-      - address
-      - category
-      - isMapPoint
-      - lat
-      - lng
-      - name
-      - placeId
-      - position
-    ChatDeltaEvent:
-      type: object
-      properties:
-        turn_id:
-          type: string
-          format: uuid
-        receipt:
-          type: string
-        text:
-          type: string
-      required:
-      - receipt
-      - text
-      - turn_id
-    ChatDoneEvent:
-      type: object
-      properties:
-        places:
-          type: array
-          items:
-            $ref: '#/components/schemas/ChatCoursePlace'
-        coursePayload:
-          allOf:
-          - $ref: '#/components/schemas/ChatCoursePayload'
-          nullable: true
-        route:
-          type: string
-        turn_id:
-          type: string
-          format: uuid
-        receipt:
-          type: string
-      required:
-      - receipt
-      - turn_id
-    ChatErrorEvent:
-      type: object
-      properties:
-        detail:
-          type: string
-      required:
-      - detail
-    ChatFinalize:
-      type: object
-      properties:
-        receipt:
-          type: string
-          maxLength: 1000
-        prefix:
-          type: string
-          maxLength: 8000
-        status:
-          $ref: '#/components/schemas/ChatFinalizeStatusEnum'
-      required:
-      - prefix
-      - receipt
-      - status
-    ChatFinalizeResponse:
-      type: object
-      properties:
-        turn_id:
-          type: string
-          format: uuid
-        session_id:
-          type: integer
-        status:
-          $ref: '#/components/schemas/ChatFinalizeStatusEnum'
-        user_message_id:
-          type: integer
-        assistant_message_id:
-          type: integer
-          nullable: true
-        user_message:
-          type: string
-        assistant_message:
-          type: string
-      required:
-      - assistant_message
-      - assistant_message_id
-      - session_id
-      - status
-      - turn_id
-      - user_message
-      - user_message_id
-    ChatFinalizeStatusEnum:
-      enum:
-      - completed
-      - stopped
-      type: string
-      description: |-
-        * `completed` - completed
-        * `stopped` - stopped
-    ChatMessage:
-      type: object
-      properties:
-        id:
-          type: integer
-          readOnly: true
-        sequence_no:
-          type: integer
-          readOnly: true
-        role:
-          allOf:
-          - $ref: '#/components/schemas/ChatMessageRoleEnum'
-          readOnly: true
-        content:
-          type: string
-          maxLength: 2200
-        status:
-          allOf:
-          - $ref: '#/components/schemas/ChatMessageStatusEnum'
-          readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-      required:
-      - content
-      - created_at
-      - id
-      - role
-      - sequence_no
-      - status
-      - updated_at
-    ChatMessageRoleEnum:
-      enum:
-      - human
-      - ai
-      type: string
-      description: |-
-        * `human` - 사용자
-        * `ai` - AI
-    ChatMessageStatusEnum:
-      enum:
-      - completed
-      - stopped
-      type: string
-      description: |-
-        * `completed` - 완료
-        * `stopped` - 중단
-    ChatNonStreamResponse:
-      type: object
-      properties:
-        places:
-          type: array
-          items:
-            $ref: '#/components/schemas/ChatCoursePlace'
-        coursePayload:
-          allOf:
-          - $ref: '#/components/schemas/ChatCoursePayload'
-          nullable: true
-        route:
-          type: string
-        turn_id:
-          type: string
-          format: uuid
-        progress:
-          type: array
-          items:
-            $ref: '#/components/schemas/ChatProgressEvent'
-        session_id:
-          type: integer
-        user_message:
-          type: string
-        assistant_message:
-          type: string
-        status:
-          $ref: '#/components/schemas/CompletedStatusEnum'
-        user_message_id:
-          type: integer
-        assistant_message_id:
-          type: integer
-      required:
-      - assistant_message
-      - assistant_message_id
-      - progress
-      - session_id
-      - status
-      - turn_id
-      - user_message
-      - user_message_id
-    ChatProgressEvent:
-      type: object
-      properties:
-        turn_id:
-          type: string
-          format: uuid
-        sequence_no:
-          type: integer
-          minimum: 1
-        operation_id:
-          type: string
-          format: uuid
-        parent_operation_id:
-          type: string
-          format: uuid
-          nullable: true
-        kind:
-          $ref: '#/components/schemas/ChatProgressEventKindEnum'
-        status:
-          $ref: '#/components/schemas/ChatProgressEventStatusEnum'
-        label:
-          type: string
-          maxLength: 160
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        tool_name:
-          type: string
-          readOnly: true
-          nullable: true
-        summary:
-          type: object
-          additionalProperties: {}
-          nullable: true
-          readOnly: true
-      required:
-      - created_at
-      - kind
-      - label
-      - operation_id
-      - parent_operation_id
-      - sequence_no
-      - status
-      - summary
-      - tool_name
-      - turn_id
-    ChatProgressEventKindEnum:
-      enum:
-      - phase
-      - retrieval
-      - tool
-      type: string
-      description: |-
-        * `phase` - 처리
-        * `retrieval` - 검색
-        * `tool` - 도구
-    ChatProgressEventStatusEnum:
-      enum:
-      - started
-      - completed
-      - failed
-      - interrupted
-      - unknown
-      type: string
-      description: |-
-        * `started` - 시작
-        * `completed` - 완료
-        * `failed` - 실패
-        * `interrupted` - 중단
-        * `unknown` - 확인 불가
     ChatSession:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
           readOnly: true
         title:
           type: string
@@ -7921,56 +8726,38 @@ components:
       - created_at
       - id
       - updated_at
-    ChatTurn:
+    CollectedPlaceCatalogue:
       type: object
       properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
-        question:
-          type: string
-          readOnly: true
         status:
-          allOf:
-          - $ref: '#/components/schemas/ChatTurnStatusEnum'
-          readOnly: true
-        base_sequence:
+          type: string
+        snapshotId:
+          type: string
+        stadium:
+          type: string
+        radiusM:
           type: integer
-          readOnly: true
-        human_message_id:
+        count:
           type: integer
-          readOnly: true
-          nullable: true
-        assistant_message_id:
-          type: integer
-          readOnly: true
-          nullable: true
-        progress:
+        warning:
+          type: string
+        places:
           type: array
           items:
-            $ref: '#/components/schemas/ChatProgressEvent'
-          readOnly: true
+            type: object
+            additionalProperties: {}
+        lodging:
+          type: object
+          additionalProperties: {}
       required:
-      - assistant_message_id
-      - base_sequence
-      - human_message_id
-      - id
-      - progress
-      - question
+      - count
+      - lodging
+      - places
+      - radiusM
+      - snapshotId
+      - stadium
       - status
-    ChatTurnStatusEnum:
-      enum:
-      - pending
-      - completed
-      - stopped
-      - failed
-      type: string
-      description: |-
-        * `pending` - pending
-        * `completed` - completed
-        * `stopped` - stopped
-        * `failed` - failed
+      - warning
     CommunityCategoryEnum:
       enum:
       - 질문
@@ -8066,6 +8853,40 @@ components:
       - id
       - size
       - width
+    CommunityMemberComment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        content:
+          type: string
+          readOnly: true
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        postId:
+          type: string
+          readOnly: true
+        postTitle:
+          type: string
+          readOnly: true
+        board:
+          allOf:
+          - $ref: '#/components/schemas/BoardEnum'
+          readOnly: true
+        teamCode:
+          type: string
+          readOnly: true
+      required:
+      - board
+      - content
+      - createdAt
+      - id
+      - postId
+      - postTitle
+      - teamCode
     CommunityPost:
       type: object
       properties:
@@ -8208,7 +9029,7 @@ components:
       type: object
       properties:
         reason:
-          $ref: '#/components/schemas/ReasonEnum'
+          $ref: '#/components/schemas/ReasonF32Enum'
         detail:
           type: string
           maxLength: 50
@@ -8243,16 +9064,11 @@ components:
           - $ref: '#/components/schemas/NullEnum'
       required:
       - vote
-    CompletedStatusEnum:
-      enum:
-      - completed
-      type: string
-      description: '* `completed` - completed'
     ContentFormatEnum:
       enum:
       - html
       type: string
-      description: "* `` - \n* `html` - html"
+      description: '* `html` - html'
     ContentTypeEnum:
       enum:
       - image/jpeg
@@ -8276,6 +9092,20 @@ components:
     Course:
       type: object
       properties:
+        travelMode:
+          $ref: '#/components/schemas/DirectionsModeEnum'
+        legModes:
+          type: object
+          additionalProperties:
+            enum:
+            - walk
+            - car
+            - transit
+            type: string
+            description: |-
+              * `walk` - walk
+              * `car` - car
+              * `transit` - transit
         id:
           type: string
           format: uuid
@@ -8350,6 +9180,20 @@ components:
     CourseCreateRequest:
       type: object
       properties:
+        travelMode:
+          $ref: '#/components/schemas/DirectionsModeEnum'
+        legModes:
+          type: object
+          additionalProperties:
+            enum:
+            - walk
+            - car
+            - transit
+            type: string
+            description: |-
+              * `walk` - walk
+              * `car` - car
+              * `transit` - transit
         title:
           type: string
           maxLength: 80
@@ -8397,6 +9241,20 @@ components:
     CourseCreateResult:
       type: object
       properties:
+        travelMode:
+          $ref: '#/components/schemas/DirectionsModeEnum'
+        legModes:
+          type: object
+          additionalProperties:
+            enum:
+            - walk
+            - car
+            - transit
+            type: string
+            description: |-
+              * `walk` - walk
+              * `car` - car
+              * `transit` - transit
         id:
           type: string
           format: uuid
@@ -8503,11 +9361,13 @@ components:
           format: double
           maximum: 90
           minimum: -90
+          nullable: true
         lng:
           type: number
           format: double
           maximum: 180
           minimum: -180
+          nullable: true
         category:
           type: string
           maxLength: 120
@@ -8547,11 +9407,13 @@ components:
           format: double
           maximum: 90
           minimum: -90
+          nullable: true
         lng:
           type: number
           format: double
           maximum: 180
           minimum: -180
+          nullable: true
         category:
           type: string
           maxLength: 120
@@ -8783,7 +9645,7 @@ components:
       type: object
       properties:
         action:
-          $ref: '#/components/schemas/ActionEnum'
+          $ref: '#/components/schemas/DirectionsRequestActionEnum'
         mode:
           $ref: '#/components/schemas/DirectionsModeEnum'
         points:
@@ -8795,6 +9657,11 @@ components:
       required:
       - mode
       - points
+    DirectionsRequestActionEnum:
+      enum:
+      - directions
+      type: string
+      description: '* `directions` - directions'
     DirectionsResponse:
       type: object
       properties:
@@ -9094,6 +9961,37 @@ components:
       - record_code
       - side
       - stadium_id
+    FeedbackInput:
+      type: object
+      properties:
+        message_id:
+          type: string
+        rating:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/Rating224Enum'
+          - $ref: '#/components/schemas/NullEnum'
+        reason:
+          default: ''
+          oneOf:
+          - $ref: '#/components/schemas/FeedbackInputReasonEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        comment:
+          type: string
+          default: ''
+          maxLength: 1000
+      required:
+      - message_id
+      - rating
+    FeedbackInputReasonEnum:
+      enum:
+      - incorrect
+      - irrelevant
+      - incomplete
+      - other
+      type: string
+      description: "* `` - \n* `incorrect` - incorrect\n* `irrelevant` - irrelevant\n*
+        `incomplete` - incomplete\n* `other` - other"
     FoodStore:
       type: object
       properties:
@@ -9384,63 +10282,6 @@ components:
       description: |-
         * `M` - 남성
         * `F` - 여성
-    GuestChat:
-      type: object
-      properties:
-        messages:
-          type: array
-          items:
-            $ref: '#/components/schemas/GuestChatMessage'
-      required:
-      - messages
-    GuestChatDeltaEvent:
-      type: object
-      properties:
-        text:
-          type: string
-      required:
-      - text
-    GuestChatDoneEvent:
-      type: object
-      properties:
-        places:
-          type: array
-          items:
-            $ref: '#/components/schemas/ChatCoursePlace'
-        coursePayload:
-          allOf:
-          - $ref: '#/components/schemas/ChatCoursePayload'
-          nullable: true
-        route:
-          type: string
-        assistant_message:
-          type: string
-      required:
-      - assistant_message
-    GuestChatEventPayload:
-      oneOf:
-      - $ref: '#/components/schemas/GuestChatDeltaEvent'
-      - $ref: '#/components/schemas/GuestChatDoneEvent'
-      - $ref: '#/components/schemas/ChatProgressEvent'
-      - $ref: '#/components/schemas/ChatErrorEvent'
-    GuestChatMessage:
-      type: object
-      properties:
-        role:
-          $ref: '#/components/schemas/GuestChatMessageRoleEnum'
-        content:
-          type: string
-      required:
-      - content
-      - role
-    GuestChatMessageRoleEnum:
-      enum:
-      - user
-      - assistant
-      type: string
-      description: |-
-        * `user` - user
-        * `assistant` - assistant
     HomeContext:
       type: object
       properties:
@@ -9556,6 +10397,12 @@ components:
           type: string
         place_name:
           type: string
+        place_url:
+          oneOf:
+          - type: string
+            format: uri
+          - type: string
+            maxLength: 0
         road_address_name:
           type: string
         address_name:
@@ -9572,6 +10419,14 @@ components:
           type: string
         y:
           type: string
+        stadiumArea:
+          type: object
+          additionalProperties:
+            type: string
+            nullable: true
+          readOnly: true
+          description: 'scope: internal(초록 내부) 또는 external. stadium: 해당 구장 코드 또는 null.
+            빨강 전용 구역은 반환하지 않습니다.'
       required:
       - address_name
       - category_group_code
@@ -9581,6 +10436,7 @@ components:
       - phone
       - place_name
       - road_address_name
+      - stadiumArea
       - x
       - y
     KboTeamCodeEnum:
@@ -9615,13 +10471,6 @@ components:
           writeOnly: true
       required:
       - refresh
-    MemberChatEventPayload:
-      oneOf:
-      - $ref: '#/components/schemas/ChatCheckpointEvent'
-      - $ref: '#/components/schemas/ChatDeltaEvent'
-      - $ref: '#/components/schemas/ChatDoneEvent'
-      - $ref: '#/components/schemas/ChatProgressEvent'
-      - $ref: '#/components/schemas/ChatErrorEvent'
     MemberUser:
       type: object
       properties:
@@ -9796,6 +10645,52 @@ components:
     NullEnum:
       enum:
       - null
+    PaginatedAdAdminList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdAdmin'
+    PaginatedAdminFeedbackList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminFeedback'
     PaginatedAdminMemberList:
       type: object
       required:
@@ -9819,12 +10714,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AdminMember'
-    PaginatedChatTurnList:
+    PaginatedAdminPostList:
       type: object
       required:
       - count
-      - next
-      - previous
       - results
       properties:
         count:
@@ -9843,7 +10736,76 @@ components:
         results:
           type: array
           items:
-            $ref: '#/components/schemas/ChatTurn'
+            $ref: '#/components/schemas/AdminPost'
+    PaginatedAdminReportList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminReport'
+    PaginatedChatSessionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatSession'
+    PaginatedCommunityMemberCommentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommunityMemberComment'
     PaginatedFacilityList:
       type: object
       required:
@@ -10429,11 +11391,98 @@ components:
           type: string
           writeOnly: true
           maxLength: 128
-    PatchedChatSession:
+    PatchedAdAdmin:
       type: object
       properties:
         id:
           type: integer
+          readOnly: true
+        advertiser:
+          type: string
+          title: 광고주
+          maxLength: 120
+        title:
+          type: string
+          title: 제목
+          maxLength: 120
+        description:
+          type: string
+          title: 설명
+          maxLength: 250
+        image_url:
+          type: string
+          format: uri
+          title: 이미지 URL
+          maxLength: 1000
+        image_alt:
+          type: string
+          title: 이미지 설명
+          maxLength: 250
+        destination_url:
+          type: string
+          format: uri
+          title: 이동 URL
+          maxLength: 1000
+        button_label:
+          type: string
+          title: 버튼 문구
+          maxLength: 40
+        context_label:
+          type: string
+          title: 지역·분류
+          maxLength: 120
+        placement:
+          allOf:
+          - $ref: '#/components/schemas/PlacementEnum'
+          title: 위치
+        starts_at:
+          type: string
+          format: date-time
+          title: 시작 일시
+        ends_at:
+          type: string
+          format: date-time
+          title: 종료 일시
+        active:
+          type: boolean
+          title: 활성
+        is_test:
+          type: boolean
+          title: 테스트 광고
+        priority:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          title: 우선순위
+        team_code:
+          type: string
+          title: 구단 코드
+          maxLength: 10
+        place:
+          type: integer
+          nullable: true
+          title: 제휴 장소
+        courses:
+          type: array
+          items:
+            type: string
+            format: uuid
+            title: 노출 대상 코스
+          title: 노출 대상 코스
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedChatSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
           readOnly: true
         title:
           type: string
@@ -10473,6 +11522,20 @@ components:
     PatchedCoursePatchRequest:
       type: object
       properties:
+        travelMode:
+          $ref: '#/components/schemas/DirectionsModeEnum'
+        legModes:
+          type: object
+          additionalProperties:
+            enum:
+            - walk
+            - car
+            - transit
+            type: string
+            description: |-
+              * `walk` - walk
+              * `car` - car
+              * `transit` - transit
         title:
           type: string
           maxLength: 80
@@ -10979,6 +12042,38 @@ components:
         phone_ticket:
           type: string
           nullable: true
+        image_url:
+          type: string
+          nullable: true
+          maxLength: 500
+        image_source_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
+        image_credit:
+          type: string
+          nullable: true
+          maxLength: 300
+        image_credit_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
+        image_license_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
         collected_at:
           type: string
           format: date-time
@@ -11169,16 +12264,6 @@ components:
         collected_at:
           type: string
           format: date-time
-    PhaseEnum:
-      enum:
-      - BEFORE
-      - GAME
-      - AFTER
-      type: string
-      description: |-
-        * `BEFORE` - BEFORE
-        * `GAME` - GAME
-        * `AFTER` - AFTER
     Place:
       type: object
       properties:
@@ -11317,6 +12402,15 @@ components:
             $ref: '#/components/schemas/KakaoPlace'
         hasNextPage:
           type: boolean
+        totalCount:
+          type: integer
+          minimum: 0
+          description: 필터 적용 전 카카오 검색 결과 수
+        pageableCount:
+          type: integer
+          maximum: 45
+          minimum: 0
+          description: 해당 검색에서 카카오가 반환할 수 있는 결과 수
         syncedAt:
           type: string
           format: date-time
@@ -11374,6 +12468,14 @@ components:
       - lat
       - lng
       - name
+    PlacementEnum:
+      enum:
+      - home-club-banner
+      - home-route-partner-banner
+      type: string
+      description: |-
+        * `home-club-banner` - 홈 구단 광고
+        * `home-route-partner-banner` - 홈 음식점·시설 광고
     PlayerEntity:
       type: object
       properties:
@@ -11785,6 +12887,22 @@ components:
       - name
       - season
       - team_id
+    PublicMember:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nickname:
+          type: string
+          readOnly: true
+        activityVisible:
+          type: boolean
+          readOnly: true
+      required:
+      - activityVisible
+      - id
+      - nickname
     PublicSeatMap:
       type: object
       properties:
@@ -11839,6 +12957,69 @@ components:
       - scope_code
       - scope_name
       - seat_views
+    ParkingMap:
+      type: object
+      properties:
+        imageUrl:
+          type: string
+        sourceUrl:
+          type: string
+          format: uri
+        credit:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        kind:
+          $ref: '#/components/schemas/ParkingMapKindEnum'
+        visualNotes:
+          type: array
+          items:
+            type: string
+        capturedAt:
+          type: string
+          format: date
+        width:
+          type: integer
+        height:
+          type: integer
+      required:
+      - imageUrl
+    ParkingMapKindEnum:
+      enum:
+      - entrance
+      - preferred-area
+      - nearby-alternatives
+      - access-gates
+      type: string
+      description: |-
+        * `entrance` - entrance
+        * `preferred-area` - preferred-area
+        * `nearby-alternatives` - nearby-alternatives
+        * `access-gates` - access-gates
+    SeatingMap:
+      type: object
+      properties:
+        imageUrl:
+          type: string
+        sourceUrl:
+          type: string
+          format: uri
+        title:
+          type: string
+        home_context_id:
+          type: integer
+        season:
+          type: integer
+        team_code:
+          type: string
+      required:
+      - home_context_id
+      - imageUrl
+      - season
+      - team_code
+      - title
     PublicStadium:
       type: object
       properties:
@@ -11877,6 +13058,38 @@ components:
         phone_ticket:
           type: string
           nullable: true
+        image_url:
+          type: string
+          nullable: true
+          maxLength: 500
+        image_source_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
+        image_credit:
+          type: string
+          nullable: true
+          maxLength: 300
+        image_credit_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
+        image_license_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
         collected_at:
           type: string
           format: date-time
@@ -11884,6 +13097,16 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PublicHomeTeam'
+          readOnly: true
+        parkingMap:
+          allOf:
+          - $ref: '#/components/schemas/ParkingMap'
+          nullable: true
+          readOnly: true
+        seatingMap:
+          allOf:
+          - $ref: '#/components/schemas/SeatingMap'
+          nullable: true
           readOnly: true
       required:
       - address
@@ -11893,6 +13116,8 @@ components:
       - id
       - latitude
       - longitude
+      - parkingMap
+      - seatingMap
       - stadium_code
       - stadium_name_ko
     PublicTeam:
@@ -11967,7 +13192,15 @@ components:
       - seat_zone_code
       - seat_zone_id
       - seat_zone_name
-    ReasonEnum:
+    Rating224Enum:
+      enum:
+      - up
+      - down
+      type: string
+      description: |-
+        * `up` - up
+        * `down` - down
+    ReasonF32Enum:
       enum:
       - spam
       - abuse
@@ -12003,6 +13236,18 @@ components:
         * `home` - home
         * `away` - away
         * `draw` - draw
+    SanctionEnum:
+      enum:
+      - none
+      - 7d
+      - 30d
+      - permanent
+      type: string
+      description: |-
+        * `none` - none
+        * `7d` - 7d
+        * `30d` - 30d
+        * `permanent` - permanent
     SeatMap:
       type: object
       properties:
@@ -12042,6 +13287,14 @@ components:
           type: string
         asset_role:
           type: string
+        source_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
       required:
       - asset_no
       - asset_role
@@ -12067,6 +13320,14 @@ components:
           type: string
         asset_role:
           type: string
+        source_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
         _etag:
           type: string
           readOnly: true
@@ -12325,6 +13586,9 @@ components:
           format: date
         gender:
           $ref: '#/components/schemas/GenderEnum'
+        team_code:
+          type: string
+          maxLength: 2
       required:
       - birth_date
       - email
@@ -12477,6 +13741,38 @@ components:
         phone_ticket:
           type: string
           nullable: true
+        image_url:
+          type: string
+          nullable: true
+          maxLength: 500
+        image_source_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
+        image_credit:
+          type: string
+          nullable: true
+          maxLength: 300
+        image_credit_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
+        image_license_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
         collected_at:
           type: string
           format: date-time
@@ -12610,6 +13906,38 @@ components:
         phone_ticket:
           type: string
           nullable: true
+        image_url:
+          type: string
+          nullable: true
+          maxLength: 500
+        image_source_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
+        image_credit:
+          type: string
+          nullable: true
+          maxLength: 300
+        image_credit_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
+        image_license_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
         collected_at:
           type: string
           format: date-time
@@ -12627,6 +13955,35 @@ components:
       - longitude
       - stadium_code
       - stadium_name_ko
+    StadiumFacilityCatalogue:
+      type: object
+      properties:
+        stadium:
+          type: string
+        count:
+          type: integer
+        pinCount:
+          type: integer
+        checkedAt:
+          type: string
+        warning:
+          type: string
+        review:
+          type: object
+          additionalProperties: {}
+        records:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+      required:
+      - checkedAt
+      - count
+      - pinCount
+      - records
+      - review
+      - stadium
+      - warning
     StandingHistory:
       type: object
       properties:

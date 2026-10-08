@@ -1,19 +1,21 @@
 from .admin_views import MemberList, MemberRole
+from .public import PublicMemberView
 from django.urls import path
 from .views import LogoutView, RefreshView, SignInView, change_password, get_user, request_email_change, request_username, set_password, signup, verify_email_change
 
 """
-    Django 직접 호출은 /auth/, Nginx 경유는 /api/auth/입니다.
+    Django 직접 호출과 Nginx 경유 모두 /api/v1/auth/입니다.
     
-    POST /api/auth/signin
-    POST /api/auth/token/refresh/
-    POST /api/auth/signup/
-    POST /api/auth/password/request
-    POST /api/auth/password
-    GET  /api/auth/user
-    POST /api/auth/logout
+    POST /api/v1/auth/signin
+    POST /api/v1/auth/token/refresh/
+    POST /api/v1/auth/signup/
+    POST /api/v1/auth/password/request
+    POST /api/v1/auth/password
+    GET  /api/v1/auth/user
+    POST /api/v1/auth/logout
 """
 urlpatterns = [
+    path("users/<int:member_id>/public/", PublicMemberView.as_view(), name="public_member"),
     path("admin/members/", MemberList.as_view(), name="admin_members"),
     path("admin/members/<int:pk>/role/", MemberRole.as_view(), name="admin_member_role"),
     path("signin", SignInView.as_view(), name="login"),

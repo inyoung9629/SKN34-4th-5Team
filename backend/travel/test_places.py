@@ -52,7 +52,7 @@ def query(**changes):
     return data
 
 
-def document(place_id="1", name="잠실야구장", x="127.0719", y="37.5122"):
+def document(place_id="1", name="외부 장소", x="127.0800", y="37.5100"):
     return {
         "id": place_id,
         "place_name": name,
@@ -117,13 +117,14 @@ class PlaceServiceTests(TestCase):
 
         with patch("travel.place_service._request_kakao", return_value=payload(document(), is_end=False)):
             first = search_and_sync_places(query())
-        self.assertEqual((first["places"][0]["id"], first["places"][0]["x"], first["hasNextPage"]), ("1", "127.0719", True))
+        self.assertEqual((first["places"][0]["id"], first["places"][0]["x"], first["hasNextPage"]), ("1", "127.0800", True))
+        self.assertEqual(first["places"][0]["place_url"], "https://place.map.kakao.com/1")
         saved = Place.objects.get(kakao_place_id="1")
         first_sync = saved.last_synced_at
         with patch("travel.place_service._request_kakao", return_value=payload(document(name="새 이름"))):
             second = search_and_sync_places(query())
         saved.refresh_from_db()
-        self.assertEqual((Place.objects.filter(kakao_place_id="1").count(), saved.name), (1, "잠실야구장"))
+        self.assertEqual((Place.objects.filter(kakao_place_id="1").count(), saved.name), (1, "외부 장소"))
         self.assertEqual(saved.last_synced_at, first_sync)
         self.assertEqual(second["places"][0]["place_name"], "새 이름")
         self.assertIn("syncedAt", second)
@@ -172,6 +173,19 @@ class PlaceServiceTests(TestCase):
         self.assertFalse(any(item["sql"].lstrip().upper().startswith("UPDATE") for item in queries.captured_queries))
         refreshed = Place.objects.get(kakao_place_id="stale")
         self.assertEqual((refreshed.name, refreshed.last_synced_at), ("공급자 stale", now))
+
+    def test_internal_kakao_rows_are_neither_returned_nor_synced_even_when_cached(self):
+        old = Place.objects.create(**manual_place(kakao_place_id="inside", name="기존 내부 장소"))
+        inside = document("inside", x="127.0719", y="37.5122")
+        unseen = document("new-inside", x="127.0719", y="37.5122")
+        with patch("travel.place_service._request_kakao", return_value=payload(inside, unseen, document("outside"), is_end=False)):
+            result = search_and_sync_places(query())
+        self.assertEqual([p["id"] for p in result["places"]], ["outside"])
+        self.assertTrue(result["hasNextPage"])
+        self.assertFalse(Place.objects.filter(kakao_place_id="new-inside").exists())
+        old.refresh_from_db()
+        self.assertEqual(old.name, "기존 내부 장소")
+        self.assertIsNone(old.last_synced_at)
 
     @override_settings(EXTERNAL_DATA_SYNC_INTERVAL_SECONDS=120)
     def test_search_sync_interval_honors_runtime_override_and_exact_boundary(self):
@@ -317,33 +331,33 @@ class PlaceApiTests(TestCase):
         self.client = APIClient()
 
     def test_public_reads_search_and_staff_only_mutations(self):
-        self.assertEqual(self.client.post("/places/", manual_place(), format="json").status_code, 401)
+        self.assertEqual(self.client.post("/api/v1/places/", manual_place(), format="json").status_code, 401)
         self.client.force_authenticate(self.member)
-        self.assertEqual(self.client.post("/places/", manual_place(), format="json").status_code, 403)
+        self.assertEqual(self.client.post("/api/v1/places/", manual_place(), format="json").status_code, 403)
         self.client.force_authenticate(self.staff)
-        created = self.client.post("/places/", manual_place(), format="json")
+        created = self.client.post("/api/v1/places/", manual_place(), format="json")
         self.assertEqual(created.status_code, 201, created.data)
         place_id = created.data["id"]
         self.client.force_authenticate(user=None)
-        self.assertEqual(self.client.get("/places/").status_code, 200)
-        self.assertEqual(self.client.get(f"/places/{place_id}/").status_code, 200)
+        self.assertEqual(self.client.get("/api/v1/places/").status_code, 200)
+        self.assertEqual(self.client.get(f"/api/v1/places/{place_id}/").status_code, 200)
         with patch("travel.place_service._request_kakao", return_value=payload(document())):
-            searched = self.client.post("/places/search/", query(), format="json")
+            searched = self.client.post("/api/v1/places/search/", query(), format="json")
         self.assertEqual(searched.status_code, 200, searched.data)
         self.assertEqual(set(searched.data), {"places", "hasNextPage", "syncedAt"})
 
     def test_api_rejects_unknown_read_fields_immutable_patch_and_large_or_non_json_bodies(self):
-        self.assertEqual(self.client.get("/places/?unknown=x").status_code, 400)
-        self.assertEqual(self.client.generic("POST", "/places/search/", b"{}", content_type="text/plain").status_code, 415)
-        self.assertEqual(self.client.generic("POST", "/places/search/", b"x" * 12001, content_type="application/json").status_code, 413)
+        self.assertEqual(self.client.get("/api/v1/places/?unknown=x").status_code, 400)
+        self.assertEqual(self.client.generic("POST", "/api/v1/places/search/", b"{}", content_type="text/plain").status_code, 415)
+        self.assertEqual(self.client.generic("POST", "/api/v1/places/search/", b"x" * 12001, content_type="application/json").status_code, 413)
         self.client.force_authenticate(self.staff)
-        created = self.client.post("/places/", manual_place(), format="json")
-        response = self.client.patch(f"/places/{created.data['id']}/", {"id": 9}, format="json")
+        created = self.client.post("/api/v1/places/", manual_place(), format="json")
+        response = self.client.patch(f"/api/v1/places/{created.data['id']}/", {"id": 9}, format="json")
         self.assertEqual((response.status_code, response.data), (400, {"error": "입력값을 확인해 주세요."}))
 
     def test_database_error_is_safe_json_and_search_rolls_back(self):
         with patch.object(Place.objects, "all", side_effect=OperationalError("SELECT secret")):
-            response = self.client.get("/places/")
+            response = self.client.get("/api/v1/places/")
         self.assertEqual((response.status_code, response.data), (503, {"error": "장소 저장소를 사용할 수 없습니다."}))
         self.assertNotIn(b"secret", response.content)
 
@@ -359,27 +373,27 @@ class PlaceApiTests(TestCase):
             return real(*args, **kwargs)
 
         with patch("travel.place_service._request_kakao", return_value=payload(document("1"), document("2"))), patch.object(Place.objects, "select_for_update", return_value=locked), patch.object(locked, "get_or_create", side_effect=fail_second):
-            response = self.client.post("/places/search/", query(), format="json")
+            response = self.client.post("/api/v1/places/search/", query(), format="json")
         self.assertEqual((response.status_code, response.data), (503, {"error": "장소 저장소를 사용할 수 없습니다."}))
         self.assertEqual(Place.objects.count(), 0)
 
     @override_settings(KAKAO_REST_API_KEY="")
     def test_api_distinguishes_limits_upstream_configuration_conflict_and_missing_ids(self):
         with patch("travel.place_service._enter_search", side_effect=PlaceRateLimitError):
-            limited = self.client.post("/places/search/", query(), format="json")
+            limited = self.client.post("/api/v1/places/search/", query(), format="json")
         with patch("travel.place_service._request_kakao", side_effect=PlaceUpstreamError):
-            upstream = self.client.post("/places/search/", query(), format="json")
-        unconfigured = self.client.post("/places/search/", query(), format="json")
+            upstream = self.client.post("/api/v1/places/search/", query(), format="json")
+        unconfigured = self.client.post("/api/v1/places/search/", query(), format="json")
         self.assertEqual((limited.status_code, upstream.status_code, unconfigured.status_code), (429, 502, 503))
         self.assertEqual(limited.data, {"error": "장소 검색 요청이 많아요. 잠시 후 다시 시도해 주세요."})
         self.assertEqual(upstream.data, {"error": "일부 장소를 불러오지 못했어요."})
 
         self.client.force_authenticate(self.staff)
-        first = self.client.post("/places/", manual_place(kakao_place_id="duplicate-api"), format="json")
-        conflict = self.client.post("/places/", manual_place(kakao_place_id="duplicate-api"), format="json")
+        first = self.client.post("/api/v1/places/", manual_place(kakao_place_id="duplicate-api"), format="json")
+        conflict = self.client.post("/api/v1/places/", manual_place(kakao_place_id="duplicate-api"), format="json")
         self.assertEqual((first.status_code, conflict.status_code), (201, 409))
         self.client.force_authenticate(user=None)
-        self.assertEqual(self.client.get("/places/999999/").status_code, 404)
+        self.assertEqual(self.client.get("/api/v1/places/999999/").status_code, 404)
 
 
 class PlaceConcurrencyTests(TransactionTestCase):

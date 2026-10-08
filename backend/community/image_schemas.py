@@ -18,5 +18,5 @@ class ImageMetadata(BaseModel):
 
 def image_metadata(image):
     data = ImageMetadata.model_validate(image).model_dump(by_alias=True, mode="json")
-    data["url"] = f"/api/community/images/{image.pk}/"
+    data["url"] = f"/api/v1/community/images/{image.pk}/"
     return data

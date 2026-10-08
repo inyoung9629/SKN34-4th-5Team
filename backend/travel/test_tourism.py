@@ -252,7 +252,8 @@ class TourismMigrationTests(TransactionTestCase):
         self.assertEqual((kakao.name, kakao.address, kakao.last_synced_at), ("카카오 장소", "기존 주소", marker))
 
     def tearDown(self):
-        MigrationExecutor(connection).migrate(self.migrate_to)
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
         super().tearDown()
 
 
@@ -317,13 +318,13 @@ class TourismHttpTests(TestCase):
     def test_public_search_validation_unconfigured_and_safe_upstream_error(self):
         client = APIClient()
         _, _, lat, lng = STADIUMS["JAMSIL"]
-        self.assertEqual(client.get("/tourism/", {"stadium": "BAD", "lat": lat, "lng": lng}).status_code, 400)
+        self.assertEqual(client.get("/api/v1/tourism/", {"stadium": "BAD", "lat": lat, "lng": lng}).status_code, 400)
         with override_settings(TOUR_API_KEY=""):
-            self.assertEqual(client.get("/tourism/", {"stadium": "JAMSIL", "lat": lat, "lng": lng}).json()["status"], "unconfigured")
+            self.assertEqual(client.get("/api/v1/tourism/", {"stadium": "JAMSIL", "lat": lat, "lng": lng}).json()["status"], "unconfigured")
         with patch("travel.tourism_views.search_tourism", side_effect=TourismProviderError("upstream_rate_limited", 429)):
-            response = client.get("/tourism/", {"stadium": "JAMSIL", "lat": lat, "lng": lng})
+            response = client.get("/api/v1/tourism/", {"stadium": "JAMSIL", "lat": lat, "lng": lng})
         self.assertEqual(response.status_code, 429)
         self.assertNotIn("test%2Bkey", response.content.decode())
         with patch("travel.tourism_views._tourism_slots") as slots:
             slots.acquire.return_value = False
-            self.assertEqual(client.get("/tourism/", {"stadium": "JAMSIL", "lat": lat, "lng": lng}).status_code, 429)
+            self.assertEqual(client.get("/api/v1/tourism/", {"stadium": "JAMSIL", "lat": lat, "lng": lng}).status_code, 429)

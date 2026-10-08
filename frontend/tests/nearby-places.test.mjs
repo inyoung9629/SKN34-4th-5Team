@@ -126,7 +126,7 @@ test("place search posts directly to the Django API without a browser or Next re
   });
   assert.equal(result.places.length, 1);
   assert.deepEqual(calls.map(({ url, options, body }) => ({ url, httpMethod: options.method, body })), [
-    { url: "/api/places/search/", httpMethod: "POST", body: { method: "category", category: "FD6", lat: stadium.lat, lng: stadium.lng, radius: 2500, size: 15, page: 1, sort: "distance" } },
+    { url: "/api/v1/places/search/", httpMethod: "POST", body: { method: "category", category: "FD6", lat: stadium.lat, lng: stadium.lng, radius: 2500, size: 15, page: 1, sort: "distance" } },
   ]);
 });
 test("place searches are not cached in the browser", async () => {

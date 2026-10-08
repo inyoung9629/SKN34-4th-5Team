@@ -21,9 +21,9 @@ beforeEach(() => clearMemberTokens());
 
 test("auth callers use the backend-shaped public paths", () => {
   const sources = ["app/login/page.tsx", "app/signup/page.tsx", "app/mypage/page.tsx", "components/member-account-settings.tsx", "components/member-header-actions.tsx", "lib/member-auth-request.ts", "lib/api/auth.ts"].map(name => readFileSync(join(root, name), "utf8")).join("\n");
-  for (const path of ["/api/auth/signin", "/api/auth/signup/", "/api/auth/user", "/api/auth/logout", "/api/auth/username/request", "/api/auth/password/request", "/api/auth/password", "/api/auth/email/request", "/api/auth/email/verify"]) assert.match(sources, new RegExp(path.replaceAll("/", "\\/")));
+  for (const path of ["/api/v1/auth/signin", "/api/v1/auth/signup/", "/api/v1/auth/user", "/api/v1/auth/logout", "/api/v1/auth/username/request", "/api/v1/auth/password/request", "/api/v1/auth/password", "/api/v1/auth/email/request", "/api/v1/auth/email/verify"]) assert.match(sources, new RegExp(path.replaceAll("/", "\\/")));
   assert.doesNotMatch(sources, /\/team-auth\//);
-  assert.match(sources, /\/api\/auth\/token\/refresh\//);
+  assert.match(sources, /\/api\/v1\/auth\/token\/refresh\//);
   assert.match(readFileSync(join(root, "app/signup/page.tsx"), "utf8"), /re_password: values\.passwordConfirm/);
   assert.doesNotMatch(readFileSync(join(root, "lib/member-auth-request.ts"), "utf8"), /localStorage/);
 });
@@ -37,7 +37,7 @@ test("member admin uses direct Bearer APIs and generated DTOs", () => {
   assert.match(panel, /Promise\.all\(\[getMemberUser\([^)]*\), listAdminMembers\(/);
   assert.match(api, /components\["schemas"\]\["MemberUser"\]/);
   assert.match(api, /components\["schemas"\]\["AdminMember"\]/);
-  assert.match(api, /\/api\/auth\/admin\/members\//);
+  assert.match(api, /\/api\/v1\/auth\/admin\/members\//);
   assert.match(api, /memberFetch/);
   assert.doesNotMatch(page, /\/admin-api/);
   assert.doesNotMatch(panel, /\/admin-api/);
@@ -46,16 +46,17 @@ test("member admin uses direct Bearer APIs and generated DTOs", () => {
 test("current roles and staff navigation come from authoritative identity", () => {
   assert.match(readFileSync(join(root, "app/mypage/page.tsx"), "utf8"), /memberRoleLabel\(user\)/);
   const menu = readFileSync(join(root, "components/member-header-actions.tsx"), "utf8");
-  assert.match(menu, /\(user\.is_staff \|\| user\.is_superuser\) && </);
+  const categoryMenu = readFileSync(join(root, "components/header-menu.tsx"), "utf8");
+  assert.match(categoryMenu, /status === "authenticated" && user\?\.is_active && user\.is_staff && \(/);
+  assert.match(categoryMenu, /href="\/admin"/);
   assert.match(menu, /href="\/mypage\?tab=profile"/);
-  assert.match(menu, /href="\/mypage\?tab=members"/);
-  assert.match(menu, /href="\/mypage\?tab=manage-posts"/);
-  assert.match(menu, /href="\/mypage\?tab=reports"/);
+  assert.doesNotMatch(menu, /href="\/admin"/);
+  assert.doesNotMatch(menu, /href="\/mypage\?tab=(members|manage-posts|reports)"/);
 });
 
 test("nginx sends every API path directly to Django", () => {
   const nginx = readFileSync(join(root, "..", "nginx", "nginx.conf"), "utf8");
-  assert.match(nginx, /location \/api\/\s*\{[\s\S]*?proxy_pass http:\/\/backend:8000\//);
+  assert.match(nginx, /location \/api\/\s*\{[^}]*?proxy_pass http:\/\/backend:8000\s*;/);
   assert.doesNotMatch(nginx, /location \^~ \/api\/auth/);
 });
 
@@ -64,12 +65,12 @@ test("an expired access token performs one direct refresh and one retry", async 
   const calls = [];
   global.fetch = async (url, init) => {
     calls.push({ url: String(url), authorization: new Headers(init?.headers).get("Authorization"), body: init?.body });
-    if (String(url) === "/api/auth/token/refresh/") return Response.json({ access: "new-access" });
-    if (calls.filter(call => call.url === "/api/auth/user").length === 1) return Response.json({ detail: "만료" }, { status: 401 });
+    if (String(url) === "/api/v1/auth/token/refresh/") return Response.json({ access: "new-access" });
+    if (calls.filter(call => call.url === "/api/v1/auth/user").length === 1) return Response.json({ detail: "만료" }, { status: 401 });
     return Response.json({ id: 1 });
   };
-  assert.equal((await memberFetch("/api/auth/user")).status, 200);
-  assert.equal(calls.filter(call => call.url === "/api/auth/token/refresh/").length, 1);
+  assert.equal((await memberFetch("/api/v1/auth/user")).status, 200);
+  assert.equal(calls.filter(call => call.url === "/api/v1/auth/token/refresh/").length, 1);
   assert.equal(calls.at(-1).authorization, "Bearer new-access");
   assert.deepEqual(JSON.parse(calls[1].body), { refresh: "refresh-token" });
 });
@@ -79,12 +80,12 @@ test("concurrent 401 retries share refresh without sending Bearer null", async (
   const authorizations = [];
   let userCalls = 0;
   global.fetch = async (url, init) => {
-    if (String(url) === "/api/auth/token/refresh/") return Response.json({ access: "new-access" });
+    if (String(url) === "/api/v1/auth/token/refresh/") return Response.json({ access: "new-access" });
     authorizations.push(new Headers(init?.headers).get("Authorization"));
     userCalls += 1;
     return userCalls <= 2 ? Response.json({ detail: "만료" }, { status: 401 }) : Response.json({ id: 1 });
   };
-  assert.deepEqual(await Promise.all([memberFetch("/api/auth/user"), memberFetch("/api/auth/user")]).then(responses => responses.map(response => response.status)), [200, 200]);
+  assert.deepEqual(await Promise.all([memberFetch("/api/v1/auth/user"), memberFetch("/api/v1/auth/user")]).then(responses => responses.map(response => response.status)), [200, 200]);
   assert.equal(authorizations.includes("Bearer null"), false);
   assert.deepEqual(authorizations.slice(-2), ["Bearer new-access", "Bearer new-access"]);
 });
@@ -96,11 +97,11 @@ test("a delayed member refresh cannot restore tokens after logout", async () => 
   const calls = [];
   global.fetch = async (url, init) => {
     calls.push({ url: String(url), authorization: new Headers(init?.headers).get("Authorization") });
-    if (String(url) === "/api/auth/token/refresh/") return refreshResponse;
-    if (String(url) === "/api/auth/logout") return new Response(null, { status: 200 });
+    if (String(url) === "/api/v1/auth/token/refresh/") return refreshResponse;
+    if (String(url) === "/api/v1/auth/logout") return new Response(null, { status: 200 });
     return Response.json({ detail: "만료" }, { status: 401 });
   };
-  const pending = memberFetch("/api/auth/user");
+  const pending = memberFetch("/api/v1/auth/user");
   await new Promise(resolve => setTimeout(resolve));
   assert.equal((await logoutMember()).status, 200);
   finishRefresh(Response.json({ access: "late-access", refresh: "late-refresh" }));
@@ -116,11 +117,11 @@ test("a delayed member refresh cannot overwrite a newer login", async () => {
   const calls = [];
   global.fetch = async (url, init) => {
     calls.push({ url: String(url), authorization: new Headers(init?.headers).get("Authorization") });
-    if (String(url) === "/api/auth/token/refresh/") return refreshResponse;
-    if (calls.filter(call => call.url === "/api/auth/user").length === 1) return Response.json({ detail: "만료" }, { status: 401 });
+    if (String(url) === "/api/v1/auth/token/refresh/") return refreshResponse;
+    if (calls.filter(call => call.url === "/api/v1/auth/user").length === 1) return Response.json({ detail: "만료" }, { status: 401 });
     return Response.json({ id: 1 });
   };
-  const pending = memberFetch("/api/auth/user");
+  const pending = memberFetch("/api/v1/auth/user");
   await new Promise(resolve => setTimeout(resolve));
   saveMemberTokens("new-login-access", "new-login-refresh");
   finishRefresh(Response.json({ access: "late-access", refresh: "late-refresh" }));
@@ -134,7 +135,7 @@ test("logout sends the refresh token to Django then clears tab storage", async (
   let request;
   global.fetch = async (url, init) => { request = { url: String(url), body: JSON.parse(init.body) }; return new Response(null, { status: 200 }); };
   assert.equal((await logoutMember()).status, 200);
-  assert.deepEqual(request, { url: "/api/auth/logout", body: { refresh: "refresh-token" } });
+  assert.deepEqual(request, { url: "/api/v1/auth/logout", body: { refresh: "refresh-token" } });
   assert.equal(sessionStorage.getItem("kbo_refresh"), null);
 });
 

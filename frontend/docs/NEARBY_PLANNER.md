@@ -4,13 +4,13 @@
 
 ## 지도 연결
 
-`frontend/.env.example`을 참고해 `frontend/.env.local`에 `NEXT_PUBLIC_KAKAO_MAP_KEY`를 설정합니다. Kakao Developers의 **JavaScript 키**이며 SDK 도메인에 `http://localhost:3000` 및 실제 배포 주소를 등록해야 합니다. 환경변수 변경 후 서버를 재시작합니다. 장소 검색은 브라우저가 `POST /api/places/search/`로 Django에 직접 요청하며, REST 키와 검색 결과 저장은 백엔드가 담당합니다.
+`frontend/.env.example`을 참고해 `frontend/.env.local`에 `NEXT_PUBLIC_KAKAO_MAP_KEY`를 설정합니다. Kakao Developers의 **JavaScript 키**이며 SDK 도메인에 `http://localhost:3000` 및 실제 배포 주소를 등록해야 합니다. 환경변수 변경 후 서버를 재시작합니다. 장소 검색은 브라우저가 `POST /api/v1/places/search/`로 Django에 직접 요청하며, REST 키와 검색 결과 저장은 백엔드가 담당합니다.
 
 2026-09-11 로컬 브라우저에서 실제 지도·장소 검색과 9개 구장 전환을 확인했습니다.
 
 ### 관광공사 장소 연결
 
-루트 backend 환경에 서버 전용 `TOUR_API_KEY`를 설정합니다. 브라우저는 `GET /api/tourism/?stadium=JAMSIL&lat=…&lng=…`를 호출하며 Nginx가 Django `/tourism/`으로 전달합니다. Next route와 캐시는 없고 키는 backend 요청에만 사용합니다.
+루트 backend 환경에 서버 전용 `TOUR_API_KEY`를 설정합니다. 브라우저는 `GET /api/v1/tourism/?stadium=JAMSIL&lat=…&lng=…`를 호출하며 Nginx가 Django `/tourism/`으로 전달합니다. Next route와 캐시는 없고 키는 backend 요청에만 사용합니다.
 
 - 카카오에서 확인한 실제 구장 중심과 반경 2,500m로 관광지(12), 문화시설(14), 레포츠(28)를 조회합니다. 유형별 100건 × 최대 3페이지, 거리순이며 좌표로 거리를 다시 검사합니다. 레포츠는 산책·실내 활동으로 분류되는 장소만 반영합니다.
 - 장소 이름과 제공된 분류 코드로 산책·관광 명소·실내 놀거리에 연결합니다. 야외 시설을 모두 실내로 취급하지 않으며, 연도와 축제/페어 등이 명시된 행사는 상설 장소에서 제외합니다. 음식점·숙박·행사 일정·사진은 이번 관광공사 연동 범위에 포함하지 않습니다.

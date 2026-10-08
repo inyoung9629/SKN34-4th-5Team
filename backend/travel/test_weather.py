@@ -74,7 +74,7 @@ class WeatherTests(SimpleTestCase):
                     get_stadium_weather(stadium, date, time, now=NOW)
         for stadium, date, time in [bad[0], bad[1], bad[4], bad[5]]:
             with self.subTest(http=(stadium, date, time)):
-                response = self.client.get("/weather/", {"stadium": stadium, "date": date, "time": time})
+                response = self.client.get("/api/v1/weather/", {"stadium": stadium, "date": date, "time": time})
                 self.assertEqual(response.status_code, 400)
                 self.assertEqual(response.json(), {"weather": None, "error": {"code": "invalid_request"}})
                 self.assertEqual(response["Cache-Control"], "no-store")
@@ -131,7 +131,7 @@ class WeatherTests(SimpleTestCase):
         cases = [(WeatherBusyError("secret"), 429), (WeatherProviderError("secret"), 502), (WeatherProviderUnavailable("secret"), 503)]
         for error, status in cases:
             with patch("travel.weather_views.get_stadium_weather", side_effect=error):
-                response = self.client.get("/weather/", {"stadium": "JAMSIL", "date": "2026-09-15", "time": "19:00"})
+                response = self.client.get("/api/v1/weather/", {"stadium": "JAMSIL", "date": "2026-09-15", "time": "19:00"})
             self.assertEqual(response.status_code, status)
             self.assertNotContains(response, "secret", status_code=status)
 

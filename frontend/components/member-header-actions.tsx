@@ -19,18 +19,16 @@ export function MemberHeaderActions() {
     return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
   }, [open]);
   return <>
-    {status === "loading" ? <span role="status">회원 확인 중…</span> : user ? <><div className="member-menu" ref={root}>
+    {status === "loading" ? <span role="status">회원 확인 중…</span> : user ? <>
+    <div className="member-menu" ref={root}>
       <button ref={trigger} type="button" className="button button-primary header-signup" aria-expanded={open} aria-controls="member-menu-panel" onClick={() => setOpen(!open)}>마이페이지</button>
       {open && <nav id="member-menu-panel" className="member-menu-panel" aria-label="마이페이지 메뉴">
         <Link href="/mypage?tab=courses" onClick={() => setOpen(false)}>내 코스</Link>
         <Link href="/mypage?tab=likes" onClick={() => setOpen(false)}>찜한 코스</Link>
         <Link href="/mypage?tab=posts" onClick={() => setOpen(false)}>내가 쓴 글</Link>
         <hr className="member-menu-divider" />
-        {(user.is_staff || user.is_superuser) && <>
-          {/* 관리자 계정은 관리 메뉴가 추가되고, 회원 정보는 로그아웃 바로 위에 둔다 */}
-          <Link href="/mypage?tab=members" onClick={() => setOpen(false)}>회원 관리</Link>
-          <Link href="/mypage?tab=manage-posts" onClick={() => setOpen(false)}>게시글 관리</Link>
-          <Link href="/mypage?tab=reports" onClick={() => setOpen(false)}>신고 관리</Link>
+        {status === "authenticated" && user.is_superuser === true && <>
+          {status === "authenticated" && user.is_superuser === true && <Link href="/mypage?tab=feedback" onClick={() => setOpen(false)}>챗봇 답변 평가</Link>}
           <hr className="member-menu-divider" />
         </>}
         <Link href="/mypage?tab=profile" onClick={() => setOpen(false)}>회원 정보</Link>

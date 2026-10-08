@@ -160,28 +160,28 @@ class ToolAndApiTests(TestCase):
         self.assertEqual((len(rows), count), (1, 1))
 
     def test_public_search_and_admin_only_mutations(self):
-        self.assertEqual(self.client.get("/tving/snapshots/?kind=daily").status_code, 200)
-        self.assertEqual(self.client.get(f"/tving/snapshots/{self.snapshot.pk}/").status_code, 200)
-        self.assertEqual(self.client.get("/tving/snapshots/999999/").status_code, 404)
+        self.assertEqual(self.client.get("/api/v1/tving/snapshots/?kind=daily").status_code, 200)
+        self.assertEqual(self.client.get(f"/api/v1/tving/snapshots/{self.snapshot.pk}/").status_code, 200)
+        self.assertEqual(self.client.get("/api/v1/tving/snapshots/999999/").status_code, 404)
         payload = {"profile": {"code": "68220", "name": "테스트", "positions": ["투수"], "imageUrl": None, "team": {"code": "OB", "logoUrl": None}}, "seasonTitle": "시즌", "seasonRecords": [], "careerTitle": "통산", "careerColumns": [], "careerRows": []}
         body = {"resourceKind": "athlete", "resourceKey": "68220", "payload": payload, "sourceFetchedAt": self.now.isoformat()}
-        self.assertEqual(self.client.post("/tving/snapshots/", body, format="json").status_code, 401)
+        self.assertEqual(self.client.post("/api/v1/tving/snapshots/", body, format="json").status_code, 401)
         admin = get_user_model().objects.create_user(username="tving-admin", password="password", is_staff=True)
         self.client.force_authenticate(admin)
-        created = self.client.post("/tving/snapshots/", body, format="json")
+        created = self.client.post("/api/v1/tving/snapshots/", body, format="json")
         self.assertEqual(created.status_code, 201)
         self.assertIsNone(created.data["data"]["lastSyncedAt"])
-        self.assertEqual(self.client.delete(f"/tving/snapshots/{created.data['data']['id']}/").status_code, 204)
+        self.assertEqual(self.client.delete(f"/api/v1/tving/snapshots/{created.data['data']['id']}/").status_code, 204)
 
     def test_invalid_manual_payload_and_request_are_sanitized(self):
         admin = get_user_model().objects.create_user(username="tving-admin2", password="password", is_staff=True)
         self.client.force_authenticate(admin)
-        response = self.client.post("/tving/snapshots/", {"resourceKind": "daily", "resourceKey": "bad", "payload": {}, "sourceFetchedAt": self.now.isoformat()}, format="json")
+        response = self.client.post("/api/v1/tving/snapshots/", {"resourceKind": "daily", "resourceKey": "bad", "payload": {}, "sourceFetchedAt": self.now.isoformat()}, format="json")
         self.assertEqual(response.status_code, 400)
         self.assertNotIn("Traceback", response.content.decode())
-        response = self.client.post("/tving/snapshots/", ["not", "an", "object"], format="json")
+        response = self.client.post("/api/v1/tving/snapshots/", ["not", "an", "object"], format="json")
         self.assertEqual(response.status_code, 400)
-        for path in ("/tving/daily/?date=bad", "/tving/schedule/?month=bad", "/tving/details/teams/XX/", "/tving/details/athletes/not-a-code/"):
+        for path in ("/api/v1/tving/daily/?date=bad", "/api/v1/tving/schedule/?month=bad", "/api/v1/tving/details/teams/XX/", "/api/v1/tving/details/athletes/not-a-code/"):
             response = self.client.get(path)
             self.assertEqual(response.status_code, 400)
             self.assertNotIn("Traceback", response.content.decode())
@@ -200,7 +200,7 @@ class ToolAndApiTests(TestCase):
 
     @patch("tving.views.search_snapshots", side_effect=RuntimeError("database secret"))
     def test_database_errors_are_sanitized(self, _search):
-        response = self.client.get("/tving/snapshots/")
+        response = self.client.get("/api/v1/tving/snapshots/")
         self.assertEqual(response.status_code, 503)
         self.assertNotContains(response, "database secret", status_code=503)
 
@@ -420,7 +420,7 @@ class RelationalToolApiTests(TestCase):
     def test_public_typed_filters_are_db_only_and_bounded(self):
         with patch("tving.service._provider_json", side_effect=AssertionError("provider called")):
             rows, count = search_entities(kind="standing", team="SS", date="2026-09-15")
-            response = self.client.get("/tving/entities/?kind=player&team=SS&page_size=10")
+            response = self.client.get("/api/v1/tving/entities/?kind=player&team=SS&page_size=10")
         self.assertEqual((len(rows), count), (1, 1))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["data"]["count"], 1)
@@ -429,17 +429,17 @@ class RelationalToolApiTests(TestCase):
 
     def test_relational_player_crud_is_admin_only(self):
         body = {"externalCode": "68220", "teamCode": "OB", "name": "테스트 선수"}
-        self.assertEqual(self.client.post("/tving/entities/players/", body, format="json").status_code, 401)
+        self.assertEqual(self.client.post("/api/v1/tving/entities/players/", body, format="json").status_code, 401)
         admin = get_user_model().objects.create_user(username="entity-admin", password="password", is_staff=True)
         self.client.force_authenticate(admin)
-        created = self.client.post("/tving/entities/players/", body, format="json")
+        created = self.client.post("/api/v1/tving/entities/players/", body, format="json")
         self.assertEqual(created.status_code, 201)
         self.client.force_authenticate(None)
-        self.assertEqual(self.client.get("/tving/entities/players/68220/").status_code, 200)
+        self.assertEqual(self.client.get("/api/v1/tving/entities/players/68220/").status_code, 200)
         self.client.force_authenticate(admin)
-        changed = self.client.patch("/tving/entities/players/68220/", {"teamCode": "LG", "name": "변경 선수"}, format="json")
+        changed = self.client.patch("/api/v1/tving/entities/players/68220/", {"teamCode": "LG", "name": "변경 선수"}, format="json")
         self.assertEqual((changed.status_code, changed.data["data"]["teamCode"]), (200, "LG"))
-        self.assertEqual(self.client.delete("/tving/entities/players/68220/").status_code, 204)
+        self.assertEqual(self.client.delete("/api/v1/tving/entities/players/68220/").status_code, 204)
 
 
 class FallbackTests(TestCase):
@@ -493,7 +493,7 @@ class CacheFirstRefreshTests(TestCase):
         provider.assert_not_called()
         with patch("tving.service._provider_json", side_effect=AssertionError("fresh HTTP entry must not call TVING")) as http_provider:
             client = APIClient()
-            for path in ("/tving/daily/?date=2026-09-15", "/tving/schedule/?month=2026-08", "/tving/details/teams/SS/", "/tving/details/athletes/10001/"):
+            for path in ("/api/v1/tving/daily/?date=2026-09-15", "/api/v1/tving/schedule/?month=2026-08", "/api/v1/tving/details/teams/SS/", "/api/v1/tving/details/athletes/10001/"):
                 self.assertEqual(client.get(path).status_code, 200)
         http_provider.assert_not_called()
 

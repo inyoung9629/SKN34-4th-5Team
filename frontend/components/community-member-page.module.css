@@ -1,0 +1,41 @@
+.page { padding-top: 36px; padding-bottom: 56px; }
+.eyebrow { margin-bottom: 8px; color: #246bf3; font-size: 12px; font-weight: 700; letter-spacing: .08em; }
+.header { margin-bottom: 28px; }
+.header h1 { color: #26354b; font-size: clamp(24px, 4vw, 32px); overflow-wrap: anywhere; }
+.header p { margin-top: 10px; color: #607089; line-height: 1.6; }
+.memberLink { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-decoration: none; }
+.memberLink:hover { color: #246bf3; text-decoration: underline; text-underline-offset: 3px; }
+.memberLink:focus-visible, .tabs a:focus-visible, .item:focus-visible, .pagination a:focus-visible, .actionButton:focus-visible, .footer a:focus-visible { outline: 2px solid #246bf3; outline-offset: 4px; }
+.tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid #dce5f1; }
+.tabs a { display: block; padding: 12px 20px; border-bottom: 3px solid transparent; color: #607089; font-weight: 600; text-decoration: none; }
+.tabs a[aria-current="page"] { border-bottom-color: #246bf3; color: #246bf3; }
+.summary { margin-bottom: 12px; color: #607089; font-size: 13px; }
+.list { margin: 0; padding: 0; border-top: 2px solid #405575; list-style: none; }
+.list li { border-bottom: 1px solid #e0e8f4; }
+.item { display: flex; align-items: center; gap: 16px; padding: 18px 12px; color: #26354b; text-decoration: none; }
+.item:hover { background: #f5f8fd; }
+.board { flex-shrink: 0; color: #246bf3; font-size: 12px; }
+.title { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
+.item time { flex-shrink: 0; color: #718096; font-size: 12px; }
+.commentItem { display: block; }
+.commentContent { margin: 0 0 12px; color: #26354b; font-size: 14px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.commentMeta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
+.originalPost { flex: 1; min-width: 0; color: #607089; font-size: 12px; overflow-wrap: anywhere; }
+.notice { padding: 36px 16px; border: 1px solid #e0e8f4; border-radius: 8px; color: #607089; line-height: 1.7; text-align: center; }
+.notice a { display: inline-block; margin: 8px; color: #246bf3; }
+.actionButton { margin: 12px 8px 0; padding: 9px 16px; border: 1px solid #b8c9e1; border-radius: 5px; background: #fff; color: #344864; font: inherit; cursor: pointer; }
+.pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 24px; }
+.pagination a, .pagination span { padding: 8px 12px; font-size: 13px; }
+.pagination a { border: 1px solid #dce5f1; border-radius: 4px; color: #344864; text-decoration: none; }
+.pagination [aria-disabled="true"] { color: #a0a9b8; }
+.footer { display: flex; gap: 16px; margin-top: 32px; font-size: 13px; }
+.footer a { color: #607089; }
+@media (max-width: 640px) {
+  .page { padding-top: 24px; }
+  .tabs a { padding: 12px 16px; }
+  .item { flex-wrap: wrap; gap: 8px; }
+  .title { flex-basis: calc(100% - 110px); }
+  .item time { width: 100%; }
+  .commentMeta { align-items: flex-start; }
+  .originalPost { flex-basis: 100%; }
+}

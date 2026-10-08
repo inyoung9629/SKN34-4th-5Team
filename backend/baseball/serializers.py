@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import URLValidator
 from rest_framework import serializers
@@ -10,7 +11,7 @@ validate_http_url = URLValidator(schemes=("http", "https"))
 
 RESOURCE_FIELDS = {
     "teams": ("id", "team_code", "team_name_ko"),
-    "stadiums": ("id", "stadium_code", "stadium_name_ko", "address", "longitude", "latitude", "geocode_source", "facility_manager", "game_operator", "phone_general", "phone_facility", "phone_ticket", "collected_at"),
+    "stadiums": ("id", "stadium_code", "stadium_name_ko", "address", "longitude", "latitude", "geocode_source", "facility_manager", "game_operator", "phone_general", "phone_facility", "phone_ticket", "image_url", "image_source_url", "image_credit", "image_credit_url", "image_license_url", "collected_at"),
     "home-contexts": ("id", "season", "team_id", "stadium_id"),
     "postseason-stages": ("id", "stage_code", "stage_name", "start_date", "end_date", "matchup_description", "status_tag", "collected_at"),
     "games": ("id", "game_code", "home_team_id", "away_team_id", "stadium_id", "postseason_stage_id", "game_date", "game_time", "home_score", "away_score", "status_code", "game_type", "collected_at"),
@@ -19,7 +20,7 @@ RESOURCE_FIELDS = {
     "ticket-prices": ("id", "seat_zone_id", "price_tier", "day_type", "customer_type", "group_size", "price_krw", "valid_from", "valid_to", "discount_condition", "collected_at"),
     "ticket-policies": ("id", "policy_code", "team_id", "game_id", "policy_type", "subtype", "open_at", "max_tickets", "channel_no", "booking_channel", "channel_condition", "collected_at"),
     "seat-maps": ("id", "home_context_id", "map_title", "page_url"),
-    "seat-map-assets": ("id", "seat_map_id", "asset_no", "asset_url", "asset_role"),
+    "seat-map-assets": ("id", "seat_map_id", "asset_no", "asset_url", "asset_role", "source_url"),
     "seat-scopes": ("id", "home_context_id", "scope_code", "scope_name"),
     "seat-views": ("id", "seat_scope_id", "view_characteristic", "roof_coverage", "evidence_scope"),
     "food-stores": ("id", "record_code", "stadium_id", "store_facility", "location_qty", "collected_at"),
@@ -132,12 +133,46 @@ class PublicHomeTeamSerializer(serializers.ModelSerializer):
         fields = ("id", "team_id", "code", "name", "season")
 
 
+class ParkingMapSerializer(serializers.Serializer):
+    imageUrl = serializers.CharField()
+    sourceUrl = serializers.URLField(required=False)
+    credit = serializers.CharField(required=False)
+    title = serializers.CharField(required=False)
+    summary = serializers.CharField(required=False)
+    kind = serializers.ChoiceField(choices=("entrance", "preferred-area", "nearby-alternatives", "access-gates"), required=False)
+    visualNotes = serializers.ListField(child=serializers.CharField(), required=False)
+    capturedAt = serializers.DateField(required=False)
+    width = serializers.IntegerField(required=False)
+    height = serializers.IntegerField(required=False)
+
+
+class SeatingMapSerializer(serializers.Serializer):
+    imageUrl = serializers.CharField()
+    sourceUrl = serializers.URLField(required=False)
+    title = serializers.CharField()
+    home_context_id = serializers.IntegerField()
+    season = serializers.IntegerField()
+    team_code = serializers.CharField()
+
+
 class PublicStadiumSerializer(serializers.ModelSerializer):
     home_teams = PublicHomeTeamSerializer(source="home_contexts", many=True, read_only=True)
+    parkingMap = serializers.SerializerMethodField()
+    seatingMap = serializers.SerializerMethodField()
+
+    @extend_schema_field(ParkingMapSerializer(allow_null=True))
+    def get_parkingMap(self, stadium):
+        from .stadium_guides import parking_map
+        return parking_map(stadium)
+
+    @extend_schema_field(SeatingMapSerializer(allow_null=True))
+    def get_seatingMap(self, stadium):
+        from .stadium_guides import seating_map
+        return seating_map(stadium)
 
     class Meta:
         model = models.Stadium
-        fields = ("id", "stadium_code", "stadium_name_ko", "address", "longitude", "latitude", "geocode_source", "facility_manager", "game_operator", "phone_general", "phone_facility", "phone_ticket", "collected_at", "home_teams")
+        fields = ("id", "stadium_code", "stadium_name_ko", "address", "longitude", "latitude", "geocode_source", "facility_manager", "game_operator", "phone_general", "phone_facility", "phone_ticket", "image_url", "image_source_url", "image_credit", "image_credit_url", "image_license_url", "collected_at", "home_teams", "parkingMap", "seatingMap")
 
 class PublicTicketPriceSerializer(serializers.ModelSerializer):
     seat_zone_code = serializers.CharField(source="seat_zone.zone_code", read_only=True)

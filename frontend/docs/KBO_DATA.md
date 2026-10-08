@@ -1,15 +1,15 @@
 # TVING KBO 데이터
 
-브라우저는 Nginx의 `/api/` 프록시를 통해 Django만 호출합니다. Nginx가 `/api/` 접두어를 제거하므로 실제 경로는 다음과 같습니다.
+브라우저는 Nginx의 `/api/v1/` 프록시를 통해 Django만 호출합니다. Nginx가 `/api/v1/` 접두어를 제거하므로 실제 경로는 다음과 같습니다.
 
 | 화면 요청 | Django URL | 내용 |
 | --- | --- | --- |
-| `GET /api/tving/daily/` | `/tving/daily/` | 한국시간 당일 일정, 10팀 순위, 투수·타자 개인 순위 |
-| `GET /api/tving/daily/?date=YYYY-MM-DD` | `/tving/daily/` | 지정일 일정과 해당 시즌 순위 |
-| `GET /api/tving/schedule/?month=YYYY-MM` | `/tving/schedule/` | 월 달력과 날짜별 일정 |
-| `GET /api/tving/details/teams/{code}/` | `/tving/details/teams/{code}/` | 팀 기록, 일정, TOP5, 포지션별 선수단 |
-| `GET /api/tving/details/athletes/{code}/` | `/tving/details/athletes/{code}/` | 선수 프로필, 시즌·통산 기록 |
-| `GET /api/tving/details/status/` | `/tving/details/status/` | 실제 DB 보유 건수와 `on-demand` 전략 |
+| `GET /api/v1/tving/daily/` | `/tving/daily/` | 한국시간 당일 일정, 10팀 순위, 투수·타자 개인 순위 |
+| `GET /api/v1/tving/daily/?date=YYYY-MM-DD` | `/tving/daily/` | 지정일 일정과 해당 시즌 순위 |
+| `GET /api/v1/tving/schedule/?month=YYYY-MM` | `/tving/schedule/` | 월 달력과 날짜별 일정 |
+| `GET /api/v1/tving/details/teams/{code}/` | `/tving/details/teams/{code}/` | 팀 기록, 일정, TOP5, 포지션별 선수단 |
+| `GET /api/v1/tving/details/athletes/{code}/` | `/tving/details/athletes/{code}/` | 선수 프로필, 시즌·통산 기록 |
+| `GET /api/v1/tving/details/status/` | `/tving/details/status/` | 실제 DB 보유 건수와 `on-demand` 전략 |
 
 각 명시적 조회는 TVING 공개 응답을 새로 가져와 완전히 검증한 뒤 그 응답을 반환합니다. `EXTERNAL_DATA_SYNC_INTERVAL_SECONDS`(기본 600초)는 외부 호출 간격이 아니라 DB 쓰기 억제 간격입니다. 같은 리소스의 `lastSyncedAt`이 600초 이내이거나 정확히 경계이거나 미래이면 UPDATE하지 않습니다. 따라서 `providerFetchedAt`/`fetchedAt`은 이번 원천 조회 시각이고 `lastSyncedAt`/`updatedAt`은 마지막 DB 반영 시각으로 서로 다를 수 있습니다.
 

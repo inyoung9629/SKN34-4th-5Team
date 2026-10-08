@@ -1,0 +1,8 @@
+.page { padding-block: 28px 64px; max-width: 1280px; min-width: 0; }
+.back { display: inline-flex; align-items: center; min-height: 44px; color: #345783; font-size: 13px; text-underline-offset: 4px; }
+.back:hover { text-decoration: underline; }
+.back:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+.header { margin: 16px 0 28px; }
+.header h1 { margin: 0 0 10px; font-size: 30px; font-weight: 750; letter-spacing: -.035em; word-break: keep-all; }
+.header p { margin: 0; color: #65758d; font-size: 14px; line-height: 1.8; }
+@media (max-width: 640px) { .page { padding-block: 20px 40px; } .header h1 { font-size: 26px; } }

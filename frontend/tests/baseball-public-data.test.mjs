@@ -24,7 +24,7 @@ const presentation = [
   ["CHANGWON", "경상남도 창원시 마산회원구 삼호로 63", "대구·부산·창원"],
 ];
 const visuals = presentation.map(([code, , region]) => ({ code, region, color: "blue", seatingMap: { src: "/seat.png", sourceUrl: "https://example.test/seat" }, cardImage: { src: "/photo.jpg", sourceUrl: "https://example.test/photo", credit: "credit", creditUrl: "https://example.test/credit" } }));
-const { adaptStadium } = loadTypeScript("../lib/baseball/adapters.ts", { require: () => ({ stadiums: visuals }) });
+const { adaptStadium } = loadTypeScript("../lib/baseball/adapters.ts", { require: name => name.includes("media-url") ? loadTypeScript("../lib/media-url.ts", { URL }) : ({ stadiums: visuals }) });
 const row = (stadium_code, address, longitude = "127", latitude = "37") => ({ stadium_code, stadium_name_ko: stadium_code, address, longitude, latitude, home_teams: [] });
 
 test("all nine source addresses use code presentation regions, including Gwangju and Changwon", () => {
@@ -67,7 +67,7 @@ test("section requests keep selected home context and use visible pagination", a
   assert.equal(url.searchParams.get("page_size"), "30");
   assert.equal(url.searchParams.get("home_context"), "77");
   const policies = new URL(calls[1], "https://app.test");
-  assert.equal(policies.pathname, "/api/baseball/ticket-policies/");
+  assert.equal(policies.pathname, "/api/v1/baseball/ticket-policies/");
   assert.equal(policies.searchParams.get("team"), "88");
   assert.equal(policies.searchParams.get("page"), "3");
 });
@@ -77,4 +77,36 @@ test("stadium detail keeps the collection date but no longer lists collected tic
   // 좌석·가격·예매 정책 목록이 있던 "수집된 구장 안내"는 화면에서 제거했다
   assert.doesNotMatch(detail, /수집된 구장 안내|예매 정책 스냅샷|seat_zone_name/);
   assert.match(detail, /collected_at\.slice/);
+});
+
+ test("stadium images and credits come only from DB, with unsafe or absent photos omitted", () => {
+  const base = row("JAMSIL", "주소");
+  assert.equal(adaptStadium(base).cardImage, undefined);
+  const data = { ...base, image_url: "/images/stadiums/exteriors/jamsil.jpg", image_source_url: "https://commons.wikimedia.org/photo", image_credit: "DB credit", image_credit_url: "https://creativecommons.org/licenses/by/4.0/", image_license_url: "https://creativecommons.org/licenses/by/4.0/" };
+  assert.equal(adaptStadium(data).cardImage.src, data.image_url);
+  assert.equal(adaptStadium(data).cardImage.credit, "DB credit");
+  assert.equal(adaptStadium(data).cardImage.creditUrl, data.image_credit_url);
+  assert.equal(adaptStadium({ ...data, image_url: "javascript:alert(1)" }).cardImage, undefined);
+  assert.equal(adaptStadium({ ...data, image_credit_url: "javascript:alert(1)" }).cardImage.creditUrl, "");
+});
+
+ test("guide adapters use only safe DB metadata and omit missing guides", () => {
+  const base = row("JAMSIL", "주소");
+  assert.equal(adaptStadium(base).seatingMap, undefined);
+  assert.equal(adaptStadium(base).parkingMap, undefined);
+  const parkingMap = { imageUrl: "/images/stadiums/parking-maps/jamsil-parking.png", sourceUrl: "https://myseatcheck.com/guide", credit: "DB credit", title: "DB title", summary: "DB summary", kind: "preferred-area", visualNotes: ["DB note"], capturedAt: "2026-09-10", width: 839, height: 857 };
+  const seatingMap = { imageUrl: "/images/stadiums/seating-maps/jamsil.png", sourceUrl: "https://www.lgtwins.com/ticket/general", season: 2026, team_code: "LG" };
+  const adapted = adaptStadium({ ...base, parkingMap, seatingMap });
+  assert.equal(adapted.parkingMap.src, parkingMap.imageUrl);
+  assert.equal(adapted.parkingMap.credit, "DB credit");
+  assert.equal(adapted.parkingMap.capturedAt, parkingMap.capturedAt);
+  assert.equal(adapted.seatingMap.src, seatingMap.imageUrl);
+  assert.equal(adapted.seatingMap.season, 2026);
+  assert.equal(adapted.seatingMap.teamCode, "LG");
+  const detail = readFileSync(new URL("../app/stadiums/[code]/page.tsx", import.meta.url), "utf8");
+  assert.match(detail, /stadium\.seatingMap\.season/);
+  assert.match(detail, /stadium\.seatingMap\.teamCode/);
+  assert.equal(adaptStadium({ ...base, parkingMap: { ...parkingMap, imageUrl: "javascript:alert(1)" } }).parkingMap, undefined);
+  assert.equal(adaptStadium({ ...base, seatingMap: { ...seatingMap, imageUrl: "https://evil.test/map.png" } }).seatingMap, undefined);
+  assert.equal(adaptStadium({ ...base, parkingMap: { ...parkingMap, sourceUrl: "javascript:alert(1)" } }).parkingMap.sourcePageUrl, "");
 });

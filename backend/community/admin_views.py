@@ -59,7 +59,7 @@ class AdminReportSerializer(serializers.ModelSerializer):
 
 
 class AdminReportActionSerializer(serializers.Serializer):
-    action = serializers.ChoiceField(choices=("hold", "hide", "delete"))
+    action = serializers.ChoiceField(choices=("hold", "unhold", "hide", "delete"))
     sanction = serializers.ChoiceField(choices=SANCTIONS, required=False, default="none")
 
 
@@ -112,7 +112,8 @@ class AdminReportList(generics.ListAPIView):
 
 class AdminReportAction(APIView):
     """신고 처리.
-    hold: 보류(글 유지) / hide: 글 숨김(같은 글의 신고도 숨김 처리) /
+    hold: 보류(글 유지) / unhold: 보류 취소(처리 대기로 복귀) /
+    hide: 글 숨김(같은 글의 신고도 숨김 처리) /
     delete: 글 삭제(신고도 함께 삭제). 화면에서 고른 처분(sanction)은 기록용으로만 받고 계정에는 적용하지 않는다.
     """
     permission_classes = (StaffOnly,)
@@ -131,10 +132,16 @@ class AdminReportAction(APIView):
             report = get_object_or_404(CommunityReport.objects.select_for_update(), pk=report_id)
             post = CommunityPost.objects.select_for_update().get(pk=report.post_id)
             status = None
+            if action in ("hold", "unhold") and (report.status == "hidden" or post.is_hidden):
+                raise ValidationError({"action": "숨김 처리된 게시글의 신고는 보류 상태를 변경할 수 없습니다."})
             if action == "hold":
                 report.status, report.handled_at, report.handled_by = "held", now, request.user
                 report.save(update_fields=["status", "handled_at", "handled_by"])
                 status = "held"
+            elif action == "unhold":
+                report.status, report.handled_at, report.handled_by = "pending", None, None
+                report.save(update_fields=["status", "handled_at", "handled_by"])
+                status = "pending"
             elif action == "hide":
                 post.is_hidden = True
                 post.save(update_fields=["is_hidden"])

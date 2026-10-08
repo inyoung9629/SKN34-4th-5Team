@@ -57,7 +57,7 @@ class PublicPageNumberPagination(PageNumberPagination):
         if link is None:
             return None
         parsed = urlsplit(link)
-        path = parsed.path if parsed.path.startswith("/api/") else f"/api{parsed.path}"
+        path = parsed.path if parsed.path.startswith("/api/v1/") else f"/api/v1{parsed.path}"
         return urlunsplit(("", "", path, parsed.query, ""))
 
     def get_next_link(self):
@@ -73,7 +73,7 @@ class CommunityPostPagination(PublicPageNumberPagination):
     max_page_size = 100
 
     def paginate_queryset(self, queryset, request, view=None):
-        if "page" not in request.query_params and "page_size" not in request.query_params:
+        if not any(key in request.query_params for key in ("page", "page_size", "author_id")):
             return None
         return super().paginate_queryset(queryset, request, view)
 

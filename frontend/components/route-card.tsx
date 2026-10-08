@@ -4,7 +4,8 @@ import { useMemo } from "react";
 import { CourseShareButton } from "./course-share-button";
 import { RouteCardMap } from "./route-card-map";
 import Link from "next/link";
-import { type TripRoute, useLikedRoutes } from "@/lib/routes";
+import { type TripRoute } from "@/lib/routes";
+import { RouteLikeButton } from "./route-like-button";
 import { useMemberAuth } from "@/lib/member-auth";
 import { withCourseStart } from "@/lib/drawn-course";
 import { useRouteNumber } from "@/lib/route-number";
@@ -23,8 +24,6 @@ export function RouteCard({ route }: { route: TripRoute }) {
   const { status: authStatus } = useMemberAuth();
   const authenticated = authStatus === "authenticated";
   const routeNumber = useRouteNumber(route.id, route.routeNumber);
-  const likedRoutes = useLikedRoutes();
-  const liked = authenticated && likedRoutes.includes(route.id);
   const stops = useMemo(() => withCourseStart(route.stops, route.start), [route.stops, route.start]);
   return (
     <article className="route-card">
@@ -41,10 +40,13 @@ export function RouteCard({ route }: { route: TripRoute }) {
           <span className="route-public-number">루트 번호 {routeNumber}</span>
           <p className="route-card-stops">{stops.map(stop => stop.name).join(" → ")}</p>
           <div className="route-card-tags">{route.tags.slice(0, 3).map(tag => <span key={tag}>#{tag}</span>)}</div>
+          <RouteLikeButton route={route}>{({ button, notice }) => <>
           <div className="route-card-footer">
             <span className="route-card-author"><span className="route-avatar" aria-hidden="true">{route.isSample ? "K" : route.owned && authenticated ? "나" : "팬"}</span><span>{route.author}<time dateTime={route.createdAt}>{formatRouteDate(route.createdAt)}</time></span></span>
-            <div className="route-card-metrics"><span className={liked ? "route-card-like is-liked" : "route-card-like"} aria-label={`좋아요 ${route.likes}개`}><svg viewBox="0 0 24 24" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" /></svg>{route.likes}</span><span className="route-card-views" aria-label={`조회 ${route.views ?? 0}회`}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M2 12s3.7-7 10-7 10 7 10 7-3.7 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>{route.views ?? 0}</span></div>
+            <div className="route-card-metrics">{button}<span className="route-card-views" aria-label={`조회 ${route.views ?? 0}회`}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M2 12s3.7-7 10-7 10 7 10 7-3.7 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>{route.views ?? 0}</span></div>
           </div>
+          {notice}
+          </>}</RouteLikeButton>
         </div>
       </div>
     </article>

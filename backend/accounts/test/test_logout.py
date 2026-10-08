@@ -42,8 +42,8 @@ class JWTLogoutTest(APITestCase):
         )
 
     def test_logout_blocks_refresh_but_preserves_access_until_expiry(self):
-        self.assertEqual(reverse("auth_logout"), "/auth/logout")
-        self.assertEqual(reverse("auth_user"), "/auth/user")
+        self.assertEqual(reverse("auth_logout"), "/api/v1/auth/logout")
+        self.assertEqual(reverse("auth_user"), "/api/v1/auth/user")
         pair = self.login()
         self.assertEqual(self.get_user(pair["access"]).json(), {
             "id": self.user.pk, "username": self.user.username, "email": self.user.email,
@@ -133,5 +133,5 @@ class JWTLogoutTest(APITestCase):
     def test_routes_enforce_http_methods_and_no_trailing_slash(self):
         self.assertEqual(self.client.get(reverse("auth_logout")).status_code, 405)
         self.assertEqual(self.client.post(reverse("auth_user"), {}, format="json").status_code, 405)
-        self.assertEqual(self.client.post("/auth/logout/", {}, format="json").status_code, 404)
-        self.assertEqual(self.client.get("/auth/user/").status_code, 404)
+        self.assertEqual(self.client.post("/api/v1/auth/logout/", {}, format="json").status_code, 404)
+        self.assertEqual(self.client.get("/api/v1/auth/user/").status_code, 404)

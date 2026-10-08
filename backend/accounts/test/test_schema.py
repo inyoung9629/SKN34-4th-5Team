@@ -7,18 +7,20 @@ class AuthSchemaTests(SimpleTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.schema = SchemaGenerator(patterns=[path("auth/", include("accounts.urls"))]).get_schema(request=None, public=True)
+        cls.schema = SchemaGenerator(patterns=[path("api/v1/auth/", include("accounts.urls"))]).get_schema(request=None, public=True)
 
     def test_auth_schema_matches_wire_contract(self):
         paths = self.schema["paths"]
         schemas = self.schema["components"]["schemas"]
 
-        self.assertNotIn("content", paths["/api/auth/signup/"]["post"]["responses"]["201"])
-        self.assertNotIn("content", paths["/api/auth/password"]["post"]["responses"]["200"])
-        logout = paths["/api/auth/logout"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]
+        self.assertNotIn("content", paths["/api/v1/auth/signup/"]["post"]["responses"]["201"])
+        self.assertEqual(schemas["Signup"]["properties"]["team_code"]["type"], "string")
+        self.assertNotIn("team_code", schemas["Signup"]["required"])
+        self.assertNotIn("content", paths["/api/v1/auth/password"]["post"]["responses"]["200"])
+        logout = paths["/api/v1/auth/logout"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]
         self.assertEqual(logout, {"type": "object", "properties": {}, "additionalProperties": False})
 
-        role = paths["/api/auth/admin/members/{id}/role/"]["patch"]["requestBody"]["content"]["application/json"]["schema"]
+        role = paths["/api/v1/auth/admin/members/{id}/role/"]["patch"]["requestBody"]["content"]["application/json"]["schema"]
         self.assertEqual(role["required"], ["is_staff"])
         self.assertFalse(role["additionalProperties"])
         self.assertEqual(role["properties"], {"is_staff": {"type": "boolean"}})
@@ -40,6 +42,6 @@ class AuthSchemaTests(SimpleTestCase):
             for field in fields:
                 self.assertTrue(schemas[component]["properties"][field]["writeOnly"])
 
-        for endpoint in ("/api/auth/user", "/api/auth/email/request", "/api/auth/email/verify"):
+        for endpoint in ("/api/v1/auth/user", "/api/v1/auth/email/request", "/api/v1/auth/email/verify"):
             method = "get" if endpoint.endswith("user") else "post"
             self.assertEqual(paths[endpoint][method]["security"], [{"jwtAuth": []}])

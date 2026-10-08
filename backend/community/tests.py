@@ -32,10 +32,10 @@ class CommunityPostApiTests(APITestCase):
         payload = {"board": "free", "teamCode": "", "category": "잡담", "title": "새 글", "content": "새 본문"}
         payload.update(changes)
         self.client.force_authenticate(self.owner)
-        return self.client.post("/community/posts/", payload, format="json", HTTP_IDEMPOTENCY_KEY=key)
+        return self.client.post("/api/v1/community/posts/", payload, format="json", HTTP_IDEMPOTENCY_KEY=key)
 
     def test_public_list_and_filters_return_seeded_dto(self):
-        response = self.client.get("/community/posts/")
+        response = self.client.get("/api/v1/community/posts/")
         self.assertEqual(response.status_code, 200)
         # 예시 350개 + 이전된 글(0006) + 로컬 샘플 글(0010)
         self.assertEqual(len(response.data), 352)
@@ -54,8 +54,8 @@ class CommunityPostApiTests(APITestCase):
         })
         numbers = [post["postNumber"] for post in response.data]
         self.assertEqual(numbers, sorted(numbers, reverse=True))
-        self.assertEqual(len(self.client.get("/community/posts/?board=free").data), 50)
-        self.assertEqual(len(self.client.get("/community/posts/?board=teams&team=lt").data), 30)
+        self.assertEqual(len(self.client.get("/api/v1/community/posts/?board=free").data), 50)
+        self.assertEqual(len(self.client.get("/api/v1/community/posts/?board=teams&team=lt").data), 30)
 
     def test_new_posts_lead_the_first_page_in_free_and_team_boards(self):
         free = self.create_post(key="new-free", title="최신 자유 글")
@@ -64,8 +64,8 @@ class CommunityPostApiTests(APITestCase):
         self.client.force_authenticate(user=None)
 
         for path, expected_id in (
-            ("/community/posts/?board=free", free.data["id"]),
-            ("/community/posts/?board=teams&team=LG", team.data["id"]),
+            ("/api/v1/community/posts/?board=free", free.data["id"]),
+            ("/api/v1/community/posts/?board=teams&team=LG", team.data["id"]),
         ):
             with self.subTest(path=path):
                 posts = self.client.get(path).data
@@ -78,15 +78,15 @@ class CommunityPostApiTests(APITestCase):
 
     def test_invalid_filters_and_unauthenticated_writes_are_rejected(self):
         for query in ("?board=other", "?team=XX", "?board=free&team=LG"):
-            self.assertEqual(self.client.get(f"/community/posts/{query}").status_code, 400)
-        self.assertEqual(self.client.get("/community/posts/?mine=1").status_code, 401)
-        self.assertEqual(self.client.post("/community/posts/", {}, format="json").status_code, 401)
+            self.assertEqual(self.client.get(f"/api/v1/community/posts/{query}").status_code, 400)
+        self.assertEqual(self.client.get("/api/v1/community/posts/?mine=1").status_code, 401)
+        self.assertEqual(self.client.post("/api/v1/community/posts/", {}, format="json").status_code, 401)
 
     def test_jwt_authenticated_write(self):
         token = RefreshToken.for_user(self.owner).access_token
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
         response = self.client.post(
-            "/community/posts/",
+            "/api/v1/community/posts/",
             {"board": "teams", "teamCode": "lg", "category": "응원", "title": "JWT 글", "content": "인증 본문"},
             format="json",
             HTTP_IDEMPOTENCY_KEY="jwt-create",
@@ -108,7 +108,7 @@ class CommunityPostApiTests(APITestCase):
         conflict = self.create_post(title="충돌", key="create-1")
         self.assertEqual(conflict.status_code, 409)
         first_number = int(response.data["postNumber"])
-        self.client.delete(f"/community/posts/{response.data['id']}/")
+        self.client.delete(f"/api/v1/community/posts/{response.data['id']}/")
         second = self.create_post(key="create-2")
         self.assertEqual(int(second.data["postNumber"]), first_number + 1)
 
@@ -131,7 +131,7 @@ class CommunityPostApiTests(APITestCase):
 
     def test_detail_counts_views_and_only_owner_can_mutate(self):
         created = self.create_post()
-        url = f"/community/posts/{created.data['id']}/"
+        url = f"/api/v1/community/posts/{created.data['id']}/"
         self.client.force_authenticate(user=None)
         first = self.client.get(url)
         second = self.client.get(url)
@@ -149,9 +149,9 @@ class CommunityPostApiTests(APITestCase):
     def test_legacy_post_is_readable_but_not_mutable_and_mine_is_scoped(self):
         created = self.create_post()
         self.client.force_authenticate(self.owner)
-        mine = self.client.get("/community/posts/?mine=1")
+        mine = self.client.get("/api/v1/community/posts/?mine=1")
         self.assertEqual([post["id"] for post in mine.data], [created.data["id"]])
-        legacy_url = "/community/posts/lg-sample-1/"
+        legacy_url = "/api/v1/community/posts/lg-sample-1/"
         self.assertEqual(self.client.get(legacy_url).status_code, 200)
         self.assertEqual(self.client.patch(legacy_url, {"title": "탈취"}, format="json").status_code, 403)
 
@@ -181,39 +181,39 @@ class CommunityRichPostTests(APITestCase):
 
     def test_jwt_upload_and_rich_post_round_trip(self):
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(self.owner).access_token}")
-        uploaded = self.client.post("/community/images/", {"image": self.image_file()}, format="multipart")
+        uploaded = self.client.post("/api/v1/community/images/", {"image": self.image_file()}, format="multipart")
         self.assertEqual(uploaded.status_code, 201)
         self.assertEqual((uploaded.data["width"], uploaded.data["height"]), (20, 20))
         image_id = uploaded.data["id"]
         doc = self.document(image_id)
-        created = self.client.post("/community/posts/", {"board": "free", "teamCode": "", "category": "잡담", "title": "서식 글", "content": "직관 사진\n[이미지]", "contentDoc": doc}, format="json", HTTP_IDEMPOTENCY_KEY="rich-1")
+        created = self.client.post("/api/v1/community/posts/", {"board": "free", "teamCode": "", "category": "잡담", "title": "서식 글", "content": "직관 사진\n[이미지]", "contentDoc": doc}, format="json", HTTP_IDEMPOTENCY_KEY="rich-1")
         self.assertEqual(created.status_code, 201)
         self.assertEqual(created.data["contentDoc"], doc)
-        retried = self.client.post("/community/posts/", {"board": "free", "teamCode": "", "category": "잡담", "title": "서식 글", "content": "직관 사진\n[이미지]", "contentDoc": doc}, format="json", HTTP_IDEMPOTENCY_KEY="rich-1")
+        retried = self.client.post("/api/v1/community/posts/", {"board": "free", "teamCode": "", "category": "잡담", "title": "서식 글", "content": "직관 사진\n[이미지]", "contentDoc": doc}, format="json", HTTP_IDEMPOTENCY_KEY="rich-1")
         self.assertEqual((retried.status_code, retried.data["id"]), (200, created.data["id"]))
         self.assertEqual(str(CommunityImage.objects.get(pk=image_id).post_id), created.data["id"])
         self.client.credentials()
-        fetched = self.client.get(f"/community/posts/{created.data['id']}/")
+        fetched = self.client.get(f"/api/v1/community/posts/{created.data['id']}/")
         image = self.client.get(uploaded.data["url"].removeprefix("/api"))
         self.assertEqual((fetched.status_code, image.status_code, image["Content-Type"]), (200, 200, "image/jpeg"))
         self.assertEqual(fetched.data["contentDoc"], doc)
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(self.owner).access_token}")
-        edited = self.client.patch(f"/community/posts/{created.data['id']}/", {"title": "수정된 서식 글", "content": "직관 사진\n[이미지]", "contentDoc": doc}, format="json")
+        edited = self.client.patch(f"/api/v1/community/posts/{created.data['id']}/", {"title": "수정된 서식 글", "content": "직관 사진\n[이미지]", "contentDoc": doc}, format="json")
         self.assertEqual((edited.status_code, edited.data["title"], edited.data["contentDoc"]), (200, "수정된 서식 글", doc))
         self.assertEqual(str(CommunityImage.objects.get(pk=image_id).post_id), created.data["id"])
 
     def test_spoofed_files_and_foreign_images_are_rejected(self):
-        self.assertEqual(self.client.post("/community/images/", {"image": self.image_file()}, format="multipart").status_code, 401)
+        self.assertEqual(self.client.post("/api/v1/community/images/", {"image": self.image_file()}, format="multipart").status_code, 401)
         self.client.force_authenticate(self.owner)
         bad = SimpleUploadedFile("fake.jpg", b"<script>alert(1)</script>", content_type="image/jpeg")
-        self.assertEqual(self.client.post("/community/images/", {"image": bad}, format="multipart").status_code, 400)
-        uploaded = self.client.post("/community/images/", {"image": self.image_file()}, format="multipart")
+        self.assertEqual(self.client.post("/api/v1/community/images/", {"image": bad}, format="multipart").status_code, 400)
+        uploaded = self.client.post("/api/v1/community/images/", {"image": self.image_file()}, format="multipart")
         self.assertEqual(uploaded.status_code, 201)
         self.client.force_authenticate(self.other)
         payload = {"board": "free", "teamCode": "", "category": "잡담", "title": "타인 이미지", "content": "직관 사진\n[이미지]", "contentDoc": self.document(uploaded.data["id"])}
-        self.assertEqual(self.client.post("/community/posts/", payload, format="json", HTTP_IDEMPOTENCY_KEY="foreign-1").status_code, 400)
+        self.assertEqual(self.client.post("/api/v1/community/posts/", payload, format="json", HTTP_IDEMPOTENCY_KEY="foreign-1").status_code, 400)
         payload["contentDoc"]["blocks"][0]["runs"][0]["font"] = "<script>"
-        self.assertEqual(self.client.post("/community/posts/", payload, format="json", HTTP_IDEMPOTENCY_KEY="xss-1").status_code, 400)
+        self.assertEqual(self.client.post("/api/v1/community/posts/", payload, format="json", HTTP_IDEMPOTENCY_KEY="xss-1").status_code, 400)
 
 
 class CommunityInteractionSchemaTests(APITestCase):
@@ -242,7 +242,7 @@ class CommunityPostConcurrencyTests(TransactionTestCase):
                 client = APIClient()
                 client.force_authenticate(user)
                 barrier.wait()
-                response = client.post("/community/posts/", payload, format="json", HTTP_IDEMPOTENCY_KEY="same-key")
+                response = client.post("/api/v1/community/posts/", payload, format="json", HTTP_IDEMPOTENCY_KEY="same-key")
                 return response.status_code, response.data["id"]
             finally:
                 close_old_connections()

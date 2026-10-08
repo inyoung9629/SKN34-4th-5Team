@@ -1,6 +1,7 @@
 .course-travel { border: 1px solid #dfe7ef; border-radius: 12px; padding: 16px; background: #fff; margin: 12px 0; min-width: 0; }
 .course-travel-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; font-size: 14px; }
 .course-travel button { cursor: pointer; }
+.course-mode-target { margin: 12px 0 4px; font-size: 12px; font-weight: 700; color: #405777; }
 .course-travel-heading button, .course-travel-retry { border: 0; background: transparent; color: #2868dc; font-size: 11px; padding: 5px 0; }
 .course-origin, .course-modes { display: flex; gap: 5px; margin: 8px 0; }
 .course-origin button, .course-modes button { flex: 1; border: 1px solid #e2e8f0; border-radius: 7px; background: #f7f9fc; color: #5d6b80; min-height: 36px; padding: 6px; font-size: 12px; }

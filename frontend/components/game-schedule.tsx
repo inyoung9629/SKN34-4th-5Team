@@ -50,7 +50,7 @@ function useKboSnapshot() {
       }, 65_000);
 
       try {
-        const response = await fetch("/api/tving/daily/", { cache: "no-store", signal: controller.signal });
+        const response = await fetch("/api/v1/tving/daily/?next_if_empty=true", { cache: "no-store", signal: controller.signal });
         const result: KboApiResponse = await response.json();
         if (!response.ok || !result.data || !Array.isArray(result.data.games) || !Array.isArray(result.data.standings)) {
           throw new Error("일정과 순위를 불러오지 못했어요.");
@@ -266,7 +266,7 @@ function StandingsTable({ standings }: { standings: KboStanding[] }) {
 function ScheduleSkeleton() {
   return (
     <div className="schedule-loading" role="status">
-      <span className="sr-only">오늘의 경기 일정을 불러오고 있어요.</span>
+      <span className="sr-only">경기 일정을 불러오고 있어요.</span>
       {[0, 1, 2].map(index => <div className="schedule-loading-card" aria-hidden="true" key={index}>
         <span /><span /><div><i /><i /></div><span />
       </div>)}
@@ -274,7 +274,7 @@ function ScheduleSkeleton() {
   );
 }
 
-export function GameSchedule({ beforeTeamBoards }: { beforeTeamBoards?: ReactNode } = {}) {
+export function GameSchedule({ afterSchedule, beforeTeamBoards }: { afterSchedule?: ReactNode; beforeTeamBoards?: ReactNode } = {}) {
   const { data, error, checking, retry } = useKboSnapshot();
   const loading = !data && !error;
   const stale = Boolean(data && (data.stale || error));
@@ -284,7 +284,7 @@ export function GameSchedule({ beforeTeamBoards }: { beforeTeamBoards?: ReactNod
       <section className="container home-schedule" aria-labelledby="schedule-heading">
         <div className="section-heading">
           <div><span className="eyebrow">GAME SCHEDULE</span><h2 id="schedule-heading">경기 일정</h2>
-            <p>{data ? `${formatDay(data.date, true)} · ${data.games.length ? `총 ${data.games.length}경기` : "오늘의 경기"}` : "오늘의 KBO 경기를 만나보세요."}</p>
+            <p>{data?.games.length ? `${formatDay(data.games[0].date, true)} · 총 ${data.games.length}경기` : "KBO 경기 일정을 확인해 보세요."}</p>
           </div>
           <Link href="/schedule" className="text-link">세부 일정 <Icon name="chevron" size={17} /></Link>
         </div>
@@ -299,11 +299,12 @@ export function GameSchedule({ beforeTeamBoards }: { beforeTeamBoards?: ReactNod
             <p>잠시 후 다시 확인해 주세요.</p><button type="button" className="button button-secondary" onClick={retry} disabled={checking}>다시 불러오기</button>
           </div>
         ) : data.games.length ? <GameCarousel games={data.games} /> : (
-          <div className="kbo-empty-state"><Icon name="stadium" size={32} /><strong>오늘은 예정된 경기가 없어요.</strong><p>다음 경기를 기다리며 직관 코스를 준비해 보세요.</p></div>
+          <div className="kbo-empty-state"><Icon name="stadium" size={32} /><strong>아직 등록된 다음 경기가 없어요.</strong><p>다음 경기 일정이 확인되면 이곳에 표시해 드릴게요.</p></div>
         )}
         {data && <><SourceMeta data={data} /><p className="game-weather-source">날씨: <a href="https://www.data.go.kr/data/15084084/openapi.do" target="_blank" rel="noreferrer">기상청 단기예보</a> · 경기 시작에 가까운 정시 예보 · 고척은 구장 외부 기준</p></>}
       </section>
 
+      {afterSchedule}
       <KboHighlightSection />
 
       <section className="container home-standings" aria-labelledby="standings-heading">

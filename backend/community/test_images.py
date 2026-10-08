@@ -131,7 +131,7 @@ class ImageApiTests(APITestCase):
         )
 
     def test_upload_requires_auth_and_returns_validated_metadata(self):
-        url = "/community/images/"
+        url = "/api/v1/community/images/"
         self.assertEqual(self.client.post(url, {"image": image_file()}, format="multipart").status_code, 401)
         self.client.force_authenticate(self.owner)
         response = self.client.post(url, {"image": image_file()}, format="multipart")
@@ -147,18 +147,18 @@ class ImageApiTests(APITestCase):
     def test_upload_rejects_oversized_or_ambiguous_multipart_before_storage(self):
         self.client.force_authenticate(self.owner)
         oversized = self.client.post(
-            "/community/images/",
+            "/api/v1/community/images/",
             {"image": image_file()},
             format="multipart",
             CONTENT_LENGTH=str(MAX_REQUEST_BYTES + 1),
         )
         extra = self.client.post(
-            "/community/images/",
+            "/api/v1/community/images/",
             {"image": image_file(), "unknown": "value"},
             format="multipart",
         )
         multiple = self.client.post(
-            "/community/images/",
+            "/api/v1/community/images/",
             {"image": [image_file(), image_file()]},
             format="multipart",
         )
@@ -168,17 +168,17 @@ class ImageApiTests(APITestCase):
     def test_storage_errors_are_safe_and_missing_object_is_404(self):
         self.client.force_authenticate(self.owner)
         with patch("community.images.put_object", side_effect=StorageUnavailable):
-            response = self.client.post("/community/images/", {"image": image_file()}, format="multipart")
+            response = self.client.post("/api/v1/community/images/", {"image": image_file()}, format="multipart")
         self.assertEqual((response.status_code, response.data), (503, {"detail": "이미지 저장소를 사용할 수 없습니다."}))
 
         image = self.create_image()
         with patch("community.images.get_object", side_effect=ObjectNotFound):
-            response = self.client.get(f"/community/images/{image.pk}/")
+            response = self.client.get(f"/api/v1/community/images/{image.pk}/")
         self.assertEqual(response.status_code, 404)
 
     def test_private_owner_read_and_published_public_read(self):
         private = self.create_image()
-        private_url = f"/community/images/{private.pk}/"
+        private_url = f"/api/v1/community/images/{private.pk}/"
         self.assertEqual(self.client.get(private_url).status_code, 404)
         self.client.force_authenticate(self.other)
         self.assertEqual(self.client.get(private_url).status_code, 404)
@@ -189,7 +189,7 @@ class ImageApiTests(APITestCase):
         self.assertEqual(owner_response["Cache-Control"], "private, no-store")
 
         draft = self.create_image(draft=self.draft)
-        draft_url = f"/community/images/{draft.pk}/"
+        draft_url = f"/api/v1/community/images/{draft.pk}/"
         self.client.force_authenticate(self.other)
         self.assertEqual(self.client.get(draft_url).status_code, 404)
         self.client.force_authenticate(self.owner)
@@ -197,13 +197,13 @@ class ImageApiTests(APITestCase):
 
         public = self.create_image(post=self.post)
         self.client.force_authenticate(None)
-        public_response = self.client.get(f"/community/images/{public.pk}/")
+        public_response = self.client.get(f"/api/v1/community/images/{public.pk}/")
         self.assertEqual(public_response.status_code, 200)
         self.assertEqual(public_response["Cache-Control"], "public, max-age=60")
 
     def test_delete_is_owner_only_and_refuses_published_attachment(self):
         image = self.create_image()
-        url = f"/community/images/{image.pk}/"
+        url = f"/api/v1/community/images/{image.pk}/"
         self.assertEqual(self.client.delete(url).status_code, 401)
         self.client.force_authenticate(self.other)
         self.assertEqual(self.client.delete(url).status_code, 403)
@@ -213,7 +213,7 @@ class ImageApiTests(APITestCase):
         self.assertNotIn(image.object_key, self.objects)
 
         published = self.create_image(post=self.post)
-        self.assertEqual(self.client.delete(f"/community/images/{published.pk}/").status_code, 409)
+        self.assertEqual(self.client.delete(f"/api/v1/community/images/{published.pk}/").status_code, 409)
         self.assertTrue(CommunityImage.objects.filter(pk=published.pk).exists())
         self.assertIn(published.object_key, self.objects)
 
@@ -221,7 +221,7 @@ class ImageApiTests(APITestCase):
         image = self.create_image()
         self.client.force_authenticate(self.owner)
         with patch("community.images.delete_object", side_effect=StorageUnavailable):
-            response = self.client.delete(f"/community/images/{image.pk}/")
+            response = self.client.delete(f"/api/v1/community/images/{image.pk}/")
         self.assertEqual(response.status_code, 503)
         self.assertTrue(CommunityImage.objects.filter(pk=image.pk).exists())
 
@@ -236,13 +236,13 @@ class ImageApiTests(APITestCase):
         self.assertIsNone(private.owner_id)
         self.assertIsNone(public.owner_id)
         self.client.force_authenticate(None)
-        self.assertEqual(self.client.get(f"/community/images/{private.pk}/").status_code, 404)
-        self.assertEqual(self.client.get(f"/community/images/{public.pk}/").status_code, 200)
+        self.assertEqual(self.client.get(f"/api/v1/community/images/{private.pk}/").status_code, 404)
+        self.assertEqual(self.client.get(f"/api/v1/community/images/{public.pk}/").status_code, 200)
 
     def test_db_failure_compensates_uploaded_object(self):
         self.client.force_authenticate(self.owner)
         self.client.raise_request_exception = False
         with patch("community.images.CommunityImage.objects.create", side_effect=RuntimeError("db failed")):
-            response = self.client.post("/community/images/", {"image": image_file()}, format="multipart")
+            response = self.client.post("/api/v1/community/images/", {"image": image_file()}, format="multipart")
         self.assertEqual(response.status_code, 500)
         self.assertEqual(self.objects, {})

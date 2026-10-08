@@ -1,5 +1,7 @@
 # llm — 회원·게스트 채팅, SSE, 저장과 진행 기록
 
+> 현재 V2의 경기 기준·같은 방 기억·응원팀 조건과 활성 SSE 계약은 [직관 코스 백엔드 1차 명세](course-policy-v1.md)를 참고한다. 아래 본문에는 이전 채팅 구조 설명이 포함되어 있으므로 `/api/v2/chat/sessions/<uuid>/messages/`의 현재 코드와 구분한다.
+
 [에이전트 도구 명세](agent-tools.md)는 챗봇이 내부적으로 사용하는 야구·구장·장소·코스·커뮤니티·문서 검색·읽기 전용 SQL 도구를 설명한다.
 
 현재 [프로젝트 URL 등록](../../backend/config/urls.py), [views.py](../../backend/llm/views.py), [serializers.py](../../backend/llm/serializers.py), [chat_service.py](../../backend/llm/chat_service.py) 기준의 HTTP 계약이다. RAG 구성/인덱싱 상세는 기존 [rag/README.md](../../backend/llm/rag/README.md)를 참고한다. 기존 문서의 예시보다 **현재 URLconf와 실행 코드가 우선**이다. 특히 [rag_views.py](../../backend/llm/rag_views.py)는 파일이 존재해도 URLconf에 등록되지 않았으므로 `POST /chat/`를 공개 API로 사용하면 안 된다.
@@ -189,7 +191,7 @@ POST `/chat/guest/`는 `AllowAny`이면서 **authentication_classes=()**라 JWT�
 
 운영에서는 [rag.pipeline](../../backend/llm/rag/pipeline.py)의 `chat_chain()`을 항상 사용한다. 예전 `CHAT_USE_RAG` 스위치는 현재 제어점이 아니다. 테스트 러너에서는 None을 반환해 `ChatService`의 직접 도구 루프를 쓰므로 테스트용 경로를 운영 주 경로와 혼동하지 않는다. [dispatcher](../../backend/llm/rag/dispatcher.py)의 실패 fallback과 진행 저장/취소 예외 전파, [assistant pipeline](../../backend/llm/rag/assistant/pipeline.py)의 제한된 모델/도구 흐름을 함께 참고한다.
 
-- 모델: LangChain/OpenAI. ChatService 기본 `gpt-5.6-luna`, timeout 30초, max_retries=0, Responses API. 실제 assistant 경로는 `LLM_MODEL`(기본 같은 모델), timeout 25초/max_retries=0 등 해당 모듈 설정을 따른다. 도구 라운드/fallback은 HTTP 전송 자동 재시도와 다르다. dispatcher의 SSE fallback은 아직 답변 청크를 하나도 내보내지 않았을 때만 실행하며, 일부 텍스트를 보낸 뒤 실패하면 다른 답변을 이어 붙이지 않고 오류를 전파한다. `ProgressCancelled`/`ProgressStorageError`는 이 fallback에서도 재실행하지 않는다. ChatService 테스트용 루프는 최대 도구 4회/라운드 4회 기준, assistant streaming도 도구 호출 4회 제한. 답변/최종 prefix 상한은 관련 경로에서 8,000자다.
+- 모델: LangChain/OpenAI. ChatService 기본 `gpt-6-luna`, timeout 30초, max_retries=0, Responses API. 실제 assistant 경로는 `LLM_MODEL`(기본 같은 모델), timeout 25초/max_retries=0 등 해당 모듈 설정을 따른다. 도구 라운드/fallback은 HTTP 전송 자동 재시도와 다르다. dispatcher의 SSE fallback은 아직 답변 청크를 하나도 내보내지 않았을 때만 실행하며, 일부 텍스트를 보낸 뒤 실패하면 다른 답변을 이어 붙이지 않고 오류를 전파한다. `ProgressCancelled`/`ProgressStorageError`는 이 fallback에서도 재실행하지 않는다. ChatService 테스트용 루프는 최대 도구 4회/라운드 4회 기준, assistant streaming도 도구 호출 4회 제한. 답변/최종 prefix 상한은 관련 경로에서 8,000자다.
 - [공통 도구 등록](../../backend/llm/rag/domain_tools.py)은 도메인별로 같은 통합 도구 집합을 제공하고 이름 충돌 시 specialized 도구를 우선한다. [기본 목록](../../backend/llm/tools/__init__.py), [조회 도메인](../../backend/llm/tools/domain.py), [specialized 도구](../../backend/llm/rag/assistant/tools.py)를 함께 봐야 실제 바인딩을 알 수 있다.
 - 조회 도구: 순위/경기/구장/좌석·시야/가격·정책/교통/먹거리/시설·콘텐츠·좌석도, 장소/코스/커뮤니티/승부예측/선수, 길찾기/관광/날씨. specialized 검색·코스 설계와 RAG 문서 검색이 더해진다. 이것들은 내부 LLM 도구이지 동일 이름 HTTP API가 아니다.
 - 범용 SQL은 [baseball tools](../../backend/llm/tools/baseball.py) → [읽기 전용 query service](../../backend/baseball/query_service.py)를 사용한다. get_baseball_schema 후 execute_baseball_select 순서 가드, 허용 SELECT/행 제한/읽기 전용 DB 경계가 있다. 도구 등록만으로 관리자 변경 API를 모델에 부여하지 않는다.

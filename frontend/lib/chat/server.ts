@@ -13,7 +13,7 @@ function getConfiguration(env: Environment): ChatStatus & { apiKey?: string; bac
   if (provider !== "demo" && provider !== "openai" && provider !== "backend") {
     throw new ChatError("챗봇 연결 설정을 확인해 주세요.", 503);
   }
-  const model = env.OPENAI_MODEL?.trim() || "gpt-5.6-luna";
+  const model = env.OPENAI_MODEL?.trim() || "gpt-6-luna";
   const apiKey = env.OPENAI_API_KEY?.trim();
   const backendUrl = env.CHAT_BACKEND_URL?.trim();
   const ready = provider === "demo" || (provider === "openai" ? Boolean(apiKey) : Boolean(backendUrl));

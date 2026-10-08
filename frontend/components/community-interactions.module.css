@@ -4,5 +4,35 @@
 .commentForm,.editForm{display:flex;gap:10px;margin-top:16px}.commentForm textarea,.editForm textarea{flex:1;min-width:0;min-height:92px;resize:vertical;padding:12px;border:1px solid #dce5f1;border-radius:5px;font:inherit;font-size:13px}.commentForm>button,.editForm button{padding:8px 14px;border:1px solid #bcd3f7;border-radius:5px;background:#edf4ff;color:#2868dc;font-size:13px;cursor:pointer}.commentForm>button{width:74px}.editForm div{display:flex;flex-direction:column;gap:6px}.commentForm button:disabled,.editForm button:disabled{opacity:.5;cursor:default}.bottomNote,.errorNote,.reportStatus{font-size:12px;margin-top:10px}.bottomNote,.reportStatus{color:#287a50}.errorNote{color:#c33d45}
 .articleNavigation{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 24px;border-top:1px solid #e0e8f4}.articleNavigation>div{display:flex;gap:6px}.articleNavigation a,.articleNavigation button{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:7px 12px;border:1px solid #dce5f1;border-radius:4px;background:white;color:#607089;font-size:12px;cursor:pointer}.articleNavigation button:disabled{opacity:.4;cursor:default}.articleNavigation .writeButton{background:#edf4ff;color:#246bf3;border-color:#bcd3f7}
 .reportActions{margin-top:auto;padding-top:24px;text-align:right;white-space:normal}.reportButton{display:inline-flex;align-items:center;gap:4px;border:0;background:transparent;color:#8490a1;font-size:11px;padding:6px 8px;cursor:pointer}.reportButton:hover{color:#c33d45}.reportStatus{margin-right:8px}.dialog{margin:auto;width:min(360px,calc(100% - 32px));padding:24px;border:1px solid #dce5f1;border-radius:12px;text-align:left;color:#40516b}.dialog::backdrop{background:#172b4d66}.dialog h2{font-size:18px;margin-bottom:12px}.dialog p{font-size:12px;margin:12px 0}.dialog label{display:block;font-size:13px}.dialog select{display:block;width:100%;margin-top:8px;padding:10px;border:1px solid #dce5f1;border-radius:6px;background:white}.dialog button{padding:8px 16px;border:1px solid #dce5f1;border-radius:6px;background:white;cursor:pointer}.reportReason{margin-top:16px}.reportReason textarea{display:block;width:100%;margin-top:8px;padding:10px;border:1px solid #dce5f1;border-radius:6px;resize:vertical;font:inherit;font-size:13px;line-height:1.6}.reportReasonCount{display:block;margin-top:5px;text-align:right;color:#8490a1;font-size:11px}.dialogActions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
-.vote{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;margin:20px 0}.vote button{min-width:108px;padding:9px 14px;border:1px solid #dce5f1;border-radius:999px;background:white;color:#607089;cursor:pointer}.vote button[aria-pressed=true]{border-color:#7da8ef;background:#edf4ff;color:#246bf3;font-weight:700}.vote button:disabled{opacity:.6;cursor:wait}.vote .errorNote{flex-basis:100%;text-align:center}
+.vote {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 28px 0;
+}
+.vote button, .voteSummary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 120px;
+  max-width: 100%;
+  padding: 14px 16px 10px;
+  border: 1px solid var(--border, #dce5f1);
+  border-radius: 12px;
+  background: var(--background, #fff);
+  color: var(--foreground, #151d2b);
+  font: inherit;
+}
+.vote button { cursor: pointer; }
+.vote button:hover:not(:disabled) { border-color: var(--blue, #246bf3); }
+.vote button[aria-pressed=true] { border-color: var(--blue, #246bf3); background: var(--soft, #f5f8fd); }
+.vote button:disabled { opacity: .6; cursor: wait; }
+.voteImage { width: 72px; height: 72px; object-fit: contain; border-radius: 6px; }
+.voteLabel { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; font-size: 14px; font-weight: 650; }
+.voteLabel strong { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.voteSelection { min-height: 18px; font-size: 12px; line-height: 1.5; color: var(--blue, #246bf3); }
+.vote .errorNote { flex-basis: 100%; text-align: center; }
 @media(max-width:640px){.authorProfile{margin:16px;padding:16px}.comments{padding:0 16px 20px}.comments header{align-items:flex-start;flex-direction:column}.commentForm,.editForm{flex-direction:column}.commentForm>button{width:100%}.editForm div{flex-direction:row}.articleNavigation{padding:14px 16px}.articleNavigation>div:last-child{margin-left:auto}}

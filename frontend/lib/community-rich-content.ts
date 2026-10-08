@@ -26,7 +26,7 @@ export function isRichContentDoc(value: unknown): value is RichContentDoc {
 const imagePath = /^\/api\/community\/images\/([0-9a-fA-F-]{36})\/$/;
 const emptyRun: RichRun = { text: "", font: "sans", size: 16, color: "#26354b", bold: false, italic: false, underline: false };
 
-export function communityImageUrl(id: string) { return `/api/community/images/${id}/`; }
+export function communityImageUrl(id: string) { return `/api/v1/community/images/${id}/`; }
 
 export function richText(doc: RichContentDoc) {
   return doc.blocks.map(block => block.type === "image" ? "[이미지]" : block.runs.map(run => run.text).join("")).join("\n").trim();

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { safeMemberReturnPath } from "@/lib/member-return-path";
+import { MemberAuthSwitchLink } from "@/components/member-auth-switch-link";
 import { saveMemberTokens } from "@/lib/member-auth-request";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { AuthDialog } from "@/components/auth-dialog";
@@ -75,7 +77,10 @@ export default function LoginPage() {
       saveMemberTokens(result.access, result.refresh);
       // 관리자 계정은 관리 메뉴가 있는 마이페이지로, 그 외에는 메인으로 이동한다
       const me = await getMemberUser().catch(() => null);
-      window.location.assign(new URLSearchParams(window.location.search).get("next") === "admin" ? "/admin" : me?.is_staff || me?.is_superuser ? "/mypage" : "/");
+      const rawNext = new URLSearchParams(window.location.search).get("next");
+      const memberNext = safeMemberReturnPath(rawNext);
+      const fallback = me?.is_staff || me?.is_superuser ? "/mypage" : "/";
+      window.location.assign(memberNext ?? (rawNext === "admin" ? "/admin" : fallback));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "로그인 서버에 연결하지 못했어요.");
     } finally { setBusy(false); }
@@ -116,7 +121,7 @@ export default function LoginPage() {
         <nav className="auth-help-links" aria-label="계정 도움말">
           <button type="button" onClick={() => setHelp("id")}>아이디 찾기</button>
           <button type="button" onClick={() => setHelp("password")}>비밀번호 찾기</button>
-          <Link href="/signup">회원가입</Link>
+          <MemberAuthSwitchLink to="/signup" label="회원가입" />
         </nav>
         <p className="auth-service-note auth-bottom-note">팀 계정으로 로그인하면 챗봇을 이용할 수 있어요.</p>
         <Link href="/routes" className="auth-browse">먼저 직관 코스 둘러보기 <span aria-hidden="true">↗</span></Link>

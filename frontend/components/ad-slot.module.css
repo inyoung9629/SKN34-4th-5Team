@@ -1,0 +1,33 @@
+.slot { margin-block: 24px 40px; }
+.banner { display: grid; grid-template-columns: 220px minmax(0, 1fr) auto; align-items: center; gap: 24px; min-height: 156px; padding: 18px 24px 18px 18px; overflow: hidden; border: 1px solid #dce5f0; border-radius: 16px; color: #172b47; text-decoration: none; }
+.club { background: linear-gradient(110deg, #edf4ff, #f8fbff); }
+.partner { background: linear-gradient(110deg, #fff3e4, #fffaf3); border-color: #eedfcb; }
+.banner:hover { box-shadow: 0 6px 20px rgb(24 52 90 / 8%); }
+.banner:focus-visible { outline: 3px solid #78a9ff; outline-offset: 4px; }
+.visual { position: relative; display: grid; place-items: center; align-self: stretch; min-height: 120px; overflow: hidden; border-radius: 10px; background: rgb(255 255 255 / 75%); }
+.image { object-fit: contain; }
+.placeholder { display: grid; justify-items: center; color: #38649d; font-size: 30px; font-weight: 850; }
+.partner .placeholder { color: #9c6426; }
+.placeholder small { font-size: 12px; letter-spacing: .2em; }
+.content { display: grid; gap: 7px; min-width: 0; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; color: #58677b; font-size: 11px; }
+.label { padding: 1px 6px; border: 1px solid #8190a3; border-radius: 4px; background: white; }
+.title { font-size: 21px; line-height: 1.4; overflow-wrap: anywhere; }
+.description { color: #53647b; font-size: 13px; overflow-wrap: anywhere; }
+.advertiser { color: #66758a; font-size: 11px; }
+.cta { padding: 11px 16px; border-radius: 8px; background: #234f88; color: white; font-size: 13px; font-weight: 650; white-space: nowrap; }
+.partner .cta { background: #855521; }
+@media (max-width: 900px) {
+  .banner { grid-template-columns: 150px minmax(0, 1fr); gap: 10px 18px; }
+  .visual { grid-row: span 2; }
+  .cta { grid-column: 2; justify-self: start; }
+}
+@media (max-width: 640px) {
+  .slot { margin-block: 18px 28px; }
+  .banner { grid-template-columns: 76px minmax(0, 1fr); gap: 10px 12px; padding: 14px; border-radius: 12px; }
+  .visual { min-height: 96px; }
+  .placeholder, .title { font-size: 15px; }
+  .description, .cta { font-size: 11px; }
+  .meta, .advertiser { font-size: 10px; }
+  .cta { padding: 7px 10px; }
+}

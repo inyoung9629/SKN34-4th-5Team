@@ -6,6 +6,22 @@ import ts from "typescript";
 const frontend = new URL("../", import.meta.url);
 const vote = readFileSync(new URL("components/community-post-vote.tsx", frontend), "utf8");
 
+test("vote artwork preserves labels, pressed state and read-only guest summaries", () => {
+  assert.match(vote, /community-vote-\$\{direction\}\.png/);
+  assert.match(vote, /alt="" width=\{72\} height=\{72\}/);
+  assert.match(vote, /direction === "up" \? "추천" : "비추천"/);
+  assert.match(vote, /aria-pressed=\{state.vote === "up"\}/);
+  assert.match(vote, /aria-pressed=\{state.vote === "down"\}/);
+  const guest = vote.slice(vote.indexOf("if (!actorId) return"), vote.indexOf("return <CommunityPostVoteContent"));
+  assert.match(guest, /direction="up"/);
+  assert.match(guest, /direction="down"/);
+  assert.doesNotMatch(guest, /<button|onClick/);
+  for (const direction of ["up", "down"]) {
+    const image = readFileSync(new URL(`public/images/community-vote-${direction}.png`, frontend));
+    assert.equal(image.subarray(1, 4).toString(), "PNG");
+  }
+});
+
 test("write links preserve the board and selected team", () => {
   const source = readFileSync(new URL("lib/team-community.ts", frontend), "utf8");
   const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } });

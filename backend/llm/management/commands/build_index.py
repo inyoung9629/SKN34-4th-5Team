@@ -1,10 +1,10 @@
 """
-RAG 인덱싱: 전처리 CSV/docs → 청크 텍스트 → 임베딩 → DocumentChunk 적재
+RAG 인덱싱: 전처리 CSV/docs → 청크 텍스트 → 임베딩 → Qdrant upsert
 
 실행:
   python manage.py build_index --dry-run          # 청크만 만들고 통계·샘플 출력 (임베딩 X)
   python manage.py build_index --limit 50         # 50건만 끝까지 (연결·키 테스트용)
-  python manage.py build_index                    # 전량 (약 3,839청크, 100원 안팎 · 2026-09-13 청킹 조정 기준)
+  python manage.py build_index                    # 전량 (약 3,434청크 · 2026-09-28 규정집 추가·일정/순위 제외 기준)
 
 재현성: 이 파일 하나로 처음부터 다시 만들어짐. 임베딩은 artifacts/ 에 500건마다 체크포인트.
 근거 문서: claude/임베딩_대상파일_정리.md, claude/청킹임베딩_의사결정노트.md
@@ -21,10 +21,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from django.core.management.base import BaseCommand
-from django.db import transaction
 from dotenv import load_dotenv
-
-from llm.models import Document, DocumentChunk
 
 BACKEND_DIR = Path(__file__).resolve().parents[3]
 REPO_DIR = BACKEND_DIR.parent
@@ -66,13 +63,11 @@ CSV_SPEC = {
 KAKAO_CATEGORY = {"FD6": "FOOD_OUT", "CE7": "CAFE", "AT4": "SPOT"}
 
 # 크롤러 CSV: content 컬럼이 이미 자연어 문장 → row_text 대신 그대로 사용 (2026-09-10 추가)
-# 일정·순위는 원래 SQL 전용이었지만 game_schedule/team_standing 테이블이 아직 없어
-# 직접 질문("삼성 몇 위야", "9/12 잠실 경기 있어")만이라도 답하도록 임베딩에도 넣는다. 상대 날짜 질문은 SQL 라우팅(4차)에서.
-SENTENCE_CSV_SPEC = {
-    "kbo_schedule_full.csv":           ("SCHEDULE", ["id"]),
-    "kbo_standing.csv":                ("STANDING", ["id"]),
-    # kbo_schedule_postseason_tbd(4건)은 참가팀 TBD 플레이스홀더라 제외 (9/10 결정). 순위 확정 후 크롤러가 실제 일정을 쓰면 그때 포함
-}
+# 일정·순위(kbo_schedule_full.csv·kbo_standing.csv)는 2026-09-28부터 임베딩하지 않는다.
+# 3차에는 game_schedule/team_standing 테이블이 없어 임베딩으로 대신했지만, 지금은 크롤러가 DB(Game·StandingHistory)를
+# 매일 갱신하고 V2는 get_games·get_standings 도구로만 답한다(V2 검색 카테고리에 SCHEDULE/STANDING 없음).
+# 벡터 사본은 옛날 데이터로 남아 검색 잡음·크롤러 upsert 충돌만 만든다. 영향: V1 club/structured.py 일정 파싱은 동작 안 함.
+SENTENCE_CSV_SPEC: dict = {}
 # 구장 기본정보(주소·좌표) 9건 — "잠실야구장 주소 알려줘" 용
 STADIUM_CSV = ("stadium_coordinates.csv", "STADIUM", ["stadium_code"])
 
@@ -185,7 +180,7 @@ def row_text(header: str, row: dict) -> str:
 
 
 class Command(BaseCommand):
-    help = "전처리 CSV/docs → 청크 → 임베딩 → DocumentChunk 적재"
+    help = "전처리 CSV/docs → 청크 → 임베딩 → Qdrant upsert"
 
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true", help="청크만 만들고 통계 출력")
@@ -308,6 +303,18 @@ class Command(BaseCommand):
                 add("기초규칙_요약본.md", "RULE", None, None, f"PART{i}", "[야구 기초 규칙] " + part,
                     {"part": i, "status": "CONFIRMED", "evidence_type": "OFFICIAL"})
 
+        # 1-5. 규정집 전체 (4차 #14, 2026-09-23): 공식야구규칙 + KBO 리그규정을 조·항 단위로 청킹한 CSV.
+        #      청킹은 preprocessing/chunk_rulebooks.py 가 하고, 여기서는 content·doc_id를 그대로 싣는다.
+        #      기초규칙_요약본(입문용 요약 11청크)은 그대로 두고 병행 — doc_id 접두어가 달라 충돌 없음.
+        rule_csv = DATA_DIR / "kbo_rulebook_chunks.csv"
+        if rule_csv.exists():
+            df = read_csv("kbo_rulebook_chunks.csv")
+            for r in df.to_dict("records"):
+                natural = str(r["doc_id"]).removeprefix("RULE_COMMON_")   # add()가 RULE_COMMON_ 을 다시 붙임
+                add("kbo_rulebook_chunks.csv", "RULE", None, None, natural, str(r["content"]).strip(), r)
+        else:
+            self.stderr.write("kbo_rulebook_chunks.csv 없음 — preprocessing/chunk_rulebooks.py 먼저 실행 (규정집 청크 생략)")
+
         return chunks
 
     # ── 2. 임베딩 ────────────────────────────────────────────────────────────
@@ -317,7 +324,7 @@ class Command(BaseCommand):
         ARTIFACTS_DIR.mkdir(exist_ok=True)
         ckpt = ARTIFACTS_DIR / "embeddings.npy"
         fp = ARTIFACTS_DIR / "embeddings.fingerprint"
-        fingerprint = hashlib.sha256("\n".join(texts).encode()).hexdigest()
+        fingerprint = hashlib.sha256((EMBEDDING_MODEL + ":1536\n" + "\n".join(texts)).encode()).hexdigest()
 
         vecs: list = []
         if ckpt.exists() and fp.exists() and fp.read_text() == fingerprint:
@@ -325,7 +332,8 @@ class Command(BaseCommand):
             self.stdout.write(f"체크포인트 재개: {len(vecs)}/{len(texts)}")
         fp.write_text(fingerprint)
 
-        model = OpenAIEmbeddings(model=EMBEDDING_MODEL)
+        from llm.vector_store import embedding_model
+        model = OpenAIEmbeddings(model=embedding_model(), dimensions=1536)
         for i in range(len(vecs), len(texts), EMBED_BATCH):
             vecs.extend(model.embed_documents(texts[i:i + EMBED_BATCH]))
             if len(vecs) % CHECKPOINT_EVERY < EMBED_BATCH:
@@ -336,20 +344,15 @@ class Command(BaseCommand):
         return arr
 
     # ── 3. 적재 ──────────────────────────────────────────────────────────────
-    @transaction.atomic
     def load(self, chunks: list[dict], vecs: np.ndarray):
-        DocumentChunk.objects.all().delete()
-        Document.objects.all().delete()
-        docs = {}
-        objs = []
-        for i, (c, v) in enumerate(zip(chunks, vecs)):
-            src = c["source"]
-            if src not in docs:
-                docs[src] = Document.objects.create(title=src, source=src)
-            objs.append(DocumentChunk(document=docs[src], content=c["content"], chunk_index=i,
-                                      metadata=c["metadata"], embedding=v.tolist()))
-        DocumentChunk.objects.bulk_create(objs, batch_size=500)
-        return len(objs)
+        from llm.vector_store import upsert_documents
+        if len(chunks) != len(vecs):
+            raise ValueError("Chunk/vector count mismatch")
+        for start in range(0, len(chunks), 500):
+            upsert_documents([{"id": c["doc_id"], "content": c["content"], "metadata": c["metadata"],
+                               "embedding": v.tolist()}
+                              for c, v in zip(chunks[start:start + 500], vecs[start:start + 500])])
+        return len(chunks)
 
     # ── main ────────────────────────────────────────────────────────────────
     def handle(self, *args, **opt):
@@ -364,8 +367,8 @@ class Command(BaseCommand):
         short = sum(1 for c in chunks if len(c["content"]) < 50)
         by_cat = Counter(c["category"] for c in chunks)
         dup = n - len({c["doc_id"] for c in chunks})
-        self.stdout.write(f"\n총 청크: {n}  (기대 3,839 ± 200, 2026-09-13 청킹 조정 기준)")
-        self.stdout.write(f"stadium_code 없음: {no_stadium}  (정상 12 = 반입 공통 1 + 기초규칙 11)")
+        self.stdout.write(f"\n총 청크: {n}  (기대 3,434 ± 200, 2026-09-28 규정집 387 추가·일정/순위 792 제외 기준)")
+        self.stdout.write(f"stadium_code 없음: {no_stadium}  (정상 = 반입 공통 1 + 기초규칙 11 + 규정집 청크 {sum(1 for c in chunks if c['source'] == 'kbo_rulebook_chunks.csv')})")
         self.stdout.write(f"50자 미만: {short}")
         self.stdout.write(f"doc_id 중복: {dup}  (0 이어야 함)")
         for cat, cnt in sorted(by_cat.items(), key=lambda x: -x[1]):
@@ -387,4 +390,4 @@ class Command(BaseCommand):
 
         self.stdout.write("적재 시작...")
         loaded = self.load(chunks, vecs)
-        self.stdout.write(self.style.SUCCESS(f"완료: DocumentChunk {loaded}건, Document {Document.objects.count()}건"))
+        self.stdout.write(self.style.SUCCESS(f"완료: Qdrant {loaded}건 upsert (PostgreSQL 원본 보존)"))

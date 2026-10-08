@@ -1,0 +1,9 @@
+.chat-course-preferences { flex: 0 0 auto; margin: 8px 16px; color: #526987; font-size: 12px; }
+.chat-course-preferences summary { cursor: pointer; font-weight: 600; padding: 5px 0; }
+.chat-course-preferences summary > span { color: #2868ef; margin-left: 5px; }
+.chat-course-preference-list { display: flex; flex-wrap: wrap; gap: 5px; max-height: 120px; overflow-y: auto; padding: 6px 0; }
+.chat-course-preference-list button { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; border: 1px solid #dbe5f4; border-radius: 8px; padding: 5px 8px; background: #f5f8ff; color: #38577e; font: inherit; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+.chat-course-preference-list button:focus-visible { outline: 2px solid #2868ef; outline-offset: 2px; }
+.chat-course-preference-list button:disabled { opacity: .55; cursor: default; }
+.chat-course-preference-list button > span { flex-shrink: 0; }
+.chat-course-preferences p { margin: 3px 0 5px; font-size: 11px; color: #6b7d97; }

@@ -30,6 +30,23 @@ class Stadium(models.Model):
     longitude = models.DecimalField(max_digits=12, decimal_places=8)
     latitude = models.DecimalField(max_digits=12, decimal_places=8)
 
+    image_url = models.CharField(max_length=500, null=True, blank=True)
+    image_source_url = models.URLField(max_length=500, null=True, blank=True)
+    image_credit = models.CharField(max_length=300, null=True, blank=True)
+    image_credit_url = models.URLField(max_length=500, null=True, blank=True)
+    image_license_url = models.URLField(max_length=500, null=True, blank=True)
+
+    parking_map_url = models.CharField(max_length=500, null=True, blank=True)
+    parking_map_source_url = models.URLField(max_length=500, null=True, blank=True)
+    parking_map_credit = models.CharField(max_length=300, null=True, blank=True)
+    parking_map_title = models.CharField(max_length=300, null=True, blank=True)
+    parking_map_summary = models.TextField(null=True, blank=True)
+    parking_map_kind = models.CharField(max_length=30, null=True, blank=True, choices=[(kind, kind) for kind in ("entrance", "preferred-area", "nearby-alternatives", "access-gates")])
+    parking_map_visual_notes = models.JSONField(null=True, blank=True)
+    parking_map_captured_at = models.DateField(null=True, blank=True)
+    parking_map_width = models.PositiveIntegerField(null=True, blank=True)
+    parking_map_height = models.PositiveIntegerField(null=True, blank=True)
+
     geocode_source = models.TextField()
     facility_manager = models.TextField(null=True, blank=True)
     game_operator = models.TextField(null=True, blank=True)
@@ -474,6 +491,7 @@ class SeatMapAsset(models.Model):
     asset_no = models.IntegerField()
     asset_url = models.TextField()
     asset_role = models.TextField()
+    source_url = models.URLField(max_length=500, null=True, blank=True)
 
     class Meta:
         db_table = "SEAT_MAP_ASSET"

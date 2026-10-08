@@ -46,7 +46,7 @@ test("admin uses direct Bearer CRUD with ETag and preserves bodyless 204", async
   const detail = await fetchAdminDetail("teams", 1);
   await updateAdminRow("teams", 1, detail._etag, { team_name_ko: "엘지" });
   assert.equal(await deleteAdminRow("teams", 1, '"next"'), undefined);
-  assert.ok(calls.every(call => call.url.startsWith("/api/baseball/manage/") && call.authorization === "Bearer access-token"));
+  assert.ok(calls.every(call => call.url.startsWith("/api/v1/baseball/manage/") && call.authorization === "Bearer access-token"));
   assert.equal(calls[2].etag, '"etag"');
   assert.equal(calls[3].etag, '"next"');
   assert.equal(JSON.parse(calls[2].body)._etag, undefined);

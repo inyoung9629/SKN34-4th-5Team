@@ -3,13 +3,14 @@ import { useState } from "react";
 import type { TripRoute } from "@/lib/routes";
 import { withCourseStart } from "@/lib/drawn-course";
 import { shareOrCopy } from "@/lib/browser-share";
+import { googleLodgingId } from "@/lib/google-lodging";
 
 export function CourseShareButton({ route }: { route: TripRoute }) {
   const [message, setMessage] = useState("");
   const [fallback, setFallback] = useState("");
   async function share() {
     const stops = withCourseStart(route.stops, route.start);
-    const text = `${route.title}\n${route.stadium}\n\n${stops.map((stop, index) => `${index + 1}. ${stop.name}\nhttps://map.kakao.com/link/map/${encodeURIComponent(stop.name)},${stop.lat},${stop.lng}`).join("\n\n")}`;
+    const text = `${route.title}\n${route.stadium}\n\n${stops.map((stop, index) => googleLodgingId(stop) ? `${index + 1}. Google 숙소 · 저장된 코스에서 확인\n${window.location.origin}/routes/${encodeURIComponent(route.id)}` : `${index + 1}. ${stop.name}\nhttps://map.kakao.com/link/map/${encodeURIComponent(stop.name)},${stop.lat},${stop.lng}`).join("\n\n")}`;
     setMessage(""); setFallback("");
     const outcome = await shareOrCopy({ title: route.title, text }, text);
     if (outcome === "cancelled" || outcome === "shared") return;

@@ -119,7 +119,7 @@ export async function uploadCommunityImage(file: File) {
   if (file.size > 5 * 1024 * 1024) throw new Error("이미지는 한 장에 5MB 이하로 올려 주세요.");
   const form = new FormData();
   form.append("image", file);
-  const response = await memberFetch("/api/community/images/", { method: "POST", body: form, signal: AbortSignal.timeout(60000) });
+  const response = await memberFetch("/api/v1/community/images/", { method: "POST", body: form, signal: AbortSignal.timeout(60000) });
   if (!response.ok) throw await apiError(response, "이미지를 올리지 못했어요.");
   const data: unknown = await response.json().catch(() => null);
   if (!data || typeof data !== "object" || !/^[0-9a-f-]{36}$/i.test(String((data as Record<string, unknown>).id))) throw new Error("이미지 응답이 올바르지 않아요.");
@@ -156,7 +156,7 @@ async function requestVoid(path: string, init: RequestInit, fallback: string) {
 
 export async function fetchCommunityPosts(fetcher: typeof fetch = fetch): Promise<TeamCommunityPost[]> {
   try {
-    const data = await apiRequest<unknown>("/api/community/posts/", { cache: "no-store", signal: timeoutSignal() }, fetcher);
+    const data = await apiRequest<unknown>("/api/v1/community/posts/", { cache: "no-store", signal: timeoutSignal() }, fetcher);
     if (!Array.isArray(data) || !data.every(isPost)) throw new Error("서버 응답 형식이 올바르지 않아요.");
     return data;
   } catch (error) {
@@ -187,60 +187,60 @@ export function retryCommunityPosts() { return loadCommunityPosts(); }
 const refreshCommunityPosts = () => loadCommunityPosts(true);
 
 export function getCommunityPost(id: string) {
-  return requestJson(`/api/community/posts/${pathId(id, "게시글")}/`, { cache: "no-store", signal: timeoutSignal() }, isPost, "게시글을 불러오지 못했어요.", false);
+  return requestJson(`/api/v1/community/posts/${pathId(id, "게시글")}/`, { cache: "no-store", signal: timeoutSignal() }, isPost, "게시글을 불러오지 못했어요.", false);
 }
 
 export async function createCommunityPost(input: CommunityPostInput, idempotencyKey: string) {
   const key = content(idempotencyKey, "요청 식별자", 128);
-  const post = await requestJson("/api/community/posts/", { ...jsonInit("POST", postInput(input)), headers: { "Content-Type": "application/json", "Idempotency-Key": key } }, isPost, "게시글을 등록하지 못했어요.");
+  const post = await requestJson("/api/v1/community/posts/", { ...jsonInit("POST", postInput(input)), headers: { "Content-Type": "application/json", "Idempotency-Key": key } }, isPost, "게시글을 등록하지 못했어요.");
   await refreshCommunityPosts();
   return post;
 }
 
 export async function updateCommunityPost(id: string, input: CommunityPostInput) {
-  const post = await requestJson(`/api/community/posts/${pathId(id, "게시글")}/`, jsonInit("PATCH", postInput(input)), isPost, "게시글을 수정하지 못했어요.");
+  const post = await requestJson(`/api/v1/community/posts/${pathId(id, "게시글")}/`, jsonInit("PATCH", postInput(input)), isPost, "게시글을 수정하지 못했어요.");
   await refreshCommunityPosts();
   return post;
 }
 
 export async function deleteCommunityPost(id: string) {
-  await requestVoid(`/api/community/posts/${pathId(id, "게시글")}/`, jsonInit("DELETE"), "게시글을 삭제하지 못했어요.");
+  await requestVoid(`/api/v1/community/posts/${pathId(id, "게시글")}/`, jsonInit("DELETE"), "게시글을 삭제하지 못했어요.");
   await refreshCommunityPosts();
 }
 
 export function fetchMyCommunityPosts() {
-  return requestJson("/api/community/posts/?mine=1", { cache: "no-store", signal: timeoutSignal() }, (value): value is TeamCommunityPost[] => Array.isArray(value) && value.every(isPost), "내 게시글을 불러오지 못했어요.");
+  return requestJson("/api/v1/community/posts/?mine=1", { cache: "no-store", signal: timeoutSignal() }, (value): value is TeamCommunityPost[] => Array.isArray(value) && value.every(isPost), "내 게시글을 불러오지 못했어요.");
 }
 
 export function fetchCommunityComments(postId: string, order: "oldest" | "newest" = "oldest") {
   if (order !== "oldest" && order !== "newest") throw new Error("댓글 정렬이 올바르지 않아요.");
-  return requestJson(`/api/community/posts/${pathId(postId, "게시글")}/comments/?order=${order}`, { cache: "no-store", signal: timeoutSignal() }, (value): value is CommunityComment[] => Array.isArray(value) && value.every(isComment), "댓글을 불러오지 못했어요.", false);
+  return requestJson(`/api/v1/community/posts/${pathId(postId, "게시글")}/comments/?order=${order}`, { cache: "no-store", signal: timeoutSignal() }, (value): value is CommunityComment[] => Array.isArray(value) && value.every(isComment), "댓글을 불러오지 못했어요.", false);
 }
 
 export async function createCommunityComment(postId: string, value: string) {
-  const comment = await requestJson(`/api/community/posts/${pathId(postId, "게시글")}/comments/`, jsonInit("POST", { content: content(value, "댓글", 2000) }), isComment, "댓글을 등록하지 못했어요.");
+  const comment = await requestJson(`/api/v1/community/posts/${pathId(postId, "게시글")}/comments/`, jsonInit("POST", { content: content(value, "댓글", 2000) }), isComment, "댓글을 등록하지 못했어요.");
   await refreshCommunityPosts();
   return comment;
 }
 
 export async function updateCommunityComment(commentId: number, value: string) {
-  const comment = await requestJson(`/api/community/comments/${numericId(commentId, "댓글")}/`, jsonInit("PATCH", { content: content(value, "댓글", 2000) }), isComment, "댓글을 수정하지 못했어요.");
+  const comment = await requestJson(`/api/v1/community/comments/${numericId(commentId, "댓글")}/`, jsonInit("PATCH", { content: content(value, "댓글", 2000) }), isComment, "댓글을 수정하지 못했어요.");
   await refreshCommunityPosts();
   return comment;
 }
 
 export async function deleteCommunityComment(commentId: number) {
-  await requestVoid(`/api/community/comments/${numericId(commentId, "댓글")}/`, jsonInit("DELETE"), "댓글을 삭제하지 못했어요.");
+  await requestVoid(`/api/v1/community/comments/${numericId(commentId, "댓글")}/`, jsonInit("DELETE"), "댓글을 삭제하지 못했어요.");
   await refreshCommunityPosts();
 }
 
 export function fetchCommunityVote(postId: string) {
-  return requestJson(`/api/community/posts/${pathId(postId, "게시글")}/vote/`, { cache: "no-store", signal: timeoutSignal() }, isVoteState, "추천 정보를 불러오지 못했어요.");
+  return requestJson(`/api/v1/community/posts/${pathId(postId, "게시글")}/vote/`, { cache: "no-store", signal: timeoutSignal() }, isVoteState, "추천 정보를 불러오지 못했어요.");
 }
 
 export async function setCommunityVote(postId: string, vote: "up" | "down" | null) {
   if (vote !== "up" && vote !== "down" && vote !== null) throw new Error("추천 값이 올바르지 않아요.");
-  const result = await requestJson(`/api/community/posts/${pathId(postId, "게시글")}/vote/`, jsonInit("POST", { vote }), isVoteState, "추천을 반영하지 못했어요.");
+  const result = await requestJson(`/api/v1/community/posts/${pathId(postId, "게시글")}/vote/`, jsonInit("POST", { vote }), isVoteState, "추천을 반영하지 못했어요.");
   await refreshCommunityPosts();
   return result;
 }
@@ -250,7 +250,7 @@ export async function reportCommunityPost(postId: string, reason: CommunityRepor
   if (typeof detail !== "string") throw new Error("신고 상세가 올바르지 않아요.");
   const trimmedDetail = detail.trim();
   if (trimmedDetail.length > 50) throw new Error("신고 상세는 50자 이하로 입력해 주세요.");
-  const report = await requestJson(`/api/community/posts/${pathId(postId, "게시글")}/reports/`, jsonInit("POST", { reason, detail: trimmedDetail }), isReportResult, "게시글을 신고하지 못했어요.");
+  const report = await requestJson(`/api/v1/community/posts/${pathId(postId, "게시글")}/reports/`, jsonInit("POST", { reason, detail: trimmedDetail }), isReportResult, "게시글을 신고하지 못했어요.");
   await refreshCommunityPosts();
   return report;
 }

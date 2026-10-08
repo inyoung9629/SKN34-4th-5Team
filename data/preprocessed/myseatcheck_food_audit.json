@@ -1,0 +1,102 @@
+{
+  "checkedAt": "2026-10-07",
+  "pageCount": 453,
+  "storeCount": 388,
+  "counts": {
+    "JAMSIL": {
+      "FOOD": 51,
+      "CONVENIENCE": 7,
+      "CAFE": 9
+    },
+    "GOCHEOK": {
+      "FOOD": 34,
+      "CAFE": 6,
+      "CONVENIENCE": 2
+    },
+    "SAJIK": {
+      "FOOD": 23,
+      "CONVENIENCE": 4,
+      "CAFE": 6
+    },
+    "DAEGU": {
+      "CAFE": 12,
+      "FOOD": 30,
+      "CONVENIENCE": 3
+    },
+    "GWANGJU": {
+      "FOOD": 18,
+      "CONVENIENCE": 3,
+      "CAFE": 7
+    },
+    "DAEJEON": {
+      "FOOD": 33,
+      "CONVENIENCE": 5,
+      "CAFE": 5
+    },
+    "CHANGWON": {
+      "CAFE": 7,
+      "FOOD": 26,
+      "CONVENIENCE": 4
+    },
+    "MUNHAK": {
+      "FOOD": 33,
+      "CAFE": 11,
+      "CONVENIENCE": 3
+    },
+    "SUWON": {
+      "FOOD": 31,
+      "CAFE": 8,
+      "CONVENIENCE": 7
+    }
+  },
+  "sourceExteriorCount": 39,
+  "rootUrls": {
+    "JAMSIL": "https://myseatcheck.com/서울-잠실야구장-먹거리/",
+    "GOCHEOK": "https://myseatcheck.com/고척스카이돔-먹거리/",
+    "SAJIK": "https://myseatcheck.com/부산-사직야구장-먹거리/",
+    "DAEGU": "https://myseatcheck.com/대구-라이온즈파크-먹거리/",
+    "GWANGJU": "https://myseatcheck.com/광주-챔피언스필드-먹거리/",
+    "DAEJEON": "https://myseatcheck.com/대전한화생명볼파크-먹거리/",
+    "CHANGWON": "https://myseatcheck.com/창원nc파크-먹거리/",
+    "MUNHAK": "https://myseatcheck.com/인천-랜더스필드-먹거리/",
+    "SUWON": "https://myseatcheck.com/수원-kt위즈파크-먹거리/"
+  },
+  "areaOnlyPages": [
+    {
+      "stadium": "DAEJEON",
+      "title": "4층 스플래시존 (420구역)",
+      "url": "https://myseatcheck.com/대전한화생명볼파크-먹거리-4층-스플래시존/",
+      "reason": "먹거리 구역명으로 포함 · 개별 매장명 미표기"
+    },
+    {
+      "stadium": "DAEGU",
+      "title": "파티플로어석 (3루 4층)",
+      "url": "https://myseatcheck.com/대구-라이온즈파크-먹거리-파티플로어석/",
+      "reason": "먹거리 구역명으로 포함 · 개별 매장명 미표기"
+    }
+  ],
+  "redirects": {
+    "https://myseatcheck.com/부산-사직야구장-먹거리-3층-1루/": "https://myseatcheck.com/부산-사직야구장-먹거리-2층-3루-세븐일레븐/부산-사직야구장-먹거리-3층-1루/",
+    "https://myseatcheck.com/인천-랜더스필드-먹거리-1루-2층-노브랜드버거/": "https://myseatcheck.com/인천-랜더스필드-먹거리-1루-2층-노브랜드버거-2/"
+  },
+  "correctedLinks": [
+    {
+      "stadium": "MUNHAK",
+      "name": "민영활어공장",
+      "detailUrl": "https://myseatcheck.com/인천-랜더스필드-먹거리-외부-3루-매표소앞-민영활어/",
+      "note": "자리어때 루트 목록의 잘못 연결된 매장 링크를 사이트 검색의 실제 상세 페이지와 대조"
+    }
+  ],
+  "retiredRecords": [
+    {
+      "id": "SC_FOOD_GWANGJU_023",
+      "name": "광주원샷",
+      "zone": "3루 4층"
+    },
+    {
+      "id": "SC_FOOD_GWANGJU_024",
+      "name": "자문밖",
+      "zone": "3루 4층"
+    }
+  ]
+}

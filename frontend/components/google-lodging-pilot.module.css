@@ -1,0 +1,21 @@
+.page { max-width: 1180px; margin: 32px auto; padding: 0 24px 48px; color: #172a3a; }
+.page h1 { font-size: 28px; font-weight: 800; margin: 8px 0 12px; }
+.page h2 { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
+.page p { line-height: 1.7; margin: 8px 0; }
+.label { color: #375a7a; font-size: 13px; font-weight: 700; }
+.notice { padding: 16px 20px; border: 1px solid #d4dfe7; background: #f3f7fa; border-radius: 12px; margin: 20px 0; }
+.notice code { overflow-wrap: anywhere; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.controls button { border: 1px solid #b9c8d5; background: #fff; border-radius: 8px; padding: 10px 14px; cursor: pointer; font-weight: 600; }
+.controls button:hover:not(:disabled) { background: #e8f2fb; }
+.controls button:disabled { opacity: .45; cursor: not-allowed; }
+.columns { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.results { min-height: 210px; border: 1px solid #d4dfe7; border-radius: 12px; padding: 12px; background: white; }
+.results > * { width: 100%; color-scheme: light; }
+.map { width: 100%; height: 440px; border-radius: 12px; border: 1px solid #d4dfe7; }
+.status { font-size: 14px; overflow-wrap: anywhere; }
+.dot { width: 20px; height: 20px; border: 3px solid white; border-radius: 50%; box-shadow: 0 1px 6px #0006; }
+.stadium { background: #b5233e; }
+.lodging { background: #176cd3; }
+.legend { font-size: 13px; color: #405a70; }
+@media (max-width: 760px) { .columns { grid-template-columns: 1fr; } .map { height: 340px; } .page { padding: 0 16px 32px; } }

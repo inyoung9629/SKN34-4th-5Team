@@ -1,0 +1,29 @@
+.slot { margin-block: 24px 40px; }
+.frame { position: relative; overflow: hidden; border-radius: 18px; background: #102039; isolation: isolate; }
+.link { display: block; color: white; }
+.artwork { display: block; width: 100%; height: auto; aspect-ratio: 3 / 1; }
+.placeholder { aspect-ratio: 3 / 1; background: linear-gradient(110deg, #193963, #101c31); }
+.arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 1; width: 44px; height: 64px; display: grid; place-items: center; border: 0; background: rgb(0 0 0 / 12%); color: white; border-radius: 10px; font-size: 52px; font-weight: 300; line-height: 1; cursor: pointer; }
+.previous { left: 12px; }
+.next { right: 12px; }
+.arrow:hover { background: rgb(0 0 0 / 30%); }
+.controls { position: absolute; bottom: 18px; right: 22px; display: flex; align-items: center; gap: 0; border-radius: 24px; background: rgb(0 0 0 / 40%); color: white; padding: 0 8px; font-size: 13px; }
+.disclosure { padding: 0 12px; font-size: 11px; color: #f1f4fa; }
+.controls button { width: 44px; height: 44px; border: 0; border-inline: 1px solid rgb(255 255 255 / 18%); background: transparent; color: white; cursor: pointer; }
+.controls button:disabled { opacity: .65; cursor: default; }
+.counter { display: flex; gap: 7px; padding: 0 12px; font-variant-numeric: tabular-nums; }
+.counter span { opacity: .75; }
+.link:focus-visible { outline: 3px solid white; outline-offset: -5px; }
+.arrow:focus-visible, .controls button:focus-visible { outline: 3px solid #fff; outline-offset: -3px; }
+@media (max-width: 640px) {
+  .slot { margin-block: 18px 28px; }
+  .frame { border-radius: 12px; }
+  .artwork, .placeholder { aspect-ratio: 12 / 7; }
+  .arrow { width: 32px; height: 44px; font-size: 38px; }
+  .previous { left: 3px; }
+  .next { right: 3px; }
+  .controls { bottom: 10px; right: 10px; font-size: 12px; }
+  .disclosure { font-size: 10px; padding-inline: 8px; }
+  .controls button { width: 44px; height: 36px; }
+  .counter { padding-inline: 8px; }
+}

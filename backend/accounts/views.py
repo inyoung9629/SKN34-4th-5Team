@@ -60,7 +60,7 @@ class LogoutView(TokenBlacklistView):
 def signup(request):
     """
         회원가입하는 함수입니다.
-        Url : /api/auth/signup/
+        Url : /api/v1/auth/signup/
         Args:
             - username
             - email, first_name, birth_date, gender
@@ -86,7 +86,7 @@ def signup(request):
 def change_password(request):
     """
         사용자 비밀번호 재설정 url 을 이메일로 전송합니다.
-        Url: /api/auth/password/request
+        Url: /api/v1/auth/password/request
         Args:
             - email
         Return:
@@ -165,7 +165,7 @@ def set_password(request):
 def get_user(request):
     """
         로그인한 사용자 정보를 조회합니다.
-        Url: GET /auth/user (Nginx 경유: /api/auth/user)
+        Url: GET /api/v1/auth/user
         Headers: Authorization: Bearer <access_token>
         Return:
             - HTTP_200_OK

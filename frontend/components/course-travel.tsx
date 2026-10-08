@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { TRAVEL_MODES, travelDistance, travelTime, type CourseDirections, type TravelMode, type TravelPoint } from "@/lib/course-directions";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { requestCurrentLocation } from "@/lib/geolocation";
+import { TRAVEL_MODES, activeLegModes, courseLegModes, fetchCourseDirections, legKey, travelDistance, travelTime, type CourseDirections, type LegModes, type TravelLeg, type TravelMode, type TravelPoint } from "@/lib/course-directions";
 import type { RouteStop } from "@/lib/routes";
+import { canRequestDirections, isLodgingReference, locatedStop } from "@/lib/google-lodging";
 import type { KakaoMap, KakaoMaps, KakaoOverlay } from "@/lib/kakao-maps";
 
 import { coursePointLabel } from "@/lib/drawn-course";
@@ -14,11 +16,19 @@ import type { CSSProperties, ReactNode } from "react";
 const LEG_COLORS = ["#3478dc", "#d76a32", "#8954b9", "#218777", "#c44776", "#9b7928", "#467b90", "#a65346", "#6663b5", "#52853d", "#ae549a", "#55718c"];
 const legColor = (index: number) => LEG_COLORS[index % LEG_COLORS.length];
 
-export function useCourseDirections(stops: RouteStop[], enabled = true, initialStart?: TravelPoint, replaceOrigin?: (point: TravelPoint) => boolean, initialMode: TravelMode = "walk", onModeChange?: (mode: TravelMode) => void, onPickingStart?: () => void) {
+type ControlledCourse = { start?: TravelPoint; mode: TravelMode; revision: number; originSource: "custom" | "current";
+  onStartChange: (start: TravelPoint | undefined, source?: "custom" | "current") => void };
+export function useCourseDirections(stops: RouteStop[], enabled = true, initialStart?: TravelPoint, replaceOrigin?: (point: TravelPoint) => boolean, initialMode: TravelMode = "walk", onModeChange?: (mode: TravelMode) => void, onPickingStart?: () => void, savedLegModes?: LegModes, onLegModesChange?: (modes: LegModes) => void, controlled?: ControlledCourse) {
   const [legSelection, setLegSelection] = useState<{ key: string; index: number } | null>(null);
-  const [mode, setModeState] = useState<TravelMode>(initialMode);
-  const setMode = (next: TravelMode) => { setModeState(next); onModeChange?.(next); };
-  const [origin, setOrigin] = useState<"first" | "current" | "custom">(initialStart ? "custom" : "first");
+  const [localMode, setModeState] = useState<TravelMode>(initialMode);
+  const mode = controlled?.mode ?? localMode;
+  const [localLegModes, setLocalLegModes] = useState<LegModes>({});
+  const legModes = savedLegModes ?? localLegModes;
+  const updateLegModes = (next: LegModes) => { setLocalLegModes(next); onLegModesChange?.(next); };
+  const setMode = (next: TravelMode) => { if (!controlled) { setModeState(next); updateLegModes({}); } onModeChange?.(next); };
+  const cache = useRef(new Map<string, TravelLeg>());
+  const [localOrigin, setOrigin] = useState<"first" | "current" | "custom">(initialStart ? "custom" : "first");
+  const origin = controlled ? controlled.start ? controlled.originSource : "first" : localOrigin;
   const [customLocation, setCustomLocation] = useState<TravelPoint | null>(initialStart ?? null);
   const [picking, setPicking] = useState(false);
   const [location, setLocation] = useState<TravelPoint | null>(null);
@@ -27,10 +37,27 @@ export function useCourseDirections(stops: RouteStop[], enabled = true, initialS
   const locationRequest = useRef(0);
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{ key: string; data?: CourseDirections; error?: string } | null>(null);
-  const startLocation = origin === "current" ? location : origin === "custom" ? customLocation : null;
-  const points = useMemo(() => startLocation ? [startLocation, ...stops] : stops, [startLocation, stops]);
-  const ready = enabled && stops.length > 0 && points.length >= 2 && (origin === "first" || Boolean(startLocation)) && !locating && !picking;
-  const payload = JSON.stringify({ action: "directions", mode, points: points.map(({ lat, lng }) => ({ lat, lng })) });
+  const startLocation = controlled ? controlled.start ?? null : origin === "current" ? location : origin === "custom" ? customLocation : null;
+  const controlRef = useRef(controlled);
+  useLayoutEffect(() => { controlRef.current = controlled; });
+  const revision = controlled?.revision;
+  const [pickerRevision, setPickerRevision] = useState(revision);
+  if (pickerRevision !== revision) {
+    setPickerRevision(revision); setPicking(false); setLocating(false); setLocationError("");
+  }
+  useEffect(() => { locationRequest.current++; }, [revision]);
+  const allPoints = useMemo(() => startLocation ? [startLocation, ...stops] : stops, [startLocation, stops]);
+  const points = useMemo(() => allPoints.filter(locatedStop), [allPoints]);
+  const googleCourse = stops.some(stop => isLodgingReference(stop));
+  const unresolved = points.length !== allPoints.length;
+  const ready = enabled && canRequestDirections(stops) && stops.length > 0 && points.length >= 2 && (origin === "first" || Boolean(startLocation)) && !locating && !picking;
+  const direct = useMemo<CourseDirections | undefined>(() => googleCourse && !unresolved && points.length >= 2 ? {
+    mode, seconds: null, distance: null,
+    legs: points.slice(1).map((point, index) => ({ status: "error", paths: [[points[index], point]], instructions: [], error: "방문 순서 직선 연결 · 실제 이동 경로/시간 미제공" })),
+  } : undefined, [googleCourse, unresolved, points, mode]);
+  const modes = courseLegModes(points, mode, legModes);
+  const routeKey = JSON.stringify(points.map(({ lat, lng }) => ({ lat, lng })));
+  const payload = JSON.stringify({ mode, modes, points: points.map(({ lat, lng }) => ({ lat, lng })) });
   const requestKey = `${payload}:${attempt}`;
   useEffect(() => () => { locationRequest.current++; }, []);
   useEffect(() => {
@@ -38,10 +65,8 @@ export function useCourseDirections(stops: RouteStop[], enabled = true, initialS
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const response = await fetch("/api/travel/directions/", { method: "POST", headers: { "Content-Type": "application/json" }, body: payload, signal: controller.signal });
-        const body = await response.json();
-        if (!response.ok) throw new Error(typeof body.error === "string" ? body.error : "경로를 조회하지 못했어요.");
-        if (!Array.isArray(body.legs)) throw new Error("경로 응답을 확인하지 못했어요.");
+        const args = JSON.parse(payload) as { mode: TravelMode; modes: TravelMode[]; points: TravelPoint[] };
+        const body = await fetchCourseDirections(args.points, args.modes, args.mode, cache.current, controller.signal);
         if (!controller.signal.aborted) setResult({ key: requestKey, data: body });
       } catch (error) {
         if (!controller.signal.aborted) setResult({ key: requestKey, error: error instanceof Error ? error.message : "경로를 조회하지 못했어요." });
@@ -49,36 +74,40 @@ export function useCourseDirections(stops: RouteStop[], enabled = true, initialS
     }, 450);
     return () => { clearTimeout(timer); controller.abort(); };
   }, [payload, requestKey, ready]);
-  function chooseFirst() { locationRequest.current++; setOrigin("first"); setPicking(false); setLocating(false); setLocationError(""); }
+  function chooseFirst() { locationRequest.current++; if (controlled) controlled.onStartChange(undefined); else setOrigin("first"); setPicking(false); setLocating(false); setLocationError(""); }
   function chooseCurrent() {
+    onPickingStart?.();
     setOrigin("current"); setPicking(false); setLocation(null); setLocationError("");
     const sequence = ++locationRequest.current;
-    if (!window.isSecureContext || !navigator.geolocation) {
-      onPickingStart?.();
-      setOrigin("custom"); setPicking(true);
-      setLocationError("");
-      return;
-    }
+    const requestedRevision = controlled?.revision;
     setLocating(true);
-    navigator.geolocation.getCurrentPosition((position) => {
-      if (locationRequest.current !== sequence) return;
-      const point = { lat: position.coords.latitude, lng: position.coords.longitude };
-      if (replaceOrigin?.(point)) { setLocation(null); setOrigin("first"); }
+    requestCurrentLocation((point) => {
+      if (locationRequest.current !== sequence || controlRef.current?.revision !== requestedRevision) return;
+      if (controlRef.current) controlRef.current.onStartChange(point, "current");
+      else if (replaceOrigin?.(point)) { setLocation(null); setOrigin("first"); }
       else setLocation(point);
       setLocating(false);
-    }, () => {
-      if (locationRequest.current !== sequence) return;
+    }, (message) => {
+      if (locationRequest.current !== sequence || controlRef.current?.revision !== requestedRevision) return;
       onPickingStart?.();
       setLocating(false); setOrigin("custom"); setPicking(true);
-      setLocationError("");
-    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+      setLocationError(message);
+    });
   }
   function chooseCustom() { locationRequest.current++; onPickingStart?.(); setLocating(false); setLocationError(""); setOrigin("custom"); setPicking(true); }
   function pickLocation(point: TravelPoint) {
-    if (replaceOrigin?.(point)) { setCustomLocation(null); setOrigin("first"); }
+    locationRequest.current++;
+    setLocating(false);
+    if (controlled) controlled.onStartChange(point, "custom");
+    else if (replaceOrigin?.(point)) { setCustomLocation(null); setOrigin("first"); }
     else { setCustomLocation(point); setOrigin("custom"); }
     setPicking(false); setLocationError("");
   }
+  const syncStart = useCallback((point?: TravelPoint) => {
+    locationRequest.current++;
+    setCustomLocation(point ?? null); setLocation(null);
+    setOrigin(point ? "custom" : "first"); setPicking(false); setLocating(false); setLocationError("");
+  }, []);
   function cancelPicking() { setPicking(false); setLocationError(""); if (!customLocation) setOrigin("first"); }
   function reset() {
     locationRequest.current++;
@@ -87,9 +116,13 @@ export function useCourseDirections(stops: RouteStop[], enabled = true, initialS
     setLocating(false); setLocationError(""); setResult(null);
   }
   const current = ready && result?.key === requestKey ? result : null;
-  const selectedLeg = legSelection?.key === requestKey ? legSelection.index : null;
-  const selectLeg = (index: number | null) => setLegSelection(index === null ? null : { key: requestKey, index });
-  return { selectedLeg, selectLeg, mode, setMode, origin, chooseFirst, chooseCurrent, chooseCustom, pickLocation, cancelPicking, reset, picking, location: startLocation, locating, locationError, points, ready, loading: ready && !current, data: current?.data, error: current?.error, retry: () => setAttempt((value) => value + 1) };
+  const selectedLeg = legSelection?.key === routeKey ? legSelection.index : null;
+  const selectLeg = (index: number | null) => setLegSelection(index === null ? null : { key: routeKey, index });
+  const setSelectedMode = (next: TravelMode) => {
+    if (selectedLeg === null) setMode(next);
+    else updateLegModes({ ...activeLegModes(points, legModes), [legKey(points[selectedLeg], points[selectedLeg + 1])]: next });
+  };
+  return { selectedLeg, selectLeg, mode, modes, setMode, syncMode: setModeState, syncStart, setSelectedMode, origin, chooseFirst, chooseCurrent, chooseCustom, pickLocation, cancelPicking, reset, picking, location: startLocation, locating, locationError, points, ready, loading: ready && !current, data: googleCourse ? direct : current?.data, googleCourse, unresolved, error: current?.error, retry: () => { cache.current.clear(); setAttempt((value) => value + 1); } };
 }
 type TravelState = ReturnType<typeof useCourseDirections>;
 
@@ -196,6 +229,7 @@ export function CourseTravelPanel({ travel, stops, onFit, showDirections = true,
   const pointLabels = stops.map((_, index) => coursePointLabel(stops, index, origin !== "first"));
   if (origin !== "first") pointLabels.unshift(origin === "current" ? "내 위치" : "출발");
   const legLabel = (index: number) => `${pointLabels[index]} → ${pointLabels[index + 1]}`;
+  const selectedMode = travel.selectedLeg === null ? (travel.modes.every(value => value === travel.modes[0]) ? travel.modes[0] ?? mode : null) : travel.modes[travel.selectedLeg];
   return <section className="course-travel" aria-label={showDirections ? "코스 이동 경로와 예상 시간" : "출발지 선택"}>
     <div className="course-travel-heading"><strong>{showDirections ? "코스 이동 안내" : "출발지 선택"}</strong>{showDirections && onFit && data && <button type="button" onClick={onFit}>경로 전체 보기</button>}</div>
     {originReplacement ?? <><button type="button" className="course-origin-trigger" aria-expanded={showOrigins} onClick={() => setShowOrigins((show) => !show)}>시작 위치 설정 <span>{origin === "first" ? firstLabel : origin === "current" ? "내 위치" : "지도에서 지정"} ▾</span></button>
@@ -204,14 +238,19 @@ export function CourseTravelPanel({ travel, stops, onFit, showDirections = true,
       <button type="button" aria-pressed={origin === "current"} onClick={() => { travel.chooseCurrent(); setShowOrigins(false); }}>내 위치에서 출발</button>
       <button type="button" aria-pressed={origin === "custom"} onClick={() => { travel.chooseCustom(); setShowOrigins(false); }}>지도에서 직접 지정</button>
     </div>}</>}
-    {showDirections && <div className="course-modes" role="group" aria-label="이동 수단">{TRAVEL_MODES.map((item) => <button type="button" key={item.id} aria-pressed={mode === item.id} onClick={() => travel.setMode(item.id)}>{item.label}</button>)}</div>}
+    {showDirections && !travel.googleCourse && <>
+      <div className="course-leg-focus" role="group" aria-label="지도 구간 강조">
+        <button type="button" aria-pressed={travel.selectedLeg === null} onClick={() => travel.selectLeg(null)}>전체</button>
+        {travel.points.slice(1).map((_, index) => <button type="button" key={index} style={{ "--leg-color": legColor(index) } as CSSProperties} aria-label={`${index + 1}구간: ${names[index]}에서 ${names[index + 1]}까지 강조`} aria-pressed={travel.selectedLeg === index} onClick={() => travel.selectLeg(index)}><span className="course-leg-swatch" aria-hidden="true" />{legLabel(index)}</button>)}
+      </div>
+      <p className="course-mode-target">{travel.selectedLeg === null ? "전체 구간 이동수단" : `${legLabel(travel.selectedLeg)} 이동수단`}</p>
+      <div className="course-modes" role="group" aria-label="이동 수단">{TRAVEL_MODES.map((item) => <button type="button" key={item.id} aria-pressed={selectedMode === item.id} onClick={() => travel.setSelectedMode(item.id)}>{item.label}</button>)}</div>
+      <p className="course-travel-note">{travel.selectedLeg === null ? "구간을 선택하면 해당 구간의 이동수단만 바꿀 수 있어요." : `${names[travel.selectedLeg]} → ${names[travel.selectedLeg + 1]}에만 적용해요.`}</p>
+    </>}
     <div aria-live="polite" className="course-travel-status">
-      {travel.picking ? <p>지도에서 출발할 위치를 눌러 주세요. <button type="button" onClick={travel.cancelPicking}>지정 취소</button></p> : travel.locating ? <p>내 위치를 확인하고 있어요.</p> : travel.locationError ? <p role="alert">{travel.locationError}</p> : !showDirections ? <p>{stops.length === 0 ? travel.location ? "출발 위치를 정했어요. 코스에 방문할 장소를 추가해 주세요." : "첫 번째 지점에서 출발하거나, 내 위치·지도에서 출발지를 먼저 정할 수 있어요." : "코스 완성을 누르면 예상 이동 시간을 확인할 수 있어요."}</p> : !travel.ready ? <p>{stops.length === 0 ? "코스에 방문 장소를 추가해 주세요." : "코스에 두 곳 이상 담거나 별도의 시작 위치를 설정해 보세요."}</p> : travel.loading ? <p>{TRAVEL_MODES.find((item) => item.id === mode)!.label} 경로를 조회하고 있어요…</p> : travel.error ? <p role="alert">{travel.error}</p> : data && <>
+      {travel.googleCourse && <p>실시간 조회 숙소가 포함되어 현재 실제 길찾기·이동 시간은 제공하지 않아요. {travel.unresolved ? "숙소 위치 확인 버튼으로 조회하면 연결선이 표시돼요." : "지도 선은 방문 순서의 직선 연결이에요."}</p>}
+      {travel.picking && travel.locationError && <p role="alert">{travel.locationError}</p>}{travel.picking ? <p>지도에서 출발할 위치를 눌러 주세요. <button type="button" onClick={travel.cancelPicking}>지정 취소</button></p> : travel.locating ? <p>내 위치를 확인하고 있어요.</p> : travel.locationError ? <p role="alert">{travel.locationError}</p> : travel.googleCourse ? null : !showDirections ? <p>{stops.length === 0 ? travel.location ? "출발 위치를 정했어요. 코스에 방문할 장소를 추가해 주세요." : "첫 번째 지점에서 출발하거나, 내 위치·지도에서 출발지를 먼저 정할 수 있어요." : "코스 완성을 누르면 예상 이동 시간을 확인할 수 있어요."}</p> : !travel.ready ? <p>{stops.length === 0 ? "코스에 방문 장소를 추가해 주세요." : "코스에 두 곳 이상 담거나 별도의 시작 위치를 설정해 보세요."}</p> : travel.loading ? <p>{(TRAVEL_MODES.find((item) => item.id === selectedMode)?.label ?? "구간별")} 경로를 조회하고 있어요…</p> : travel.error ? <p role="alert">{travel.error}</p> : data && <>
         {data.seconds !== null && data.distance !== null ? <p className="course-travel-total"><strong>약 {travelTime(data.seconds)}</strong><span>총 {travelDistance(data.distance)} · 이동 시간</span></p> : <p role="alert">조회하지 못한 구간이 있어 전체 시간을 계산할 수 없어요.</p>}
-        <div className="course-leg-focus" role="group" aria-label="지도 구간 강조">
-          <button type="button" aria-pressed={travel.selectedLeg === null} onClick={() => travel.selectLeg(null)}>전체</button>
-          {data.legs.map((_, index) => <button type="button" key={index} style={{ "--leg-color": legColor(index) } as CSSProperties} aria-label={`${index + 1}구간: ${names[index]}에서 ${names[index + 1]}까지 강조`} aria-pressed={travel.selectedLeg === index} onClick={() => travel.selectLeg(travel.selectedLeg === index ? null : index)}><span className="course-leg-swatch" aria-hidden="true" />{legLabel(index)}</button>)}
-        </div>
         {travel.selectedLeg !== null && <div className="course-leg-stepper">
           <button type="button" aria-label="이전 구간 강조" disabled={travel.selectedLeg === 0} onClick={() => travel.selectLeg(travel.selectedLeg! - 1)}>‹</button>
           <span>{travel.selectedLeg + 1} / {data.legs.length} 구간</span>
@@ -219,8 +258,8 @@ export function CourseTravelPanel({ travel, stops, onFit, showDirections = true,
         </div>}
         <p className="course-travel-note">같은 길을 지나는 구간은 색을 나란히 나눠 표시해요.</p>
         <ol className="course-travel-legs">{data.legs.map((leg, index) => <li key={index} style={{ "--leg-color": legColor(index) } as CSSProperties} className={travel.selectedLeg === index ? "is-active" : undefined}>
-          <button type="button" className="course-leg-row" aria-pressed={travel.selectedLeg === index} onClick={() => travel.selectLeg(travel.selectedLeg === index ? null : index)}>
-            <span className="course-leg-order"><span className="course-leg-swatch" aria-hidden="true" />{legLabel(index)}</span>
+          <button type="button" className="course-leg-row" aria-pressed={travel.selectedLeg === index} onClick={() => travel.selectLeg(index)}>
+            <span className="course-leg-order"><span className="course-leg-swatch" aria-hidden="true" />{legLabel(index)} · {TRAVEL_MODES.find(item => item.id === travel.modes[index])?.label}</span>
             <span className="course-leg-names">{names[index]} → {names[index + 1]}</span>
             <b>{leg.status === "ok" ? travelTime(leg.seconds!) : "조회 불가"}</b>
           </button>
@@ -229,6 +268,6 @@ export function CourseTravelPanel({ travel, stops, onFit, showDirections = true,
       </>}
     </div>
     {showDirections && travel.ready && !travel.loading && <button type="button" className="course-travel-retry" onClick={travel.retry}>경로 다시 조회</button>}
-    {showDirections && <p className="course-travel-note">방문 순서대로 계산한 예상 이동 시간이며, 식사·관람 등 체류 시간은 제외돼요.{mode === "transit" && " 구간별 대중교통 경로를 합산하며 실제 대기·환승 시간은 달라질 수 있어요."}{mode === "car" && " 교통 상황과 주차 시간에 따라 달라질 수 있어요."}</p>}
+    {showDirections && !travel.googleCourse && <p className="course-travel-note">방문 순서대로 계산한 예상 이동 시간이며, 식사·관람 등 체류 시간은 제외돼요.{travel.modes.includes("transit") && " 구간별 대중교통 경로를 합산하며 실제 대기·환승 시간은 달라질 수 있어요."}{travel.modes.includes("car") && " 교통 상황과 주차 시간에 따라 달라질 수 있어요."}</p>}
   </section>;
 }

@@ -18,7 +18,7 @@ test("uses the direct same-origin Django route without a browser cache", async (
   let calls = 0;
   const fetcher = async (url, init) => {
     calls += 1;
-    assert.equal(url, "/api/weather/?stadium=JAMSIL&date=2026-09-15&time=18%3A30");
+    assert.equal(url, "/api/v1/weather/?stadium=JAMSIL&date=2026-09-15&time=18%3A30");
     assert.equal(init.cache, "no-store");
     assert.equal(init.redirect, "error");
     assert.ok(init.signal instanceof AbortSignal);

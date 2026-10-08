@@ -1,17 +1,29 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { fetchCommunityVote, setCommunityVote, type CommunityVoteState } from "@/lib/community-api";
 import { useMemberAuth } from "@/lib/member-auth";
 import { nextCommunityVote, type CommunityVote } from "@/lib/community-votes";
 import type { TeamCommunityPost } from "@/lib/team-community";
 import styles from "./community-interactions.module.css";
 
+function VoteLabel({ direction, count, selected = false }: { direction: "up" | "down"; count: number; selected?: boolean }) {
+  return <>
+    <Image className={styles.voteImage} src={`/images/community-vote-${direction}.png`} alt="" width={72} height={72} sizes="72px" />
+    <span className={styles.voteLabel}>{direction === "up" ? "추천" : "비추천"} <strong>{count.toLocaleString("ko-KR")}</strong></span>
+    <span className={styles.voteSelection} aria-hidden="true">{selected ? "선택됨" : ""}</span>
+  </>;
+}
+
 export function CommunityPostVote({ post }: { post: TeamCommunityPost }) {
   const { user } = useMemberAuth();
   const actorId = user?.id ?? null;
   const downvotes = "downvotes" in post && typeof post.downvotes === "number" ? post.downvotes : 0;
-  if (!actorId) return <div className={styles.vote} aria-label="게시글 추천 현황"><span>추천 {post.recommendations}</span><span>비추천 {downvotes}</span></div>;
+  if (!actorId) return <div className={styles.vote} aria-label="게시글 추천 현황">
+    <div className={styles.voteSummary}><VoteLabel direction="up" count={post.recommendations} /></div>
+    <div className={styles.voteSummary}><VoteLabel direction="down" count={downvotes} /></div>
+  </div>;
   return <CommunityPostVoteContent key={`${post.id}:${actorId ?? "anonymous"}:${post.recommendations}:${downvotes}`} post={post} actorId={actorId} />;
 }
 
@@ -53,8 +65,8 @@ function CommunityPostVoteContent({ post, actorId }: { post: TeamCommunityPost; 
   }
 
   return <div className={styles.vote} aria-label="게시글 추천">
-    <button type="button" aria-pressed={state.vote === "up"} disabled={pending} onClick={() => void vote("up")}><span aria-hidden="true">▲</span> 추천 {state.recommendations}</button>
-    <button type="button" aria-pressed={state.vote === "down"} disabled={pending} onClick={() => void vote("down")}><span aria-hidden="true">▼</span> 비추천 {state.downvotes}</button>
+    <button type="button" aria-pressed={state.vote === "up"} aria-busy={pending} disabled={pending} onClick={() => void vote("up")}><VoteLabel direction="up" count={state.recommendations} selected={state.vote === "up"} /></button>
+    <button type="button" aria-pressed={state.vote === "down"} aria-busy={pending} disabled={pending} onClick={() => void vote("down")}><VoteLabel direction="down" count={state.downvotes} selected={state.vote === "down"} /></button>
     {error && <p role="alert" className={styles.errorNote}>{error}</p>}
   </div>;
 }

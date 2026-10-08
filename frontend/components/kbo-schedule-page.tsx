@@ -56,7 +56,7 @@ export function KboSchedulePage() {
 function ScheduleBrowser({ selectedDate, onDateChange }: { selectedDate: string; onDateChange: (date: string) => void }) {
   const month = selectedDate.slice(0, 7);
   const [team, setTeam] = useState("all");
-  const { data, error, loading, refreshing, refresh } = useKboResource<KboScheduleMonth>(`/api/tving/schedule/?month=${month}`, monthPoll);
+  const { data, error, loading, refreshing, refresh } = useKboResource<KboScheduleMonth>(`/api/v1/tving/schedule/?month=${month}`, monthPoll);
   const today = data?.today ?? koreaToday();
   const stripRef = useRef<HTMLDivElement>(null);
   const daysCount = new Date(Date.UTC(2026, Number(month.slice(5)), 0)).getUTCDate();

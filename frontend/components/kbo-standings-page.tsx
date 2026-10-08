@@ -142,7 +142,7 @@ function IndividualRanking({ data, athleteType, setAthleteType, page, setPage, s
 }
 
 export function KboStandingsPage() {
-  const { data, error, loading, refreshing, refresh } = useKboResource<KboSnapshot>("/api/tving/daily/", 60_000);
+  const { data, error, loading, refreshing, refresh } = useKboResource<KboSnapshot>("/api/v1/tving/daily/", 60_000);
   const [mode, setMode] = useState<RankingMode>("team");
   const [athleteType, setAthleteType] = useState<AthleteType>("pitcher");
   const [page, setPage] = useState(1);

@@ -50,18 +50,18 @@ export default function StadiumsPage() {
         <div className="info-stadium-grid">{filtered.map((stadium) => <article key={stadium.code} className="info-stadium-card">
           <div className="info-stadium-art">
             <Link href={`/stadiums/${stadium.code}`} className="info-stadium-photo-link" aria-label={`${stadium.name} 구장 정보 보기`}>
-              <Image
+              {stadium.cardImage && <Image
                 src={stadium.cardImage.src}
                 alt={`${stadium.name} 구장 전경`}
                 fill
                 sizes="(max-width: 450px) calc(100vw - 40px), (max-width: 760px) 50vw, (max-width: 1000px) 33vw, 380px"
                 className="info-stadium-photo"
                 style={{ objectPosition: stadium.cardImage.objectPosition }}
-              />
+              />}
               <span className="info-stadium-photo-shade" aria-hidden="true" />
               <span className="info-region-badge">{getCityLabel(stadium.code, stadium.region)}</span>
             </Link>
-            <a href={stadium.cardImage.creditUrl} target="_blank" rel="noopener noreferrer" className="info-stadium-photo-credit" aria-label={`${stadium.cardImage.credit} 사진 출처 또는 이용 조건 (새 창)`} title={stadium.cardImage.credit}>{stadium.cardImage.credit}</a>
+            {stadium.cardImage?.creditUrl && <a href={stadium.cardImage.creditUrl} target="_blank" rel="noopener noreferrer" className="info-stadium-photo-credit" aria-label={`${stadium.cardImage.credit} 사진 출처 또는 이용 조건 (새 창)`} title={stadium.cardImage.credit}>{stadium.cardImage.credit}</a>}
           </div>
           <div className="info-stadium-body"><p className="info-stadium-code">{stadium.code} BALLPARK</p><h2><Link href={`/stadiums/${stadium.code}`} className="info-stadium-detail-link" aria-label={`${stadium.name} 구장 정보 보기`}>{stadium.name} <span aria-hidden="true">↗</span></Link></h2><p className="info-address">{stadium.address}</p><div className="info-stadium-actions"><Link href={`/routes/new?stadium=${encodeURIComponent(stadium.name)}`} className="info-create-link">이 구장으로 코스 만들기 <span aria-hidden="true">→</span></Link><a href={getStadiumMapUrl(stadium)} target="_blank" rel="noopener noreferrer" className="info-map-link" aria-label={`${stadium.name} 카카오맵에서 보기 (새 창)`}>지도 ↗</a></div></div>
         </article>)}</div>

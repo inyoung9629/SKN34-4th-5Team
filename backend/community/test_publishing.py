@@ -32,7 +32,7 @@ class CommunityDraftPublishTests(APITestCase):
     def publish(self, draft, key="publish-1", user=None):
         self.client.force_authenticate(user or self.owner)
         return self.client.post(
-            f"/community/drafts/{draft.pk}/publish/",
+            f"/api/v1/community/drafts/{draft.pk}/publish/",
             {"revision": draft.revision},
             format="json",
             HTTP_IDEMPOTENCY_KEY=key,
@@ -53,13 +53,13 @@ class CommunityDraftPublishTests(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
         created = self.client.post(
-            f"/community/drafts/{draft.pk}/publish/",
+            f"/api/v1/community/drafts/{draft.pk}/publish/",
             {"revision": draft.revision},
             format="json",
             HTTP_IDEMPOTENCY_KEY="publish-jwt",
         )
         retried = self.client.post(
-            f"/community/drafts/{draft.pk}/publish/",
+            f"/api/v1/community/drafts/{draft.pk}/publish/",
             {"revision": draft.revision},
             format="json",
             HTTP_IDEMPOTENCY_KEY="publish-jwt",
@@ -79,8 +79,8 @@ class CommunityDraftPublishTests(APITestCase):
         self.assertEqual((draft.published_post_id, image.post_id, image.draft_id), (created.data["id"], created.data["id"], None))
         self.assertEqual((draft.title, draft.content), ("게시할 글", "게시할 본문"))
         self.assertEqual(CommunityPost.objects.filter(owner=self.owner).count(), 1)
-        self.assertEqual(self.client.get(f"/community/drafts/{draft.pk}/").status_code, 404)
-        self.assertNotIn(str(draft.pk), [item["id"] for item in self.client.get("/community/drafts/").data["results"]])
+        self.assertEqual(self.client.get(f"/api/v1/community/drafts/{draft.pk}/").status_code, 404)
+        self.assertNotIn(str(draft.pk), [item["id"] for item in self.client.get("/api/v1/community/drafts/").data["results"]])
 
     def test_draft_patch_attaches_only_owned_available_images_with_revision(self):
         draft = self.make_draft()
@@ -105,17 +105,17 @@ class CommunityDraftPublishTests(APITestCase):
         self.client.force_authenticate(self.owner)
 
         attached = self.client.patch(
-            f"/community/drafts/{draft.pk}/",
+            f"/api/v1/community/drafts/{draft.pk}/",
             {"revision": 1, "imageIds": [str(available.pk)]},
             format="json",
         )
         stale = self.client.patch(
-            f"/community/drafts/{draft.pk}/",
+            f"/api/v1/community/drafts/{draft.pk}/",
             {"revision": 1, "imageIds": []},
             format="json",
         )
         stolen = self.client.patch(
-            f"/community/drafts/{draft.pk}/",
+            f"/api/v1/community/drafts/{draft.pk}/",
             {"revision": 2, "imageIds": [str(unavailable.pk)]},
             format="json",
         )
@@ -135,12 +135,12 @@ class CommunityDraftPublishTests(APITestCase):
 
         draft = self.make_draft()
         self.client.force_authenticate(user=None)
-        self.assertEqual(self.client.post(f"/community/drafts/{draft.pk}/publish/").status_code, 401)
+        self.assertEqual(self.client.post(f"/api/v1/community/drafts/{draft.pk}/publish/").status_code, 401)
         self.assertEqual(self.publish(draft, user=self.other).status_code, 404)
         self.assertEqual(self.publish(draft, key="first-key").status_code, 201)
         self.assertEqual(self.publish(draft, key="changed-key").status_code, 409)
         stale_publish = self.client.post(
-            f"/community/drafts/{draft.pk}/publish/",
+            f"/api/v1/community/drafts/{draft.pk}/publish/",
             {"revision": draft.revision + 1},
             format="json",
             HTTP_IDEMPOTENCY_KEY="first-key",
@@ -148,7 +148,7 @@ class CommunityDraftPublishTests(APITestCase):
         self.assertEqual((stale_publish.status_code, set(stale_publish.data)), (409, {"revision"}))
         self.assertEqual(
             self.client.post(
-                f"/community/drafts/{draft.pk}/publish/",
+                f"/api/v1/community/drafts/{draft.pk}/publish/",
                 {"revision": draft.revision, "imageUrl": "https://attacker.invalid/image"},
                 format="json",
                 HTTP_IDEMPOTENCY_KEY="first-key",
@@ -212,7 +212,7 @@ class CommunityDraftPublishTests(APITestCase):
         created = self.publish(draft, key="delete-published")
 
         self.assertEqual(created.status_code, 201)
-        self.assertEqual(self.client.delete(f"/community/posts/{created.data['id']}/").status_code, 204)
+        self.assertEqual(self.client.delete(f"/api/v1/community/posts/{created.data['id']}/").status_code, 204)
         self.assertFalse(CommunityDraft.objects.filter(pk=draft.pk).exists())
         self.assertEqual(self.publish(draft, key="delete-published").status_code, 404)
 
@@ -236,7 +236,7 @@ class CommunityDraftPublishConcurrencyTests(TransactionTestCase):
                 client.force_authenticate(user)
                 barrier.wait()
                 response = client.post(
-                    f"/community/drafts/{draft.pk}/publish/",
+                    f"/api/v1/community/drafts/{draft.pk}/publish/",
                     {"revision": draft.revision},
                     format="json",
                     HTTP_IDEMPOTENCY_KEY="concurrent-publish",

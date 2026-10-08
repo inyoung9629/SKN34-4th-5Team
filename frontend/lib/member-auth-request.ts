@@ -25,7 +25,7 @@ async function refreshMemberAccess() {
   if (refreshing?.generation === generation) return refreshing.promise;
   const refresh = sessionStorage.getItem(refreshKey);
   if (!refresh) return false;
-  const promise = fetch("/api/auth/token/refresh/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refresh }), signal: AbortSignal.timeout(15000) })
+  const promise = fetch("/api/v1/auth/token/refresh/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refresh }), signal: AbortSignal.timeout(15000) })
     .then(async response => {
       const tokens = await response.json().catch(() => null);
       if (generation !== authGeneration) return accessToken !== null;
@@ -61,7 +61,7 @@ export async function logoutMember() {
   const refresh = sessionStorage.getItem(refreshKey);
   clearMemberTokens();
   return refresh
-    ? fetch("/api/auth/logout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refresh }) })
+    ? fetch("/api/v1/auth/logout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refresh }) })
     : Response.json({ detail: "로그인 정보가 없습니다." }, { status: 401 });
 }
 
@@ -87,7 +87,7 @@ export function createMemberRequestGate(timeoutMs = 10000) {
   };
 }
 
-export async function loadLatestMember(gate: ReturnType<typeof createMemberRequestGate>, fetcher: (signal: AbortSignal) => Promise<Response> = signal => memberFetch("/api/auth/user", { cache: "no-store", signal })) {
+export async function loadLatestMember(gate: ReturnType<typeof createMemberRequestGate>, fetcher: (signal: AbortSignal) => Promise<Response> = signal => memberFetch("/api/v1/auth/user", { cache: "no-store", signal })) {
   const request = gate.start();
   try {
     const response = await fetcher(request.signal);

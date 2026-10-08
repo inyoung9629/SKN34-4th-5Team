@@ -22,7 +22,7 @@ GOLDEN_DIR = HERE / "golden"                    # golden_club.jsonl : 구단·�
 load_dotenv(ROOT / ".env")                      # 9/11 develop 부터 여기로 통일: DB_* · OPENAI_API_KEY · EMBEDDING_MODEL
 load_dotenv(ROOT / "backend" / ".env")          # 예전 위치 (남아 있으면 같이 읽음)
 EMBED_MODEL = os.getenv("EMBEDDING_MODEL") or "text-embedding-3-small"  # 적재 때와 반드시 같아야 함
-LLM_MODEL = os.getenv("LLM_MODEL") or "gpt-5.6-luna"                    # 팀 확정 모델 (9/11)
+LLM_MODEL = os.getenv("LLM_MODEL") or "gpt-6-luna"                    # 환경변수 미설정 시 기본 모델
 
 
 def connect():

@@ -1,0 +1,17 @@
+services:
+  backend:
+    environment:
+      # 개발 서버에서는 로컬 요청 기반 크롤링을 실행하지 않는다.
+      COMPOSE_PROFILES: ""
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    build: !reset null
+
+  nginx:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro

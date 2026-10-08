@@ -3,15 +3,14 @@
 import Image from "next/image";
 import { useId, useRef } from "react";
 import { Icon } from "@/components/icons";
-import { getStadiumParkingMap } from "@/lib/stadium-parking-maps";
+import type { StadiumParkingMap } from "@/lib/stadium-parking-maps";
 
 type StadiumParkingMapDialogProps = {
-  stadiumCode: string;
+  parking?: StadiumParkingMap;
   className?: string;
 };
 
-export function StadiumParkingMapDialog({ stadiumCode, className = "" }: StadiumParkingMapDialogProps) {
-  const parking = getStadiumParkingMap(stadiumCode);
+export function StadiumParkingMapDialog({ parking, className = "" }: StadiumParkingMapDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const id = useId();
@@ -73,7 +72,7 @@ export function StadiumParkingMapDialog({ stadiumCode, className = "" }: Stadium
               <strong>{parking.title}</strong>
               <p id={descriptionId}>{parking.summary}</p>
             </div>
-            <a href={parking.sourcePageUrl} target="_blank" rel="noopener noreferrer">출처: {parking.credit} ↗</a>
+            {parking.sourcePageUrl && <a href={parking.sourcePageUrl} target="_blank" rel="noopener noreferrer">출처: {parking.credit} ↗</a>}
           </footer>
         </div>
       </dialog>

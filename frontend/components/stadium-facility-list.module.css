@@ -1,0 +1,16 @@
+.panel { color: #253449; font-size: 13px; }
+.panel p { line-height: 1.65; }
+.filters { display: flex; flex-wrap: wrap; gap: 10px; }
+.filters label { display: grid; gap: 5px; flex: 1; }
+.filters select { min-height: 38px; max-width: 100%; border: 1px solid #b6c4d6; border-radius: 7px; padding: 6px; background: white; color: #253449; }
+.warning { padding: 10px; background: #f4f7fb; border-radius: 8px; }
+.list { list-style: none; padding: 0; margin: 0; }
+.list li { padding: 15px 0; border-bottom: 1px solid #dfe5ee; }
+.list strong { display: block; font-size: 15px; margin-bottom: 6px; }
+.badge { display: inline-block; color: #244d8d; background: #edf3fe; border-radius: 4px; padding: 3px 6px; }
+.list p { margin: 6px 0; }
+.list button, .panel > button { padding: 8px 11px; border: 1px solid #afbed2; border-radius: 6px; background: white; color: #234e88; cursor: pointer; margin: 4px 4px 4px 0; }
+.list button[aria-pressed=true] { background: #244d8d; color: white; }
+.list small, .list a { display: block; margin-top: 7px; line-height: 1.5; }
+.list small { color: #64748b; }
+.list a { color: #24569a; }

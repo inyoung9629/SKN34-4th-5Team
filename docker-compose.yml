@@ -6,6 +6,39 @@ x-logging: &default-logging
 
 services:
 
+  jev-browser:
+    profiles: [web-research]
+    build: ./docker/jev-browser
+    restart: unless-stopped
+    init: true
+    cap_add: [NET_ADMIN]
+    security_opt:
+      - seccomp=./docker/jev-browser/seccomp.json
+    shm_size: 256m
+    environment:
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      TEXT_MODEL_API_KEY: ${RESEARCH_API_KEY:-${OPENAI_API_KEY:-}}
+      TEXT_MODEL_BASE_URL: ${RESEARCH_BASE_URL:-https://api.openai.com/v1}
+      TEXT_MODEL: ${RESEARCH_MODEL:-gpt-6-luna}
+      ANSWER_REVIEW_MODEL: ${RESEARCH_MODEL:-gpt-6-luna}
+      JEV_TIMEOUT_SECONDS: ${JEV_TIMEOUT_SECONDS:-120}
+      JEV_LANGSMITH_TRACING: ${JEV_LANGSMITH_TRACING:-false}
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+      LANGSMITH_ENDPOINT: ${LANGSMITH_ENDPOINT:-https://api.smith.langchain.com}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-kbo-rag}
+      JEV_MCP_TOKEN: ${JEV_MCP_TOKEN:-}
+    logging: *default-logging
+
+  qdrant:
+    image: qdrant/qdrant:v1.19.2
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY}
+    volumes:
+      - qdrant_data:/qdrant/storage
+    # No host ports: only backend services on the Compose network can connect.
+    logging: *default-logging
+
   # ========================
   # PostgreSQL + pgvector1
   # ========================
@@ -33,15 +66,28 @@ services:
   backend:
     build: ./backend
     restart: unless-stopped
+    # Share the root env with backend services and staging-data imports.
+    env_file:
+      - ./.env
 
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      JEV_MCP_TOKEN: ${JEV_MCP_TOKEN:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      # 로컬 프로필일 때만 API 요청 기반 크롤링을 활성화한다.
+      COMPOSE_PROFILES: ${COMPOSE_PROFILES:-}
       CHAT_CHECKPOINT_SIGNING_KEY: ${CHAT_CHECKPOINT_SIGNING_KEY:?Set CHAT_CHECKPOINT_SIGNING_KEY}
       CHAT_TRUST_PROXY_HEADERS: "true"
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL}
-      LLM_MODEL: ${LLM_MODEL:-gpt-5.6-luna}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY}
+      QDRANT_DOCUMENT_COLLECTION: ${QDRANT_DOCUMENT_COLLECTION:-kbo_documents_openai}
+      LLM_MODEL: ${LLM_MODEL:-gpt-6-luna}
+      SERPER_API_KEY: ${SERPER_API_KEY:-${Serper_API_KEY:-}}
+      COURSE_WEB_VERIFICATION_ENABLED: ${COURSE_WEB_VERIFICATION_ENABLED:-false}
       # LangSmith 추적·평가. 키가 없으면 traceable 이 no-op 이라 오버헤드 0
       LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
+      LANGSMITH_ENDPOINT: 'https://api.smith.langchain.com'
       LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
       LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-kbo-rag}
       # 챗봇이 지도와 같은 카카오 장소(숙박·산책·실내놀거리)를 조회할 때 쓰는 REST 키 (프론트와 같은 키)
@@ -93,6 +139,8 @@ services:
       - "8000:8000"
 
     depends_on:
+      qdrant:
+        condition: service_started
       db:
         condition: service_started
         required: false
@@ -102,6 +150,7 @@ services:
     # python manage.py provision_baseball_reader --prepare-db-permissions &&
     command: >
       sh -c "python manage.py migrate &&
+             python manage.py setup_chat_checkpoints &&
              python manage.py runserver 0.0.0.0:8000"
 
     logging: *default-logging
@@ -143,11 +192,9 @@ services:
 
     ports:
       - "80:80"
-      - "443:443"
 
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/nginx.local.conf:/etc/nginx/conf.d/default.conf:ro
 
     depends_on:
       - backend
@@ -180,18 +227,28 @@ services:
   # MiniO
   # ========================
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: local/minio:RELEASE.2025-10-15T17-29-55Z
+
+    build:
+      context: .
+      dockerfile: minio.dockerfile
+
     restart: unless-stopped
     logging: *default-logging
+
     command: server /data --console-address ":9001"
+
     ports:
       - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
       - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-miniopassword}
+
     volumes:
       - minio_data:/data
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 5s
@@ -205,3 +262,4 @@ services:
 volumes:
   postgres_data:
   minio_data:
+  qdrant_data:

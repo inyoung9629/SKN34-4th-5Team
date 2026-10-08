@@ -13,16 +13,16 @@ class AdminPermissionTests(APITestCase):
         cls.other_master = User.objects.create_user(username="other-master", is_staff=True, is_superuser=True)
 
     def change(self, target, payload):
-        return self.client.patch(f"/auth/admin/members/{target.pk}/role/", payload, format="json")
+        return self.client.patch(f"/api/v1/auth/admin/members/{target.pk}/role/", payload, format="json")
 
     def test_anonymous_and_member_cannot_list(self):
-        self.assertEqual(self.client.get("/auth/admin/members/").status_code, 401)
+        self.assertEqual(self.client.get("/api/v1/auth/admin/members/").status_code, 401)
         self.client.force_authenticate(self.member)
-        self.assertEqual(self.client.get("/auth/admin/members/").status_code, 403)
+        self.assertEqual(self.client.get("/api/v1/auth/admin/members/").status_code, 403)
 
     def test_staff_can_search_but_not_grant(self):
         self.client.force_authenticate(self.staff)
-        response = self.client.get("/auth/admin/members/?q=member")
+        response = self.client.get("/api/v1/auth/admin/members/?q=member")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["count"], 1)
         self.assertNotIn("password", response.data["results"][0])
@@ -56,4 +56,4 @@ class AdminPermissionTests(APITestCase):
         self.assertEqual(self.change(self.member, {"is_staff": True}).status_code, 400)
         self.master.is_active = False
         self.master.save(update_fields=["is_active"])
-        self.assertEqual(self.client.get("/auth/admin/members/").status_code, 403)
+        self.assertEqual(self.client.get("/api/v1/auth/admin/members/").status_code, 403)

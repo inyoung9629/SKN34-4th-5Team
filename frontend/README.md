@@ -39,18 +39,18 @@ UI/UX 가이드의 큰 항목 2~5에 맞춰 여섯 기본 화면, 반응형, 로
 
 코스·좋아요·조회 수는 현재 브라우저의 로컬 저장소에 보관됩니다. 내 코스는 내용을 복사하거나 다른 앱에 보내 공유할 수 있으며, 서버에 공개 게시글로 등록되지는 않습니다. 샘플 코스는 예시이고, 구장 사진은 실제 해당 구장의 사진이 아닌 분위기 이미지입니다. 사진 출처는 `public/images/SOURCES.md`에 있습니다.
 
-경기 일정·선발 투수·팀·개인 순위와 팀·선수 상세는 브라우저가 `/api/tving/`으로 Django에 직접 요청합니다. Django가 TVING 공개 응답을 검증하고 기존 `Team`·`Game`·`StandingHistory`와 선수 관계형 엔티티를 조건부 갱신하며, 실패 시 완전한 저장본만 `stale`로 구분해 반환합니다. Next 서버에는 수집 타이머나 로컬 snapshot writer가 없습니다. 설정과 callable 도구 계약은 [KBO 데이터 안내](docs/KBO_DATA.md)와 [TVING 도구 인계](../docs/handoffs/TVING_TOOLS_HANDOFF.md)를 참고하세요.
+경기 일정·선발 투수·팀·개인 순위와 팀·선수 상세는 브라우저가 `/api/v1/tving/`으로 Django에 직접 요청합니다. Django가 TVING 공개 응답을 검증하고 기존 `Team`·`Game`·`StandingHistory`와 선수 관계형 엔티티를 조건부 갱신하며, 실패 시 완전한 저장본만 `stale`로 구분해 반환합니다. Next 서버에는 수집 타이머나 로컬 snapshot writer가 없습니다. 설정과 callable 도구 계약은 [KBO 데이터 안내](docs/KBO_DATA.md)와 [TVING 도구 인계](../docs/handoffs/TVING_TOOLS_HANDOFF.md)를 참고하세요.
 
 ## 챗봇
 
-챗봇은 회원이면 보호된 session/message API, 게스트면 DB에 쓰지 않는 임시 `/api/chat/guest/` SSE를 사용합니다. 대화는 브라우저 메모리에만 있고 로그인·계정 변경 때 정리되며, 회원 Stop은 서명된 체크포인트로 받은 prefix만 저장합니다. Next.js 중계는 없습니다. 자세한 계약은 [챗봇 연결 가이드](docs/CHAT_SETUP.md)를 참고하세요.
+챗봇은 회원이면 보호된 session/message API, 게스트면 DB에 쓰지 않는 임시 `/api/v1/chat/guest/` SSE를 사용합니다. 대화는 브라우저 메모리에만 있고 로그인·계정 변경 때 정리되며, 회원 Stop은 서명된 체크포인트로 받은 prefix만 저장합니다. Next.js 중계는 없습니다. 자세한 계약은 [챗봇 연결 가이드](docs/CHAT_SETUP.md)를 참고하세요.
 
 ## 실제 서비스 연결 시 남은 작업
 
 - 회원·소셜 로그인 API, 세션과 작성자 권한 연결. 현재 로그인 성공 처리는 하지 않습니다.
 - 게시글·좋아요·페이지 조회 API 연결. 현재 로컬 저장소는 `lib/routes.ts`에 모았습니다.
-- 카카오 지도는 브라우저 SDK를 쓰고 장소 검색은 `/api/places/search/` Django API를 직접 호출합니다. 검색 결과 저장도 백엔드가 담당합니다. 배포 시 JavaScript SDK 도메인을 등록하고 구장 경계 필터를 검증해야 합니다.
-- 관광공사 장소는 `/api/tourism/` Django API로 조회하며 기존 `Place` 원장과 provider 전용 OneToOne metadata를 사용합니다. 두 서버 키 모두 Next에 전달하지 않습니다.
+- 카카오 지도는 브라우저 SDK를 쓰고 장소 검색은 `/api/v1/places/search/` Django API를 직접 호출합니다. 검색 결과 저장도 백엔드가 담당합니다. 배포 시 JavaScript SDK 도메인을 등록하고 구장 경계 필터를 검증해야 합니다.
+- 관광공사 장소는 `/api/v1/tourism/` Django API로 조회하며 기존 `Place` 원장과 provider 전용 OneToOne metadata를 사용합니다. 두 서버 키 모두 Next에 전달하지 않습니다.
 - CKEditor 5 라이선스 설정과 이미지 업로드. 사용자가 라이선스 없이 우선 진행하기로 선택해 현재는 일반 본문 입력을 사용하며, `components/editor.tsx`에 라이선스 설정 어댑터를 준비했습니다.
 - 챗봇의 팀 RAG·경기 정보·지도 데이터 연결과 답변 검증. 작성 화면의 코스 예시는 미리 작성된 내용입니다.
 - 서비스 정책 문구 확정. 회원가입 화면의 정책 안내는 초안입니다.

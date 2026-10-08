@@ -180,12 +180,12 @@ class DirectionsTests(TestCase):
         client = APIClient()
         good = {"mode": "walk", "points": POINTS}
         with patch("travel.views.fetch_directions", return_value={"mode": "walk", "legs": [], "distance": 0, "seconds": 0}) as fetch:
-            self.assertEqual(client.post("/travel/directions/", good, format="json").status_code, 200)
+            self.assertEqual(client.post("/api/v1/travel/directions/", good, format="json").status_code, 200)
             for body in ({**good, "mode": {"x": 1}}, {**good, "mode": "fly"}, {**good, "unexpected": True}, {**good, "points": POINTS[:1]}, {**good, "points": [POINTS[0], {"lat": "37.6", "lng": 127}]}, {**good, "points": [POINTS[0], {"lat": True, "lng": 127}]}, {**good, "points": [POINTS[0], {"lat": "NaN", "lng": 127}]}, {**good, "points": [POINTS[0], {"lat": 91, "lng": 127}]}):
-                self.assertEqual(client.post("/travel/directions/", body, format="json").status_code, 400)
+                self.assertEqual(client.post("/api/v1/travel/directions/", body, format="json").status_code, 400)
             self.assertEqual(fetch.call_count, 1)
         with override_settings(KAKAO_REST_API_KEY=""):
-            self.assertEqual(client.post("/travel/directions/", good, format="json").status_code, 503)
+            self.assertEqual(client.post("/api/v1/travel/directions/", good, format="json").status_code, 503)
 
 
 class SnapshotConcurrencyTests(TransactionTestCase):

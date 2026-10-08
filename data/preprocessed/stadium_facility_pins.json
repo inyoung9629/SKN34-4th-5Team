@@ -1,0 +1,928 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-09-30",
+  "method": "현장 안내도의 번호와 수집 레코드를 수동 대조하고, 검토한 구장 건물 방향에 맞춰 근사 좌표를 작성. 실측 좌표·입구·실내 길찾기가 아님. 미대조 행은 좌표 null 유지.",
+  "licenseUrl": "https://www.openstreetmap.org/copyright",
+  "sources": {
+    "jamsil2": {
+      "stadium": "JAMSIL",
+      "pageUrl": "https://myseatcheck.com/서울-잠실야구장-먹거리-1루-2층-꼬꼬닭-cafe/",
+      "imageUrl": "https://myseatcheck.com/wp-content/uploads/잠실26_20260422_153137_mark.webp",
+      "note": "2026 사진의 2F/2.5F 번호와 매장 대조. 사용자 첨부 구 안내도의 번호는 사용하지 않음"
+    },
+    "gwangju": {
+      "stadium": "GWANGJU",
+      "pageUrl": "https://myseatcheck.com/광주-챔피언스필드-먹거리-1루-3층-bhc치킨/",
+      "imageUrl": "https://myseatcheck.com/wp-content/uploads/광주26_20260506_193702_mark.webp",
+      "note": "3F/4F/5F를 펼쳐 그린 도면. 층별 띠 간격은 실제 지상 거리가 아님"
+    },
+    "suwon": {
+      "stadium": "SUWON",
+      "pageUrl": "https://myseatcheck.com/수원-kt위즈파크-먹거리-1루-2층-또리펍gate2/",
+      "imageUrl": "https://myseatcheck.com/wp-content/uploads/20260421_172340_mark.webp",
+      "note": "2F L1/L2 매장 및 GATE2. 층은 동일하고 도면의 L1/L2를 위치 상세에 보존"
+    },
+    "daejeon": {
+      "stadium": "DAEJEON",
+      "pageUrl": "https://myseatcheck.com/대전한화생명볼파크-먹거리-1루-1층-bbq치킨-107구역/",
+      "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_6947_mark.webp",
+      "note": "새 한화생명 볼파크. BBQ 1층 107구역. 2025 안내도와 2026 상세 사진 혼재"
+    },
+    "munhak": {
+      "stadium": "MUNHAK",
+      "pageUrl": "https://myseatcheck.com/인천-랜더스필드-먹거리-1루-2층-bhc-치킨/",
+      "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_162104_mark.webp",
+      "note": "상세 제목: BHC 203 통로 근처. 전체 매장 안내도 확인"
+    },
+    "sajik": {
+      "stadium": "SAJIK",
+      "pageUrl": "https://myseatcheck.com/부산-사직야구장-먹거리-1루-2층-가온밀면/",
+      "imageUrl": "https://myseatcheck.com/wp-content/uploads/사직편의시설_094601_mark.webp",
+      "note": "상세 제목: 가온밀면 124 GATE 근처. 사진 촬영 연도 미확인"
+    },
+    "daegu": {
+      "stadium": "DAEGU",
+      "pageUrl": "https://myseatcheck.com/대구-라이온즈파크-먹거리-3층-1루-노랑통닭/",
+      "imageUrl": "https://myseatcheck.com/wp-content/uploads/라팍26_20260323_164432_mark.webp",
+      "note": "상세 제목: 1루 원정응원석 3구역. 3층 식음 안내도"
+    },
+    "gocheok": {
+      "stadium": "GOCHEOK",
+      "pageUrl": "https://myseatcheck.com/고척스카이돔-먹거리-1루-2층-bhc치킨/",
+      "note": "BHC 3번 통로 근처. 상세 사진 확인, 지도 좌표 미대조"
+    },
+    "changwon": {
+      "stadium": "CHANGWON",
+      "pageUrl": "https://myseatcheck.com/창원nc파크-먹거리-1루-1층-구슬아이스크림/",
+      "note": "구슬아이스크림 111블럭 복도. 상세 사진 확인, 지도 좌표 미대조"
+    }
+  },
+  "stadiums": {
+    "JAMSIL": {
+      "sourceId": "jamsil2",
+      "status": "partial",
+      "note": "2026 사진의 2F/2.5F 번호와 매장 대조. 사용자 첨부 구 안내도의 번호는 사용하지 않음 · 나머지 매장·시설은 구역 자료만 분리, 핀 대조 진행 필요"
+    },
+    "GWANGJU": {
+      "sourceId": "gwangju",
+      "status": "partial",
+      "note": "3F/4F/5F를 펼쳐 그린 도면. 층별 띠 간격은 실제 지상 거리가 아님 · 나머지 매장·시설은 구역 자료만 분리, 핀 대조 진행 필요"
+    },
+    "SUWON": {
+      "sourceId": "suwon",
+      "status": "partial",
+      "note": "2F L1/L2 매장 및 GATE2. 층은 동일하고 도면의 L1/L2를 위치 상세에 보존 · 나머지 매장·시설은 구역 자료만 분리, 핀 대조 진행 필요"
+    },
+    "DAEJEON": {
+      "sourceId": "daejeon",
+      "status": "partial",
+      "note": "새 한화생명 볼파크. BBQ 1층 107구역. 2025 안내도와 2026 상세 사진 혼재 · 나머지 매장·시설은 구역 자료만 분리, 핀 대조 진행 필요"
+    },
+    "MUNHAK": {
+      "sourceId": "munhak",
+      "status": "partial",
+      "note": "상세 제목: BHC 203 통로 근처. 전체 매장 안내도 확인 · 나머지 매장·시설은 구역 자료만 분리, 핀 대조 진행 필요"
+    },
+    "SAJIK": {
+      "sourceId": "sajik",
+      "status": "partial",
+      "note": "상세 제목: 가온밀면 124 GATE 근처. 사진 촬영 연도 미확인 · 나머지 매장·시설은 구역 자료만 분리, 핀 대조 진행 필요"
+    },
+    "DAEGU": {
+      "sourceId": "daegu",
+      "status": "partial",
+      "note": "상세 제목: 1루 원정응원석 3구역. 3층 식음 안내도 · 나머지 매장·시설은 구역 자료만 분리, 핀 대조 진행 필요"
+    },
+    "GOCHEOK": {
+      "sourceId": "gocheok",
+      "status": "partial",
+      "note": "BHC 3번 통로 근처. 상세 사진 확인, 지도 좌표 미대조 · 나머지 매장·시설은 구역 자료만 분리, 핀 대조 진행 필요"
+    },
+    "CHANGWON": {
+      "sourceId": "changwon",
+      "status": "partial",
+      "note": "구슬아이스크림 111블럭 복도. 상세 사진 확인, 지도 좌표 미대조 · 나머지 매장·시설은 구역 자료만 분리, 핀 대조 진행 필요"
+    }
+  },
+  "pins": [
+    {
+      "id": "JAMSIL-024-2",
+      "recordId": "SC_FOOD_JAMSIL_024",
+      "lat": 37.512699,
+      "lng": 127.072569,
+      "label": "안내도 8번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-026-4",
+      "recordId": "SC_FOOD_JAMSIL_026",
+      "lat": 37.512496,
+      "lng": 127.072397,
+      "label": "안내도 11번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-027-5",
+      "recordId": "SC_FOOD_JAMSIL_027",
+      "lat": 37.512651,
+      "lng": 127.072621,
+      "label": "안내도 7번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-028-6",
+      "recordId": "SC_FOOD_JAMSIL_028",
+      "lat": 37.512543,
+      "lng": 127.072365,
+      "label": "안내도 12번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-029-7",
+      "recordId": "SC_FOOD_JAMSIL_029",
+      "lat": 37.512183,
+      "lng": 127.07256,
+      "label": "안내도 4번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-034-11",
+      "recordId": "SC_FOOD_JAMSIL_034",
+      "lat": 37.51222,
+      "lng": 127.072537,
+      "label": "안내도 5번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-035-12",
+      "recordId": "SC_FOOD_JAMSIL_035",
+      "lat": 37.512159,
+      "lng": 127.072713,
+      "label": "안내도 2번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-036-13",
+      "recordId": "SC_FOOD_JAMSIL_036",
+      "lat": 37.512611,
+      "lng": 127.072673,
+      "label": "안내도 6번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-037-14",
+      "recordId": "SC_FOOD_JAMSIL_037",
+      "lat": 37.512145,
+      "lng": 127.072598,
+      "label": "안내도 3번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-038-15",
+      "recordId": "SC_FOOD_JAMSIL_038",
+      "lat": 37.5119,
+      "lng": 127.072731,
+      "label": "안내도 1번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-047-16",
+      "recordId": "SC_FOOD_JAMSIL_047",
+      "lat": 37.512476,
+      "lng": 127.07095,
+      "label": "안내도 31번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-048-17",
+      "recordId": "SC_FOOD_JAMSIL_048",
+      "lat": 37.512496,
+      "lng": 127.071208,
+      "label": "안내도 21번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-051-18",
+      "recordId": "SC_FOOD_JAMSIL_051",
+      "lat": 37.512762,
+      "lng": 127.071179,
+      "label": "안내도 24번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-052-19",
+      "recordId": "SC_FOOD_JAMSIL_052",
+      "lat": 37.512552,
+      "lng": 127.070933,
+      "label": "안내도 30번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-054-21",
+      "recordId": "SC_FOOD_JAMSIL_054",
+      "lat": 37.512186,
+      "lng": 127.071037,
+      "label": "안내도 34번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-055-22",
+      "recordId": "SC_FOOD_JAMSIL_055",
+      "lat": 37.512231,
+      "lng": 127.071069,
+      "label": "안내도 33번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-057-23",
+      "recordId": "SC_FOOD_JAMSIL_057",
+      "lat": 37.511909,
+      "lng": 127.070907,
+      "label": "안내도 36번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-059-24",
+      "recordId": "SC_FOOD_JAMSIL_059",
+      "lat": 37.512138,
+      "lng": 127.071029,
+      "label": "안내도 35번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-060-25",
+      "recordId": "SC_FOOD_JAMSIL_060",
+      "lat": 37.512541,
+      "lng": 127.07124,
+      "label": "안내도 20번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-066-27",
+      "recordId": "SC_FOOD_JAMSIL_066",
+      "lat": 37.512822,
+      "lng": 127.07151,
+      "label": "안내도 1-2 (2.5F)번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "JAMSIL-067-28",
+      "recordId": "SC_FOOD_JAMSIL_067",
+      "lat": 37.512829,
+      "lng": 127.072119,
+      "label": "안내도 1-1 (2.5F 공유 매장)번",
+      "sourceId": "jamsil2",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 30,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-001-29",
+      "recordId": "SC_FOOD_GWANGJU_001",
+      "lat": 35.16791,
+      "lng": 126.88979,
+      "label": "안내도 3F 16",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-002-30",
+      "recordId": "SC_FOOD_GWANGJU_002",
+      "lat": 35.16753,
+      "lng": 126.88922,
+      "label": "안내도 3F 12",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-004-32",
+      "recordId": "SC_FOOD_GWANGJU_004",
+      "lat": 35.1678,
+      "lng": 126.88972,
+      "label": "안내도 3F 13",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-006-34",
+      "recordId": "SC_FOOD_GWANGJU_006",
+      "lat": 35.16787,
+      "lng": 126.88976,
+      "label": "안내도 3F 14",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-007-35",
+      "recordId": "SC_FOOD_GWANGJU_007",
+      "lat": 35.1675,
+      "lng": 126.88909,
+      "label": "안내도 3F 11",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-008-36",
+      "recordId": "SC_FOOD_GWANGJU_008",
+      "lat": 35.16747,
+      "lng": 126.88898,
+      "label": "안내도 3F 10",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-011-37",
+      "recordId": "SC_FOOD_GWANGJU_011",
+      "lat": 35.16753,
+      "lng": 126.88916,
+      "label": "안내도 5F 9",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-012-38",
+      "recordId": "SC_FOOD_GWANGJU_012",
+      "lat": 35.16784,
+      "lng": 126.88966,
+      "label": "안내도 5F 8",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-013-39",
+      "recordId": "SC_FOOD_GWANGJU_013",
+      "lat": 35.16823,
+      "lng": 126.88825,
+      "label": "안내도 3F 5",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-014-40",
+      "recordId": "SC_FOOD_GWANGJU_014",
+      "lat": 35.16855,
+      "lng": 126.8883,
+      "label": "안내도 3F 3",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-015-41",
+      "recordId": "SC_FOOD_GWANGJU_015",
+      "lat": 35.1681,
+      "lng": 126.88827,
+      "label": "안내도 3F 6",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-016-42",
+      "recordId": "SC_FOOD_GWANGJU_016",
+      "lat": 35.16752,
+      "lng": 126.88855,
+      "label": "안내도 3F 9",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-017-43",
+      "recordId": "SC_FOOD_GWANGJU_017",
+      "lat": 35.16758,
+      "lng": 126.88843,
+      "label": "안내도 3F 8",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-018-44",
+      "recordId": "SC_FOOD_GWANGJU_018",
+      "lat": 35.16772,
+      "lng": 126.88832,
+      "label": "안내도 3F 7",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-019-45",
+      "recordId": "SC_FOOD_GWANGJU_019",
+      "lat": 35.1679,
+      "lng": 126.88826,
+      "label": "안내도 3F 7-1",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-020-46",
+      "recordId": "SC_FOOD_GWANGJU_020",
+      "lat": 35.16842,
+      "lng": 126.88825,
+      "label": "안내도 3F 4",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-023-47",
+      "recordId": "SC_FOOD_GWANGJU_023",
+      "lat": 35.16841,
+      "lng": 126.88829,
+      "label": "안내도 4F 2 공유 매장",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-024-48",
+      "recordId": "SC_FOOD_GWANGJU_024",
+      "lat": 35.16841,
+      "lng": 126.88829,
+      "label": "안내도 4F 2 공유 매장",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-025-49",
+      "recordId": "SC_FOOD_GWANGJU_025",
+      "lat": 35.16841,
+      "lng": 126.88829,
+      "label": "안내도 4F 2 공유 매장",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-026-50",
+      "recordId": "SC_FOOD_GWANGJU_026",
+      "lat": 35.1676,
+      "lng": 126.88856,
+      "label": "안내도 5F 10",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "GWANGJU-027-51",
+      "recordId": "SC_FOOD_GWANGJU_027",
+      "lat": 35.1679,
+      "lng": 126.8883,
+      "label": "안내도 5F 11",
+      "sourceId": "gwangju",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-001-52",
+      "recordId": "SC_FOOD_SUWON_001",
+      "lat": 37.29987,
+      "lng": 127.00904,
+      "label": "2F 1루 L1-5",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-003-53",
+      "recordId": "SC_FOOD_SUWON_003",
+      "lat": 37.29968,
+      "lng": 127.00897,
+      "label": "2F 1루 L1-4",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-004-54",
+      "recordId": "SC_FOOD_SUWON_004",
+      "lat": 37.30003,
+      "lng": 127.00899,
+      "label": "2F 1루 L1-1",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-005-55",
+      "recordId": "SC_FOOD_SUWON_005",
+      "lat": 37.30001,
+      "lng": 127.00897,
+      "label": "2F 1루 L2-A",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-006-56",
+      "recordId": "SC_FOOD_SUWON_006",
+      "lat": 37.29969,
+      "lng": 127.00913,
+      "label": "2F 1루 L1-6",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-007-57",
+      "recordId": "SC_FOOD_SUWON_007",
+      "lat": 37.29992,
+      "lng": 127.00897,
+      "label": "2F 1루 L1-2",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-009-58",
+      "recordId": "SC_FOOD_SUWON_009",
+      "lat": 37.2998,
+      "lng": 127.00894,
+      "label": "2F 1루 L1-3",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-010-59",
+      "recordId": "SC_FOOD_SUWON_010",
+      "lat": 37.29993,
+      "lng": 127.00895,
+      "label": "2F 1루 L2-B",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-013-62",
+      "recordId": "SC_FOOD_SUWON_013",
+      "lat": 37.30051,
+      "lng": 127.00942,
+      "label": "2F 중앙 L1-4",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-014-63",
+      "recordId": "SC_FOOD_SUWON_014",
+      "lat": 37.30032,
+      "lng": 127.00927,
+      "label": "2F 중앙 L2-B",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-016-64",
+      "recordId": "SC_FOOD_SUWON_016",
+      "lat": 37.30055,
+      "lng": 127.00955,
+      "label": "2F 중앙 L1-5",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-017-65",
+      "recordId": "SC_FOOD_SUWON_017",
+      "lat": 37.30032,
+      "lng": 127.00918,
+      "label": "2F 중앙 L2-C",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-018-66",
+      "recordId": "SC_FOOD_SUWON_018",
+      "lat": 37.30025,
+      "lng": 127.00914,
+      "label": "2F 중앙 L2-A",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-019-67",
+      "recordId": "SC_FOOD_SUWON_019",
+      "lat": 37.30043,
+      "lng": 127.00918,
+      "label": "2F 중앙 L1-3",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-020-68",
+      "recordId": "SC_FOOD_SUWON_020",
+      "lat": 37.29996,
+      "lng": 127.01044,
+      "label": "2F 3루 L1-2",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-021-69",
+      "recordId": "SC_FOOD_SUWON_021",
+      "lat": 37.30009,
+      "lng": 127.01035,
+      "label": "2F 3루 L1-1",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-022-70",
+      "recordId": "SC_FOOD_SUWON_022",
+      "lat": 37.29959,
+      "lng": 127.01044,
+      "label": "2F 3루 L1-6",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-023-71",
+      "recordId": "SC_FOOD_SUWON_023",
+      "lat": 37.29951,
+      "lng": 127.01042,
+      "label": "2F 3루 L1-7",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-024-72",
+      "recordId": "SC_FOOD_SUWON_024",
+      "lat": 37.29977,
+      "lng": 127.01032,
+      "label": "2F 3루 L1-4",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-025-73",
+      "recordId": "SC_FOOD_SUWON_025",
+      "lat": 37.29992,
+      "lng": 127.01029,
+      "label": "2F 3루 L2-A",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-026-74",
+      "recordId": "SC_FOOD_SUWON_026",
+      "lat": 37.2997,
+      "lng": 127.01041,
+      "label": "2F 3루 L2-C",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-027-75",
+      "recordId": "SC_FOOD_SUWON_027",
+      "lat": 37.29986,
+      "lng": 127.01044,
+      "label": "2F 3루 L1-3",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-028-76",
+      "recordId": "SC_FOOD_SUWON_028",
+      "lat": 37.29968,
+      "lng": 127.01035,
+      "label": "2F 3루 L1-5",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-029-77",
+      "recordId": "SC_FOOD_SUWON_029",
+      "lat": 37.29982,
+      "lng": 127.01034,
+      "label": "2F 3루 L2-B",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-030-78",
+      "recordId": "SC_FOOD_SUWON_030",
+      "lat": 37.30025,
+      "lng": 127.01005,
+      "label": "2F 중앙 L2-E",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-031-79",
+      "recordId": "SC_FOOD_SUWON_031",
+      "lat": 37.30036,
+      "lng": 127.01007,
+      "label": "2F 중앙 L1-8",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-032-80",
+      "recordId": "SC_FOOD_SUWON_032",
+      "lat": 37.30054,
+      "lng": 127.00984,
+      "label": "2F 중앙 L1-7",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-033-81",
+      "recordId": "SC_FOOD_SUWON_033",
+      "lat": 37.30022,
+      "lng": 127.01015,
+      "label": "2F 중앙 L2-D",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-034-82",
+      "recordId": "SC_FOOD_SUWON_034",
+      "lat": 37.30018,
+      "lng": 127.01032,
+      "label": "2F 중앙 L1-10",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-035-83",
+      "recordId": "SC_FOOD_SUWON_035",
+      "lat": 37.30031,
+      "lng": 127.00995,
+      "label": "2F 중앙 L2-F",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-036-84",
+      "recordId": "SC_FOOD_SUWON_036",
+      "lat": 37.30057,
+      "lng": 127.00968,
+      "label": "2F 중앙 L1-6",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    },
+    {
+      "id": "SUWON-037-85",
+      "recordId": "SC_FOOD_SUWON_037",
+      "lat": 37.30026,
+      "lng": 127.01023,
+      "label": "2F 중앙 L1-9",
+      "sourceId": "suwon",
+      "quality": "diagram_approximate",
+      "uncertaintyM": 40,
+      "checkedAt": "2026-09-30"
+    }
+  ],
+  "reviewNotes": [
+    "내부 핀 후보 중 공개 건물 외곽 밖으로 나온 11건은 배치를 강제 보정하지 않고 핀 보류. 원본 목록은 보존한다.",
+    "첨부한 구형 잠실 안내도와 2026년 도면의 매장 번호가 다르므로 구형 번호는 사용하지 않았다.",
+    "현재 3개 구장의 일부 매장만 근사 좌표 대조. 9개 구장 전체 매장의 위치 확정이 완료된 것은 아니다."
+  ]
+}

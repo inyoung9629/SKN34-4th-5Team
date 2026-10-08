@@ -19,7 +19,7 @@ from .prediction_source import PredictionSourceError, fetch_prediction_snapshot,
 class SourceResponse:
     status = 200
 
-    def __init__(self, payload, *, url="http://127.0.0.1:8000/tving/daily/", content_length=None):
+    def __init__(self, payload, *, url="http://127.0.0.1:8000/api/v1/tving/daily/", content_length=None):
         self.body = BytesIO(json.dumps(payload).encode())
         self.headers = {"Content-Type": "application/json"}
         if content_length is not None:
@@ -136,7 +136,7 @@ class PredictionApiTests(TestCase):
 
     @patch("community.predictions.sync_prediction_games", return_value=1)
     def test_vote_changes_cancels_and_never_duplicates(self, _sync):
-        url = f"/community/predictions/games/{self.game.pk}/vote/"
+        url = f"/api/v1/community/predictions/games/{self.game.pk}/vote/"
         self.assertEqual(self.client.post(url, {"choice": "home"}, format="json").status_code, 200)
         self.assertEqual(self.client.post(url, {"choice": "home"}, format="json").json()["votes"]["total"], 1)
         self.assertEqual(self.client.post(url, {"choice": "away"}, format="json").json()["myChoice"], "away")
@@ -147,14 +147,14 @@ class PredictionApiTests(TestCase):
     def test_server_cutoff_is_fail_closed(self, _sync):
         self.game.starts_at = self.now
         self.game.save(update_fields=("starts_at",))
-        response = self.client.post(f"/community/predictions/games/{self.game.pk}/vote/", {"choice": "home"}, format="json")
+        response = self.client.post(f"/api/v1/community/predictions/games/{self.game.pk}/vote/", {"choice": "home"}, format="json")
         self.assertEqual(response.status_code, 409)
         self.game.refresh_from_db()
         self.assertIsNotNone(self.game.locked_at)
 
     @patch("community.predictions.sync_prediction_games", side_effect=PredictionSourceError("경기 원천 갱신이 지연되었습니다."))
     def test_source_failure_blocks_vote(self, _sync):
-        response = self.client.post(f"/community/predictions/games/{self.game.pk}/vote/", {"choice": "home"}, format="json")
+        response = self.client.post(f"/api/v1/community/predictions/games/{self.game.pk}/vote/", {"choice": "home"}, format="json")
         self.assertEqual(response.status_code, 503)
         self.assertEqual(GamePrediction.objects.count(), 0)
 
@@ -165,14 +165,14 @@ class PredictionApiTests(TestCase):
             away_team_code="HH", away_team_name="한화", home_team_code="SS", home_team_name="삼성",
             status="scheduled", source_fetched_at=self.now,
         )
-        response = self.client.get(f"/community/predictions/games/?date={self.game.game_date}&team=LG")
+        response = self.client.get(f"/api/v1/community/predictions/games/?date={self.game.game_date}&team=LG")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.json()), 1)
         self.assertEqual(response.json()[0]["votes"], {"home": 0, "away": 0, "total": 0, "homePercent": 0, "awayPercent": 0})
 
     @patch("community.predictions.sync_prediction_games", return_value=1)
     def test_unhashable_choice_is_rejected(self, _sync):
-        response = self.client.post(f"/community/predictions/games/{self.game.pk}/vote/", {"choice": []}, format="json")
+        response = self.client.post(f"/api/v1/community/predictions/games/{self.game.pk}/vote/", {"choice": []}, format="json")
         self.assertEqual(response.status_code, 400)
 
 
@@ -196,7 +196,7 @@ class PredictionConcurrencyTests(TransactionTestCase):
             client = APIClient()
             client.force_authenticate(get_user_model().objects.get(pk=self.user.pk))
             started.set()
-            result.append(client.post(f"/community/predictions/games/{self.game.pk}/vote/", {"choice": "home"}, format="json").status_code)
+            result.append(client.post(f"/api/v1/community/predictions/games/{self.game.pk}/vote/", {"choice": "home"}, format="json").status_code)
             close_old_connections()
 
         with transaction.atomic():

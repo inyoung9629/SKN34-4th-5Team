@@ -1,0 +1,15 @@
+.panel { padding: 14px; border-bottom: 1px solid #e3e8f0; font-size: 13px; }
+.panel h3 { margin: 0 0 10px; font-size: 16px; }
+.panel p { margin: 10px 0; color: #56647b; }
+.panel p[role="alert"] { color: #b23838; }
+.panel small { display: block; margin-top: 10px; color: #68768a; font-size: 12px; line-height: 1.6; }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.filters button, .restore button { border: 1px solid #d5deed; border-radius: 8px; padding: 7px 10px; background: white; cursor: pointer; font: inherit; }
+.filters button[aria-pressed="true"] { color: #245bb4; background: #edf4ff; border-color: #8baee7; }
+.panel button:disabled { opacity: .6; cursor: wait; }
+.restore { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.results { list-style: none; padding: 0; margin: 0; max-height: 380px; overflow-y: auto; }
+.results li { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #edf0f5; }
+.results button { flex: 1; min-width: 0; display: grid; gap: 5px; text-align: left; padding: 12px 0; border: 0; background: transparent; font: inherit; cursor: pointer; }
+.results span { color: #69768a; font-size: 12px; overflow-wrap: anywhere; }
+.panel a { color: #46668e; font-size: 12px; white-space: nowrap; }

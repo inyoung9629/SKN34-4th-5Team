@@ -41,10 +41,10 @@ export function RouteCardMap({ stops }: { stops: RouteStop[] }) {
   useEffect(() => {
     if (!map || !sdk || !host.current) return;
     const points = stops.filter(stop => areValidCoordinates(stop.lat, stop.lng));
-    const pins = points.map((stop, index) => {
+    const pins = points.map((stop) => {
       const label = document.createElement("span");
       label.className = "route-thumbnail-pin";
-      label.textContent = coursePointLabel(stops, index);
+      label.textContent = coursePointLabel(stops, stops.indexOf(stop));
       return new sdk.CustomOverlay({ map, position: new sdk.LatLng(stop.lat, stop.lng), content: label, yAnchor: 0.5, zIndex: 5 });
     });
     const fit = () => {

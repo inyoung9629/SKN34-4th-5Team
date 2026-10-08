@@ -6,10 +6,19 @@
 .chat-course-stops { display: grid; gap: 2px; margin: 10px 0 0; padding: 0; list-style: none; }
 .chat-course-stops li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 30px; padding: 4px 8px; border-radius: 9px; background: #fff; font-size: 12px; }
 .chat-course-stops li.is-game { background: #eef4ff; }
+.chat-course-stops li.is-completed { background: #edf7f1; }
+.chat-course-stops li.is-completed .chat-course-phase { color: #24724c; }
+.chat-course-progress { margin: 8px 2px 0; color: #24724c; font-size: 11px; line-height: 1.6; }
 .chat-course-time { color: #6d87ac; font-variant-numeric: tabular-nums; font-size: 11px; }
 .chat-course-name { min-width: 0; overflow: hidden; color: #2e4665; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .chat-course-phase { color: #93a3b9; font-size: 10px; }
+.chat-course-end { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px; }
+.chat-place-source { display: inline-flex; align-items: center; gap: 3px; margin-left: 5px; padding: 1px 5px; border: 1px solid #d8e3f2; border-radius: 5px; background: #eef3fa; color: #506986; font-size: 10px; font-weight: 500; line-height: 1.7; text-decoration: none; white-space: nowrap; vertical-align: middle; }
+.chat-place-source:hover { border-color: #9dbbeb; background: #e2edfc; color: #245ec5; }
+.chat-place-source:focus-visible { outline: 2px solid #246bf3; outline-offset: 2px; }
+.chat-course-end .chat-place-source { margin-left: 0; }
 .chat-course-summary { margin: 8px 2px 0; color: #6d7f98; font-size: 11px; line-height: 1.6; }
+.chat-course-time-warning { margin: 10px 0 0; padding: 10px; border: 1px solid #f0d5a5; border-radius: 9px; background: #fff8eb; color: #825216; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
 .chat-course-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .chat-course-actions button { flex: 1 1 auto; min-height: 34px; padding: 6px 11px; border: 1px solid #cfdcf1; border-radius: 10px; background: #fff; color: #3f5d86; font-size: 11px; font-weight: 600; }
 .chat-course-actions button:hover { border-color: #9dbbeb; background: #f1f6ff; }

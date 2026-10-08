@@ -80,7 +80,7 @@ test("tourism client calls Django only and validates its response", async () => 
   const expected = JSON.parse(JSON.stringify({ status: "ok", places: [tourPlace], truncated: false }));
   const result = await fetchTourPlaces(stadium, async (url, options) => {
     const target = new URL(url, "http://example.test");
-    assert.equal(target.pathname, "/api/tourism/");
+    assert.equal(target.pathname, "/api/v1/tourism/");
     assert.equal(target.searchParams.get("stadium"), stadium.code);
     assert.equal(target.searchParams.get("lat"), String(stadium.lat));
     assert.equal(target.searchParams.get("lng"), String(stadium.lng));

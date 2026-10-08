@@ -24,7 +24,7 @@ from .parsers import (
 from .relational import (
     RelationalDataError, TEAM_MAP, athlete_sync_time, daily_sync_time, month_sync_time,
     persist_athlete, persist_daily, persist_month, persist_team, read_athlete,
-    read_daily, read_month, read_team, team_for, team_sync_time,
+    read_daily, read_month, read_next_game_day, read_team, team_for, team_sync_time,
 )
 
 
@@ -299,28 +299,15 @@ def _envelope(data, fetched_at, last_synced_at, *, stale=False, warning=None, so
 
 
 def _fresh_or_fallback(fetcher, persister, reader, sync_time, *, daily=False, source_url=None):
+    # 화면 요청에서는 TVING API 호출과 DB 저장을 하지 않고 DB 값만 반환한다.
     previous = reader()
     last_synced_at = sync_time() if previous is not None else None
-    checked_at = timezone.now()
-    if previous is not None and last_synced_at is not None and checked_at - last_synced_at < timedelta(seconds=settings.EXTERNAL_DATA_SYNC_INTERVAL_SECONDS):
-        if daily:
-            previous["nextCheckAt"] = _iso(last_synced_at + timedelta(seconds=settings.EXTERNAL_DATA_SYNC_INTERVAL_SECONDS))
-        return _envelope(previous, last_synced_at, last_synced_at, source_url=source_url)
-    try:
-        payload = fetcher(previous)
-        fetched_at = timezone.now()
-        if daily:
-            payload["nextCheckAt"] = _iso(fetched_at + timedelta(seconds=settings.EXTERNAL_DATA_SYNC_INTERVAL_SECONDS))
-        last_synced_at = persister(payload, fetched_at)
-        return _envelope(payload, fetched_at, last_synced_at, source_url=source_url)
-    except (TvingError, TvingValidationError, RelationalDataError, TypeError, AttributeError, KeyError, ValueError) as error:
-        if previous is not None:
-            last_synced_at = sync_time()
-            return _envelope(previous, last_synced_at or timezone.now(), last_synced_at, stale=True, warning="최신 정보를 확인하지 못해 마지막으로 저장한 자료를 표시합니다.", source_url=source_url)
-        if isinstance(error, TvingError):
-            raise
-        raise TvingUpstreamError("TVING 응답 검증에 실패했습니다.") from None
-
+    # DB에 저장된 값이 없으면 크론 수집 후 다시 조회한다.
+    if previous is None:
+        raise TvingUpstreamError("데이터 호출 오류!")
+    if daily:
+        previous["nextCheckAt"] = _iso(last_synced_at + timedelta(seconds=settings.EXTERNAL_DATA_SYNC_INTERVAL_SECONDS))
+    return _envelope(previous, last_synced_at, last_synced_at, source_url=source_url)
 
 def refresh_daily(day, provider=None):
     provider = provider or _provider_json
@@ -341,6 +328,18 @@ def refresh_daily(day, provider=None):
         return data
     parsed_day = datetime.fromisoformat(day).date()
     return _fresh_or_fallback(fetch, persist_daily, lambda: read_daily(day), lambda: daily_sync_time(parsed_day), daily=True)
+
+
+def with_next_games(data):
+    """메인 화면에서만 빈 경기 목록을 다음 경기일로 대체하고 순위 기준일은 유지한다."""
+    if data["games"]:
+        return data
+    games, synced_at = read_next_game_day(data["date"])
+    if not games:
+        return data
+    checked_at = min(datetime.fromisoformat(data["fetchedAt"]), synced_at)
+    return _envelope({**data, "games": games}, checked_at, checked_at,
+                     stale=data["stale"], warning=data["warning"])
 
 
 def refresh_month(month, provider=None):
@@ -400,8 +399,11 @@ def refresh_athlete(code, provider=None):
     return result
 
 
-def ensure_game_range_fresh(start_date, end_date, provider=None):
-    """Refresh each requested schedule month through the same DB-first path as HTTP."""
+def get_game_range_freshness(start_date, end_date, provider=None):
+    """요청 기간의 월별 일정이 DB에 있는지 확인해 stale/warning만 돌려준다.
+
+    TVING 호출·DB 저장은 하지 않는다(#29부터 갱신은 crawling/ 크롤러 담당).
+    """
     month = start_date.replace(day=1)
     end_month = end_date.replace(day=1)
     stale = False
@@ -424,8 +426,12 @@ def ensure_game_range_fresh(start_date, end_date, provider=None):
     return {"stale": stale, "warning": warnings[0] if warnings else None}
 
 
-def ensure_standings_fresh(snapshot_date=None, provider=None):
-    """Refresh current standings only; the provider has no historical standings endpoint."""
+def get_standings_freshness(snapshot_date=None, provider=None):
+    """오늘 순위가 DB에 있는지 확인해 stale/warning만 돌려준다.
+
+    TVING 호출·DB 저장은 하지 않는다(#29부터 갱신은 crawling/ 크롤러 담당).
+    과거·미래 날짜는 저장분만 조회한다는 경고를 준다.
+    """
     today = datetime.now(ZoneInfo("Asia/Seoul")).date()
     latest = StandingHistory.objects.order_by("-snapshot_date").values_list("snapshot_date", flat=True).first()
     if snapshot_date is not None and snapshot_date != today:
@@ -450,13 +456,17 @@ def player_entity(player):
     return {"externalCode": player.external_code, "teamCode": code, "name": player.name, "imageUrl": player.image_url, "positions": player.positions, "backNumber": player.back_number, "profileLastSyncedAt": _iso(player.profile_last_synced_at)}
 
 
-def search_entities(*, kind, team=None, player=None, date=None, month=None, page=1, page_size=50):
+def search_entities(*, kind, team=None, player=None, date=None, month=None, page=1, page_size=50, name=None, offset=None):
     if kind not in {"game", "standing", "team", "player", "roster", "player-season", "team-top"}:
         raise TvingInputError("entity kind가 올바르지 않습니다.")
     if isinstance(page, bool) or not isinstance(page, int) or not 1 <= page <= 10_000 or isinstance(page_size, bool) or not isinstance(page_size, int) or not 1 <= page_size <= 100:
         raise TvingInputError("페이지 범위가 올바르지 않습니다.")
     if team is not None and (not isinstance(team, str) or team.upper() not in TEAM_CODES):
         raise TvingInputError("구단 코드가 올바르지 않습니다.")
+    if name is not None and (kind != "player" or not isinstance(name, str) or not name.strip() or len(name) > 80):
+        raise TvingInputError("선수 이름이 올바르지 않습니다.")
+    if offset is not None and (isinstance(offset, bool) or not isinstance(offset, int) or not 0 <= offset <= 1_000_000):
+        raise TvingInputError("페이지 범위가 올바르지 않습니다.")
     mapped_team = team_for(team.upper()) if team else None
     if player is not None and (not isinstance(player, str) or not player.strip() or len(player) > 40 or any(ord(char) < 32 for char in player)):
         raise TvingInputError("선수 코드가 올바르지 않습니다.")
@@ -482,6 +492,7 @@ def search_entities(*, kind, team=None, player=None, date=None, month=None, page
         query = Player.objects.select_related("team").order_by("external_code")
         if mapped_team: query = query.filter(team=mapped_team)
         if player: query = query.filter(external_code=player)
+        if name: query = query.filter(name__icontains=name.strip())
         serializer = player_entity
     elif kind == "roster":
         query = TeamRoster.objects.select_related("team", "player").order_by("team_id", "position", "player_id")
@@ -498,7 +509,7 @@ def search_entities(*, kind, team=None, player=None, date=None, month=None, page
         if mapped_team: query = query.filter(team=mapped_team)
         if player: query = query.filter(player_id=player)
         serializer = lambda row: {"id": row.pk, "teamCode": row.team.team_code, "playerCode": row.player_id, "athleteType": row.athlete_type, "category": row.category, "rank": row.rank, "lastSyncedAt": row.last_synced_at}
-    count = query.count(); start = (page - 1) * page_size
+    count = query.count(); start = offset if offset is not None else (page - 1) * page_size
     return [serializer(row) for row in query[start:start + page_size]], count
 
 

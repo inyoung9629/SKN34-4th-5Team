@@ -4,6 +4,7 @@ import { COURSE_PHASE_LABEL } from "@/lib/chat/course";
 import type { ChatCourse } from "@/lib/chat/types";
 import { useChat } from "./chat-provider";
 import { Icon } from "./icons";
+import { ChatPlaceSource } from "./chat-answer";
 import "@/styles/chat-course-card.css";
 
 // 챗봇이 짠 코스를 답변 아래 카드로 보여준다.
@@ -21,16 +22,20 @@ export function ChatCourseCard({ course }: { course: ChatCourse }) {
         <strong>추천 코스</strong>
         {course.travelLabel && <span className="chat-course-chip">{course.travelLabel} 기준</span>}
       </header>
+      {course.places.some(place => place.completed) && <p className="chat-course-progress" role="note">{course.places.filter(place => place.completed).length}곳 방문 완료 · 남은 일정 {course.places.filter(place => !place.completed).length}곳</p>}
+      {course.origin && <p className="chat-course-summary">출발: {course.origin.name ?? "선택한 출발지"}{course.entryPoint ? " → 구장 반경 2.5km 진입 → 아래 코스" : " → 아래 코스"}</p>}
       <ol className="chat-course-stops">
         {course.places.map((place, index) => (
-          <li key={`${place.placeId ?? place.name}:${index}`} className={place.phase === "GAME" ? "is-game" : undefined}>
+          <li key={`${place.placeId ?? place.name}:${index}`} className={place.completed ? "is-completed" : place.phase === "GAME" ? "is-game" : undefined}>
             <span className="chat-course-time">{place.time ?? ""}</span>
-            <span className="chat-course-name" title={place.address}>{place.name}</span>
-            <span className="chat-course-phase">{place.category === "STAY" ? "숙소" : COURSE_PHASE_LABEL[place.phase]}</span>
+            <span className="chat-course-name" title={place.address}>{place.name}{place.stayOverride && <small> · {place.stayOverride}분</small>}</span>
+            <span className="chat-course-end"><span className="chat-course-phase">{place.completed ? "✓ 방문 완료" : place.category === "STAY" ? "숙소" : COURSE_PHASE_LABEL[place.phase]}</span><ChatPlaceSource place={place} /></span>
           </li>
         ))}
       </ol>
       {course.summary && <p className="chat-course-summary">{course.summary}</p>}
+      {course.approachNotice && <p className="chat-course-time-warning" role="note" aria-label="코스 경로 안내">{course.approachNotice}</p>}
+      {course.timeWarning && <p className="chat-course-time-warning" role="note" aria-label="경기 전 방문 시간 안내">{course.timeWarning}</p>}
       <div className="chat-course-actions">
         {!courseTarget ? (
           <button type="button" className="is-primary" onClick={() => openCourseInWriter(course)}>루트 작성 지도에서 열기</button>

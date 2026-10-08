@@ -40,7 +40,7 @@ const idempotencyKey = "550e8400-e29b-41d4-a716-446655440000";
 
 test("community list is read from the public DB API", async () => {
   const result = await api.fetchCommunityPosts(async (url, init) => {
-    assert.equal(url, "/api/community/posts/");
+    assert.equal(url, "/api/v1/community/posts/");
     assert.equal(init.cache, "no-store");
     assert.ok(init.signal instanceof AbortSignal);
     return Response.json([post]);
@@ -69,10 +69,10 @@ test("public detail/comments use fetch while private reads use memberFetch with 
   } finally { global.fetch = originalFetch; }
 
   assert.deepEqual(publicCalls.map(([url]) => url), [
-    "/api/community/posts/free%2Fsample%201/",
-    "/api/community/posts/free%2Fsample%201/comments/?order=newest",
+    "/api/v1/community/posts/free%2Fsample%201/",
+    "/api/v1/community/posts/free%2Fsample%201/comments/?order=newest",
   ]);
-  assert.deepEqual(memberCalls.map(([url]) => url), ["/api/community/posts/?mine=1", "/api/community/posts/free%2Fsample%201/vote/"]);
+  assert.deepEqual(memberCalls.map(([url]) => url), ["/api/v1/community/posts/?mine=1", "/api/v1/community/posts/free%2Fsample%201/vote/"]);
   for (const [, init] of [...publicCalls, ...memberCalls]) {
     assert.equal(init.cache, "no-store");
     assert.ok(init.signal instanceof AbortSignal);
@@ -90,7 +90,7 @@ test("authenticated mutations send exact bodies and refresh the public store", a
   let refreshes = 0;
   const originalFetch = global.fetch;
   global.fetch = async url => {
-    assert.equal(url, "/api/community/posts/");
+    assert.equal(url, "/api/v1/community/posts/");
     refreshes += 1;
     return Response.json([post]);
   };
@@ -107,14 +107,14 @@ test("authenticated mutations send exact bodies and refresh the public store", a
 
   assert.equal(refreshes, 8);
   assert.deepEqual(calls.map(([url, init]) => [url, init.method]), [
-    ["/api/community/posts/", "POST"],
-    ["/api/community/posts/free%2Fsample%201/", "PATCH"],
-    ["/api/community/posts/free%2Fsample%201/", "DELETE"],
-    ["/api/community/posts/free%2Fsample%201/comments/", "POST"],
-    ["/api/community/comments/3/", "PATCH"],
-    ["/api/community/comments/3/", "DELETE"],
-    ["/api/community/posts/free%2Fsample%201/vote/", "POST"],
-    ["/api/community/posts/free%2Fsample%201/reports/", "POST"],
+    ["/api/v1/community/posts/", "POST"],
+    ["/api/v1/community/posts/free%2Fsample%201/", "PATCH"],
+    ["/api/v1/community/posts/free%2Fsample%201/", "DELETE"],
+    ["/api/v1/community/posts/free%2Fsample%201/comments/", "POST"],
+    ["/api/v1/community/comments/3/", "PATCH"],
+    ["/api/v1/community/comments/3/", "DELETE"],
+    ["/api/v1/community/posts/free%2Fsample%201/vote/", "POST"],
+    ["/api/v1/community/posts/free%2Fsample%201/reports/", "POST"],
   ]);
   assert.equal(new Headers(calls[0][1].headers).get("Idempotency-Key"), idempotencyKey);
   assert.deepEqual(JSON.parse(calls[0][1].body), { ...input, title: "제목", content: "본문" });

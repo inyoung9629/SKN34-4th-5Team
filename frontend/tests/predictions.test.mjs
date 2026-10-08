@@ -31,7 +31,7 @@ const game = {
 test("public filters use the direct community API and reject malformed data", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (path, init) => {
-    assert.equal(path, "/api/community/predictions/games/?date=2026-09-15&team=LG");
+    assert.equal(path, "/api/v1/community/predictions/games/?date=2026-09-15&team=LG");
     assert.equal(init.cache, "no-store");
     return Response.json([game]);
   };
@@ -47,8 +47,8 @@ test("authenticated reads and final-state votes use memberFetch with encoded IDs
   memberCalls = [];
   assert.deepEqual(await fetchPredictionGame(game.gameId, true), game);
   await setPredictionVote(game.gameId, "home");
-  assert.equal(memberCalls[0][0], "/api/community/predictions/games/TVING%2Fgame%201/");
-  assert.equal(memberCalls[1][0], "/api/community/predictions/games/TVING%2Fgame%201/vote/");
+  assert.equal(memberCalls[0][0], "/api/v1/community/predictions/games/TVING%2Fgame%201/");
+  assert.equal(memberCalls[1][0], "/api/v1/community/predictions/games/TVING%2Fgame%201/vote/");
   assert.deepEqual(JSON.parse(memberCalls[1][1].body), { choice: "home" });
 });
 

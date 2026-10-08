@@ -19,7 +19,7 @@ for (const name of ["server-only", "next"]) mkdirSync(join(scratch, "node_module
 writeFileSync(join(scratch, "node_modules/server-only/index.js"), "module.exports = {};\n");
 writeFileSync(join(scratch, "node_modules/next/headers.js"), "exports.cookies = () => { throw Error('Origin checks must not access cookies'); };\n");
 mkdirSync(join(scratch, "chat"));
-for (const name of ["team-backend", "chat/validation", "chat/types"]) {
+for (const name of ["team-backend", "chat/validation", "chat/types", "chat/course", "course-directions"]) {
   const source = readFileSync(join(root, "lib", `${name}.ts`), "utf8");
   const { outputText } = ts.transpileModule(source, {
     fileName: `${name}.ts`,

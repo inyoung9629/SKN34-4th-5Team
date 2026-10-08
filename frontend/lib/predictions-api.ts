@@ -48,20 +48,20 @@ export async function fetchPredictionGames(filters: { date?: string; team?: stri
   const query = new URLSearchParams();
   if (filters.date) query.set("date", filters.date);
   if (filters.team) query.set("team", filters.team);
-  const path = `/api/community/predictions/games/${query.size ? `?${query}` : ""}`;
+  const path = `/api/v1/community/predictions/games/${query.size ? `?${query}` : ""}`;
   const data = await responseData(await read(path, authenticated, signal), "경기 정보를 불러오지 못했어요.");
   if (!Array.isArray(data) || !data.every(isGame)) throw new Error("경기 응답 형식이 올바르지 않아요.");
   return data;
 }
 
 export async function fetchPredictionGame(gameId: string, authenticated = false, signal?: AbortSignal): Promise<PredictionGame> {
-  const data = await responseData(await read(`/api/community/predictions/games/${encodeURIComponent(gameId)}/`, authenticated, signal), "경기 정보를 불러오지 못했어요.");
+  const data = await responseData(await read(`/api/v1/community/predictions/games/${encodeURIComponent(gameId)}/`, authenticated, signal), "경기 정보를 불러오지 못했어요.");
   if (!isGame(data)) throw new Error("경기 응답 형식이 올바르지 않아요.");
   return data;
 }
 
 export async function setPredictionVote(gameId: string, choice: PredictionChoice | null): Promise<PredictionGame> {
-  const response = await memberFetch(`/api/community/predictions/games/${encodeURIComponent(gameId)}/vote/`, {
+  const response = await memberFetch(`/api/v1/community/predictions/games/${encodeURIComponent(gameId)}/vote/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     cache: "no-store",

@@ -6,22 +6,22 @@
 
 ```text
 브라우저 ChatProvider
-  → 회원 memberFetch("/api/chat/...") 또는 게스트 fetch("/api/chat/guest/")
-  → Nginx /api/ 프록시
+  → 회원 memberFetch("/api/v1/chat/...") 또는 게스트 fetch("/api/v1/chat/guest/")
+  → Nginx /api/v1/ 프록시
   → Django /chat/...
   → ChatService
 ```
 
-회원 요청은 `memberFetch`가 access token을 넣고 401이면 한 번 갱신합니다. 인증 상태 확인 자체가 실패하면 게스트로 전환하지 않습니다. Nginx가 `/api/` 접두어를 제거하므로 별도 Next relay는 없습니다.
+회원 요청은 `memberFetch`가 access token을 넣고 401이면 한 번 갱신합니다. 인증 상태 확인 자체가 실패하면 게스트로 전환하지 않습니다. Nginx가 `/api/v1/` 접두어를 제거하므로 별도 Next relay는 없습니다.
 
 ## 요청 순서와 계약
 
-회원은 보호된 `GET /api/chat/sessions/`로 연결을 확인합니다. 게스트는 최근 `user`/`assistant` 기록을 제한된 body로 `/api/chat/guest/`에 보내며 `ChatSession`, `ChatMessage`, 브라우저 저장소에 쓰지 않습니다. 새로고침·로그인·계정 변경 시 게스트 기록이 사라집니다.
+회원은 보호된 `GET /api/v1/chat/sessions/`로 연결을 확인합니다. 게스트는 최근 `user`/`assistant` 기록을 제한된 body로 `/api/v1/chat/guest/`에 보내며 `ChatSession`, `ChatMessage`, 브라우저 저장소에 쓰지 않습니다. 새로고침·로그인·계정 변경 시 게스트 기록이 사라집니다.
 
 첫 질문은 다음 두 요청을 순서대로 보냅니다.
 
-1. `POST /api/chat/sessions/` — `{ "title": "질문 앞부분" }`
-2. `POST /api/chat/sessions/{session_id}/messages/` — `{ "content": "질문" }`
+1. `POST /api/v1/chat/sessions/` — `{ "title": "질문 앞부분" }`
+2. `POST /api/v1/chat/sessions/{session_id}/messages/` — `{ "content": "질문" }`
 
 후속 질문은 같은 `session_id`의 메시지 endpoint만 호출하므로 Django에 저장된 이전 대화가 `ChatService`에 전달됩니다. 새 대화를 누르면 새 session을 만들며, 로그인 사용자가 바뀌거나 로그아웃하면 브라우저의 메시지·session 연결·진행 중 요청을 정리합니다.
 
@@ -35,7 +35,7 @@ event: done
 data: {"turn_id":"...","receipt":"완료 체크포인트"}
 ```
 
-회원 브라우저는 마지막으로 받은 체크포인트를 `POST /api/chat/turns/{turn_id}/finalize/`에 `{receipt, prefix, status}`로 보냅니다. 서버는 서명·회원·방·prefix 해시를 검증한 뒤 한 번만 저장하고 `turn_id`, `status`, `user_message_id`, `assistant_message_id`를 반환합니다. 완료는 완료 receipt로, Stop은 화면에 실제 표시된 prefix로 저장되며 첫 토큰 전 Stop은 질문만 저장합니다. 원문 assistant 문자열만 보내 위조할 수 없고, 반복 finalize는 같은 결과를 돌려줍니다.
+회원 브라우저는 마지막으로 받은 체크포인트를 `POST /api/v1/chat/turns/{turn_id}/finalize/`에 `{receipt, prefix, status}`로 보냅니다. 서버는 서명·회원·방·prefix 해시를 검증한 뒤 한 번만 저장하고 `turn_id`, `status`, `user_message_id`, `assistant_message_id`를 반환합니다. 완료는 완료 receipt로, Stop은 화면에 실제 표시된 prefix로 저장되며 첫 토큰 전 Stop은 질문만 저장합니다. 원문 assistant 문자열만 보내 위조할 수 없고, 반복 finalize는 같은 결과를 돌려줍니다.
 
 명시적 Stop은 정상 결과이며 네트워크 단절과 구분합니다. 네트워크 단절·시간 초과로 회원 저장 확인이 없을 때만 결과가 불확실하다고 표시합니다. `Accept` 없는 기존 JSON 회원 호출은 HTTP 201 계약을 유지합니다.
 

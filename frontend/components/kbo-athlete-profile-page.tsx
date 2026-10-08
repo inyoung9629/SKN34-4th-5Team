@@ -15,7 +15,7 @@ function graphHeight(value: string, points: KboGraphRecord["points"]): number {
 }
 
 export function KboAthleteProfilePage({ code }: { code: string }) {
-  const url = `/api/tving/details/athletes/${code}/`;
+  const url = `/api/v1/tving/details/athletes/${code}/`;
   const { data, loading, refreshing, refresh } = useKboResource<KboDetailSnapshot<KboAthleteDetail>>(url, current => current?.collecting ? 15_000 : 0);
   const [recordIndex, setRecordIndex] = useState(0);
   const selected = useMemo(() => data?.seasonRecords[Math.min(recordIndex, Math.max(data.seasonRecords.length - 1, 0))], [data, recordIndex]);

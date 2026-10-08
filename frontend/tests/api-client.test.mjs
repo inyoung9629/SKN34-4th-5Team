@@ -40,6 +40,6 @@ test("successful non-JSON responses fail safely", async () => {
 
 test("injected fetchers preserve abort errors", async () => {
   const abort = new DOMException("stopped", "AbortError");
-  await assert.rejects(apiRequest("/api/example/", {}, async () => { throw abort; }), error => error === abort);
+  await assert.rejects(apiRequest("/api/v1/example/", {}, async () => { throw abort; }), error => error === abort);
   assert.equal(isAbortError(abort), true);
 });
