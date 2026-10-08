@@ -59,4 +59,8 @@
 
 ## 과거 기록
 
+- [팀 develop 통합·JEV 숙박 조사 인계 — 2026-10-08](test_results/jev-team70-handoff-20261008.md): 최신 JEV 실행 결과, 현재 제한과 집에서 이어갈 작업
+
+- [Chrome 숙박 조회 비교 실험 — 2026-10-08](test_results/chrome-lodging-20261008.md): 동일 입력 5쌍의 성공 여부, 앱 API 비용, 수동 중개 실험의 한계와 숙소 매칭 문제
+
 `archive/` 문서는 작성 당시 상태를 보존합니다. 설치 명령, 폴더 구조와 현재 동작은 루트 README와 현행 소스·API 문서를 우선합니다.

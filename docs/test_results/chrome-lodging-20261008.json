@@ -1,0 +1,1939 @@
+{
+  "date": "2026-10-08",
+  "commit": "22d638b0e1e31dff0097d5528b77dd73124bd02d",
+  "successes": {
+    "openai": 2,
+    "chrome": 3
+  },
+  "paired_success_ids": [
+    "J1",
+    "J3"
+  ],
+  "paired_api_totals_usd": {
+    "openai": 0.09358644199999999,
+    "chrome": 0.010462442
+  },
+  "paired_api_reduction_percent": 88.8205580034766,
+  "all_attempt_api_totals_usd": {
+    "openai": 0.276907232,
+    "chrome": 0.023940932
+  },
+  "not_included_in_api_total": [
+    "Codex model/browser orchestration usage (unmetered here)",
+    "Local Chrome/compute/network/hosting",
+    "Kakao and Tmap quota overage, if any",
+    "Tax and actual currency conversion"
+  ],
+  "limitations": [
+    "Chrome is a test-only agent-assisted broker, not an unattended production integration. Core course LLM remains OpenAI/JEV.",
+    "Same input, origin, fixture, code and original validators. Retrieval policy is different: Chrome operator selected one candidate per four-candidate batch, performed a focused Google search, and fed verbatim NOL identity/location/facilities excerpts. No failed candidate was declared verified.",
+    "The API cost delta includes fewer candidate pages and manually selected relevant text. It is not a controlled per-token comparison and not a complete operational cost saving.",
+    "No dynamic application RAG reads/writes; DummyCache; fresh per-turn verdict cache; explicit provider prompt-cache mode with zero breakpoints; all recorded cached/read-write tokens zero.",
+    "Static versioned source catalogues and 15 existing document vectors remain input data. Browser/CDN/search-engine internal caching cannot be disabled or measured here.",
+    "One run per scenario per method. No retries selected for better results. No statistical reliability claim.",
+    "No price, vacancy, booking or October 16 hotel inventory validation. Generic lodging request does not prove clean/quiet hotel quality.",
+    "Chrome wall time includes manual orchestration. Active browser time is not isolated, so a production speed comparison is unavailable.",
+    "origin_preserved corrected from recorded lat/lng: original whole-dictionary comparison wrongly failed an added display name. No paid rerun."
+  ],
+  "pricing": {
+    "gpt-6-luna_input_per_million": 0.1,
+    "gpt-6-luna_output_per_million": 0.5,
+    "jev-1.13_input_per_million": 0.042,
+    "jev_output": 0,
+    "web_search_action_usd": 0.01,
+    "currency_example_krw_per_usd": 1400
+  },
+  "pricing_sources": [
+    "https://developers.openai.com/api/docs/pricing",
+    "https://openrouter.ai/api/v1/models/typesafe/jev-1.13/endpoints"
+  ],
+  "status": "agent_assisted_experiment_only_not_production_chrome_integration",
+  "game_date": "2026-10-16",
+  "origin_labels": {
+    "GWANGJU": "광주역",
+    "JAMSIL": "사용자가 지정했던 삼성역 서쪽 핀 (원본 좌표는 로컬 보관)"
+  },
+  "method_note": "Core OpenAI/JEV course models retained. Only lodging native web retrieval replaced by operator-mediated Chrome/Google URL discovery and NOL visible DOM excerpts.",
+  "timing_note": "Chrome seconds include operator waiting and manual coordination; baseline/Chrome processes partly overlapped. Not a speed benchmark.",
+  "raw_evidence": "Local ignored backend/artifacts/chrome-cost-20261008; raw conversations, session IDs, precise user pins and page bodies omitted from Git",
+  "cases": [
+    {
+      "id": "G1",
+      "stadium": "GWANGJU",
+      "game_time": "14:00",
+      "prompt": "2026년 10월 16일 14:00 GWANGJU 경기 기준입니다. 경기 전에 카페에 갔다가 경기 보고 숙박하는 코스 짜줘.",
+      "paired_success": false,
+      "openai": {
+        "total_usd": 0.061361236,
+        "model_usd": 0.011361236,
+        "search_usd": 0.05,
+        "seconds": 82.673,
+        "broker_wall_seconds": 0,
+        "checks": {
+          "no_error": true,
+          "course_present": true,
+          "correct_stadium": true,
+          "correct_game": true,
+          "origin_preserved": true,
+          "stadium_in_course": true,
+          "stay_after_game": false,
+          "stay_nol_identity_verified": false,
+          "cafe_before_game": true,
+          "stadium_time_policy": true,
+          "stay_is_last": false
+        },
+        "pass": false,
+        "web_search_actions": 5,
+        "calls": 13,
+        "ledger_reconciled": true,
+        "cache_zero": true,
+        "unpriced_calls": 0,
+        "ledger": {
+          "status": "settled",
+          "input_tokens": 98413,
+          "output_tokens": 3613,
+          "calls": 12,
+          "unknown_calls": 0
+        },
+        "raw_sha256": "74c46a29889eddb2791ea49c4862e457ef5630b38a017f95b434b4045776c67a",
+        "course": [
+          {
+            "name": "차즈카",
+            "category": "CAFE",
+            "phase": "BEFORE",
+            "time": "12:25"
+          },
+          {
+            "name": "광주-KIA 챔피언스 필드",
+            "category": "STADIUM",
+            "phase": "GAME",
+            "time": "13:40"
+          }
+        ],
+        "usage": [
+          {
+            "kind": "classifier",
+            "model": "jev-1.13",
+            "input": 2038,
+            "output": 342,
+            "cached": null,
+            "cache_write": null,
+            "usd": 8.5596e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6417,
+            "output": 180,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0007317000000000001,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 12070,
+            "output": 380,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.001397,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "embedding",
+            "model": "text-embedding-3-small",
+            "input": 132,
+            "output": 0,
+            "cached": null,
+            "cache_write": null,
+            "usd": 2.64e-06,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 734,
+            "output": 34,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 9.04e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 432,
+            "output": 63,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 7.47e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "responses",
+            "model": "gpt-6-luna",
+            "input": 14465,
+            "output": 413,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.001653,
+            "web_search_calls": 1,
+            "web_search_usd": 0.01
+          },
+          {
+            "kind": "responses",
+            "model": "gpt-6-luna",
+            "input": 21944,
+            "output": 650,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0025194,
+            "web_search_calls": 2,
+            "web_search_usd": 0.02
+          },
+          {
+            "kind": "responses",
+            "model": "gpt-6-luna",
+            "input": 29921,
+            "output": 721,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0033526000000000003,
+            "web_search_calls": 2,
+            "web_search_usd": 0.02
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1418,
+            "output": 91,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0001873,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 853,
+            "output": 115,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0001428,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1377,
+            "output": 114,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.00019470000000000002,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6744,
+            "output": 510,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0009294,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          }
+        ]
+      },
+      "chrome": {
+        "total_usd": 0.005086936,
+        "model_usd": 0.005086936,
+        "search_usd": 0.0,
+        "seconds": 238.765,
+        "broker_wall_seconds": 172.369,
+        "checks": {
+          "no_error": true,
+          "course_present": true,
+          "correct_stadium": true,
+          "correct_game": true,
+          "origin_preserved": true,
+          "stadium_in_course": true,
+          "stay_after_game": false,
+          "stay_nol_identity_verified": false,
+          "cafe_before_game": true,
+          "stadium_time_policy": true,
+          "stay_is_last": false
+        },
+        "pass": false,
+        "web_search_actions": 0,
+        "calls": 12,
+        "ledger_reconciled": true,
+        "cache_zero": true,
+        "unpriced_calls": 0,
+        "ledger": {
+          "status": "settled",
+          "input_tokens": 36850,
+          "output_tokens": 3377,
+          "calls": 11,
+          "unknown_calls": 0
+        },
+        "raw_sha256": "0beb0ba584ca399d40fef0cbf06d227358fd768ad8a1ede128f41582b4a14ccb",
+        "course": [
+          {
+            "name": "차즈카",
+            "category": "CAFE",
+            "phase": "BEFORE",
+            "time": "12:25"
+          },
+          {
+            "name": "광주-KIA 챔피언스 필드",
+            "category": "STADIUM",
+            "phase": "GAME",
+            "time": "13:40"
+          }
+        ],
+        "usage": [
+          {
+            "kind": "classifier",
+            "model": "jev-1.13",
+            "input": 2038,
+            "output": 342,
+            "cached": null,
+            "cache_write": null,
+            "usd": 8.5596e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6417,
+            "output": 216,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0007497000000000001,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 12070,
+            "output": 558,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.001486,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "embedding",
+            "model": "text-embedding-3-small",
+            "input": 132,
+            "output": 0,
+            "cached": null,
+            "cache_write": null,
+            "usd": 2.64e-06,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 734,
+            "output": 42,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 9.44e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 432,
+            "output": 46,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 6.62e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 2473,
+            "output": 611,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0005528,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 2258,
+            "output": 602,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0005267999999999999,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1418,
+            "output": 122,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.00020280000000000002,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 853,
+            "output": 126,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0001483,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1377,
+            "output": 101,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.00018820000000000002,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6780,
+            "output": 611,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0009835,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "id": "G2",
+      "stadium": "GWANGJU",
+      "game_time": "14:00",
+      "prompt": "2026년 10월 16일 14:00 GWANGJU 경기 기준입니다. 구장 내부에서 간식 먹고 경기 본 다음 술집 갔다가 숙박하는 코스 짜줘.",
+      "paired_success": false,
+      "openai": {
+        "total_usd": 0.060908874,
+        "model_usd": 0.010908874,
+        "search_usd": 0.05,
+        "seconds": 73.511,
+        "broker_wall_seconds": 0,
+        "checks": {
+          "no_error": true,
+          "course_present": true,
+          "correct_stadium": true,
+          "correct_game": true,
+          "origin_preserved": true,
+          "stadium_in_course": true,
+          "stay_after_game": false,
+          "stay_nol_identity_verified": false,
+          "internal_snack_before_game": true,
+          "snack_arrival_30min_before": true,
+          "bar_after_game": true,
+          "stadium_time_policy": true,
+          "stay_is_last": false
+        },
+        "pass": false,
+        "web_search_actions": 5,
+        "calls": 9,
+        "ledger_reconciled": true,
+        "cache_zero": true,
+        "unpriced_calls": 0,
+        "ledger": {
+          "status": "settled",
+          "input_tokens": 93263,
+          "output_tokens": 3738,
+          "calls": 8,
+          "unknown_calls": 0
+        },
+        "raw_sha256": "5c23ce5aaa1ae2d91aecb446c5a7aec3eb064a69d27613e2c575041618dcb565",
+        "course": [
+          {
+            "name": "STATION",
+            "category": "FOOD",
+            "phase": "BEFORE",
+            "time": "13:30"
+          },
+          {
+            "name": "광주-KIA 챔피언스 필드",
+            "category": "STADIUM",
+            "phase": "GAME",
+            "time": "14:00"
+          },
+          {
+            "name": "파쿠야 용봉점",
+            "category": "FOOD",
+            "phase": "AFTER",
+            "time": "17:46"
+          }
+        ],
+        "usage": [
+          {
+            "kind": "classifier",
+            "model": "jev-1.13",
+            "input": 2047,
+            "output": 342,
+            "cached": null,
+            "cache_write": null,
+            "usd": 8.5974e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6424,
+            "output": 215,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0007499000000000001,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 12077,
+            "output": 555,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0014852,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "embedding",
+            "model": "text-embedding-3-small",
+            "input": 165,
+            "output": 0,
+            "cached": null,
+            "cache_write": null,
+            "usd": 3.3e-06,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 448,
+            "output": 51,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 7.030000000000001e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "responses",
+            "model": "gpt-6-luna",
+            "input": 14715,
+            "output": 495,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.001719,
+            "web_search_calls": 2,
+            "web_search_usd": 0.02
+          },
+          {
+            "kind": "responses",
+            "model": "gpt-6-luna",
+            "input": 14502,
+            "output": 468,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0016842,
+            "web_search_calls": 2,
+            "web_search_usd": 0.02
+          },
+          {
+            "kind": "responses",
+            "model": "gpt-6-luna",
+            "input": 36073,
+            "output": 844,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0040293,
+            "web_search_calls": 1,
+            "web_search_usd": 0.01
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6977,
+            "output": 768,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0010817000000000001,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          }
+        ]
+      },
+      "chrome": {
+        "total_usd": 0.004580974000000001,
+        "model_usd": 0.004580974000000001,
+        "search_usd": 0.0,
+        "seconds": 218.181,
+        "broker_wall_seconds": 159.808,
+        "checks": {
+          "no_error": true,
+          "course_present": true,
+          "correct_stadium": true,
+          "correct_game": true,
+          "origin_preserved": true,
+          "stadium_in_course": true,
+          "stay_after_game": false,
+          "stay_nol_identity_verified": false,
+          "internal_snack_before_game": true,
+          "snack_arrival_30min_before": true,
+          "bar_after_game": true,
+          "stadium_time_policy": true,
+          "stay_is_last": false
+        },
+        "pass": false,
+        "web_search_actions": 0,
+        "calls": 8,
+        "ledger_reconciled": true,
+        "cache_zero": true,
+        "unpriced_calls": 0,
+        "ledger": {
+          "status": "settled",
+          "input_tokens": 32479,
+          "output_tokens": 3239,
+          "calls": 7,
+          "unknown_calls": 0
+        },
+        "raw_sha256": "4020e317688f6213c124e38f50d2f54d565f621c3e8bd7f2481a40de295e9434",
+        "course": [
+          {
+            "name": "STATION",
+            "category": "FOOD",
+            "phase": "BEFORE",
+            "time": "13:30"
+          },
+          {
+            "name": "광주-KIA 챔피언스 필드",
+            "category": "STADIUM",
+            "phase": "GAME",
+            "time": "14:00"
+          },
+          {
+            "name": "파쿠야 용봉점",
+            "category": "FOOD",
+            "phase": "AFTER",
+            "time": "17:46"
+          }
+        ],
+        "usage": [
+          {
+            "kind": "classifier",
+            "model": "jev-1.13",
+            "input": 2047,
+            "output": 342,
+            "cached": null,
+            "cache_write": null,
+            "usd": 8.5974e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6424,
+            "output": 240,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0007624000000000001,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 12077,
+            "output": 667,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0015412,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "embedding",
+            "model": "text-embedding-3-small",
+            "input": 165,
+            "output": 0,
+            "cached": null,
+            "cache_write": null,
+            "usd": 3.3e-06,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 448,
+            "output": 61,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 7.530000000000001e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 2257,
+            "output": 713,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0005822000000000001,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 2224,
+            "output": 456,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0004504,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 7002,
+            "output": 760,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0010802000000000001,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "id": "J1",
+      "stadium": "JAMSIL",
+      "game_time": "17:00",
+      "prompt": "2026년 10월 16일 17:00 JAMSIL 경기 기준입니다. 경기 전에 카페에 갔다가 경기 보고 숙박하는 코스 짜줘.",
+      "paired_success": true,
+      "openai": {
+        "total_usd": 0.062821296,
+        "model_usd": 0.012821296000000001,
+        "search_usd": 0.05,
+        "seconds": 82.776,
+        "broker_wall_seconds": 0,
+        "checks": {
+          "no_error": true,
+          "course_present": true,
+          "correct_stadium": true,
+          "correct_game": true,
+          "origin_preserved": true,
+          "stadium_in_course": true,
+          "stay_after_game": true,
+          "stay_nol_identity_verified": true,
+          "cafe_before_game": true,
+          "stadium_time_policy": true,
+          "stay_is_last": true
+        },
+        "pass": true,
+        "web_search_actions": 5,
+        "calls": 15,
+        "ledger_reconciled": true,
+        "cache_zero": true,
+        "unpriced_calls": 0,
+        "ledger": {
+          "status": "settled",
+          "input_tokens": 110554,
+          "output_tokens": 4105,
+          "calls": 14,
+          "unknown_calls": 0
+        },
+        "raw_sha256": "93022d3a39127c2ef601c5fbb8a3f12af4471e4056041548755d1561a39067bc",
+        "course": [
+          {
+            "name": "투썸플레이스 포스코사거리점",
+            "category": "CAFE",
+            "phase": "BEFORE",
+            "time": "15:26"
+          },
+          {
+            "name": "잠실야구장",
+            "category": "STADIUM",
+            "phase": "GAME",
+            "time": "16:40"
+          },
+          {
+            "name": "신라스테이 삼성",
+            "category": "STAY",
+            "phase": "AFTER",
+            "time": "20:36"
+          }
+        ],
+        "usage": [
+          {
+            "kind": "classifier",
+            "model": "jev-1.13",
+            "input": 2038,
+            "output": 342,
+            "cached": null,
+            "cache_write": null,
+            "usd": 8.5596e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6417,
+            "output": 169,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0007262000000000001,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 12070,
+            "output": 406,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.00141,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "embedding",
+            "model": "text-embedding-3-small",
+            "input": 130,
+            "output": 0,
+            "cached": null,
+            "cache_write": null,
+            "usd": 2.6e-06,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 734,
+            "output": 34,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 9.04e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 432,
+            "output": 54,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 7.02e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "responses",
+            "model": "gpt-6-luna",
+            "input": 23809,
+            "output": 495,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0026284,
+            "web_search_calls": 1,
+            "web_search_usd": 0.01
+          },
+          {
+            "kind": "responses",
+            "model": "gpt-6-luna",
+            "input": 22792,
+            "output": 573,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0025657,
+            "web_search_calls": 3,
+            "web_search_usd": 0.03
+          },
+          {
+            "kind": "responses",
+            "model": "gpt-6-luna",
+            "input": 28702,
+            "output": 615,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0031777000000000003,
+            "web_search_calls": 1,
+            "web_search_usd": 0.01
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1387,
+            "output": 113,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.00019520000000000003,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 889,
+            "output": 96,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0001369,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1477,
+            "output": 234,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.00026470000000000004,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1806,
+            "output": 164,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.00026260000000000004,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1404,
+            "output": 129,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0002049,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6597,
+            "output": 681,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0010002000000000001,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          }
+        ]
+      },
+      "chrome": {
+        "total_usd": 0.004945396,
+        "model_usd": 0.004945396,
+        "search_usd": 0.0,
+        "seconds": 154.438,
+        "broker_wall_seconds": 93.356,
+        "checks": {
+          "no_error": true,
+          "course_present": true,
+          "correct_stadium": true,
+          "correct_game": true,
+          "origin_preserved": true,
+          "stadium_in_course": true,
+          "stay_after_game": true,
+          "stay_nol_identity_verified": true,
+          "cafe_before_game": true,
+          "stadium_time_policy": true,
+          "stay_is_last": true
+        },
+        "pass": true,
+        "web_search_actions": 0,
+        "calls": 13,
+        "ledger_reconciled": true,
+        "cache_zero": true,
+        "unpriced_calls": 0,
+        "ledger": {
+          "status": "settled",
+          "input_tokens": 37630,
+          "output_tokens": 2938,
+          "calls": 12,
+          "unknown_calls": 0
+        },
+        "raw_sha256": "6c959f12a9be550230ae1b050968f0fe467a042d9faf903d5029683240213e1a",
+        "course": [
+          {
+            "name": "투썸플레이스 포스코사거리점",
+            "category": "CAFE",
+            "phase": "BEFORE",
+            "time": "15:26"
+          },
+          {
+            "name": "잠실야구장",
+            "category": "STADIUM",
+            "phase": "GAME",
+            "time": "16:40"
+          },
+          {
+            "name": "글래드 강남 코엑스센터",
+            "category": "STAY",
+            "phase": "AFTER",
+            "time": "20:33"
+          }
+        ],
+        "usage": [
+          {
+            "kind": "classifier",
+            "model": "jev-1.13",
+            "input": 2038,
+            "output": 342,
+            "cached": null,
+            "cache_write": null,
+            "usd": 8.5596e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6417,
+            "output": 185,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0007342000000000001,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 12070,
+            "output": 452,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.001433,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "embedding",
+            "model": "text-embedding-3-small",
+            "input": 130,
+            "output": 0,
+            "cached": null,
+            "cache_write": null,
+            "usd": 2.6e-06,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 734,
+            "output": 42,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 9.44e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 432,
+            "output": 41,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 6.37e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 2360,
+            "output": 380,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.000426,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1387,
+            "output": 106,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.00019170000000000002,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 889,
+            "output": 106,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0001419,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1477,
+            "output": 431,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.00036320000000000005,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1806,
+            "output": 184,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0002726,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1404,
+            "output": 135,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0002079,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6616,
+            "output": 534,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0009286,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "id": "J2",
+      "stadium": "JAMSIL",
+      "game_time": "17:00",
+      "prompt": "2026년 10월 16일 17:00 JAMSIL 경기 기준입니다. 구장 내부에서 간식 먹고 경기 본 다음 숙박하는 코스 짜줘.",
+      "paired_success": false,
+      "openai": {
+        "total_usd": 0.06105068,
+        "model_usd": 0.01105068,
+        "search_usd": 0.05,
+        "seconds": 51.465,
+        "broker_wall_seconds": 0,
+        "checks": {
+          "no_error": true,
+          "course_present": true,
+          "correct_stadium": true,
+          "correct_game": true,
+          "origin_preserved": true,
+          "stadium_in_course": true,
+          "stay_after_game": false,
+          "stay_nol_identity_verified": false,
+          "internal_snack_before_game": true,
+          "snack_arrival_30min_before": true,
+          "stadium_time_policy": true,
+          "stay_is_last": false
+        },
+        "pass": false,
+        "web_search_actions": 5,
+        "calls": 9,
+        "ledger_reconciled": true,
+        "cache_zero": true,
+        "unpriced_calls": 0,
+        "ledger": {
+          "status": "settled",
+          "input_tokens": 95220,
+          "output_tokens": 3631,
+          "calls": 8,
+          "unknown_calls": 0
+        },
+        "raw_sha256": "899d7ab3e57e657b4884eeba0d7edb9480d687e0d5301ca10e293c8819cca801",
+        "course": [
+          {
+            "name": "통밥",
+            "category": "FOOD",
+            "phase": "BEFORE",
+            "time": "16:30"
+          },
+          {
+            "name": "잠실야구장",
+            "category": "STADIUM",
+            "phase": "GAME",
+            "time": "17:00"
+          }
+        ],
+        "usage": [
+          {
+            "kind": "classifier",
+            "model": "jev-1.13",
+            "input": 2040,
+            "output": 342,
+            "cached": null,
+            "cache_write": null,
+            "usd": 8.568e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6418,
+            "output": 169,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0007263,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 12071,
+            "output": 421,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0014176000000000002,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "embedding",
+            "model": "text-embedding-3-small",
+            "input": 125,
+            "output": 0,
+            "cached": null,
+            "cache_write": null,
+            "usd": 2.5e-06,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 442,
+            "output": 43,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 6.57e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "responses",
+            "model": "gpt-6-luna",
+            "input": 14565,
+            "output": 551,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.001732,
+            "web_search_calls": 2,
+            "web_search_usd": 0.02
+          },
+          {
+            "kind": "responses",
+            "model": "gpt-6-luna",
+            "input": 24182,
+            "output": 550,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0026932,
+            "web_search_calls": 2,
+            "web_search_usd": 0.02
+          },
+          {
+            "kind": "responses",
+            "model": "gpt-6-luna",
+            "input": 28749,
+            "output": 1006,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0033779,
+            "web_search_calls": 1,
+            "web_search_usd": 0.01
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6753,
+            "output": 549,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0009498000000000001,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          }
+        ]
+      },
+      "chrome": {
+        "total_usd": 0.0038105800000000005,
+        "model_usd": 0.0038105800000000005,
+        "search_usd": 0.0,
+        "seconds": 202.267,
+        "broker_wall_seconds": 174.96800000000002,
+        "checks": {
+          "no_error": true,
+          "course_present": true,
+          "correct_stadium": true,
+          "correct_game": true,
+          "origin_preserved": true,
+          "stadium_in_course": true,
+          "stay_after_game": true,
+          "stay_nol_identity_verified": true,
+          "internal_snack_before_game": true,
+          "snack_arrival_30min_before": true,
+          "stadium_time_policy": true,
+          "stay_is_last": true
+        },
+        "pass": true,
+        "web_search_actions": 0,
+        "calls": 7,
+        "ledger_reconciled": true,
+        "cache_zero": true,
+        "unpriced_calls": 0,
+        "ledger": {
+          "status": "settled",
+          "input_tokens": 30134,
+          "output_tokens": 2168,
+          "calls": 6,
+          "unknown_calls": 0
+        },
+        "raw_sha256": "f6b0b40236535cc828db317350e030eca60b0ce0ef37a01afb36e3174ff73647",
+        "course": [
+          {
+            "name": "통밥",
+            "category": "FOOD",
+            "phase": "BEFORE",
+            "time": "16:30"
+          },
+          {
+            "name": "잠실야구장",
+            "category": "STADIUM",
+            "phase": "GAME",
+            "time": "17:00"
+          },
+          {
+            "name": "글래드 강남 코엑스센터",
+            "category": "STAY",
+            "phase": "AFTER",
+            "time": "20:33"
+          }
+        ],
+        "usage": [
+          {
+            "kind": "classifier",
+            "model": "jev-1.13",
+            "input": 2040,
+            "output": 342,
+            "cached": null,
+            "cache_write": null,
+            "usd": 8.568e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6418,
+            "output": 263,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0007733000000000001,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 12071,
+            "output": 506,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0014601000000000002,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "embedding",
+            "model": "text-embedding-3-small",
+            "input": 125,
+            "output": 0,
+            "cached": null,
+            "cache_write": null,
+            "usd": 2.5e-06,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 442,
+            "output": 49,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 6.87e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 2360,
+            "output": 403,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0004375,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6803,
+            "output": 605,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0009828,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "id": "J3",
+      "stadium": "JAMSIL",
+      "game_time": "17:00",
+      "prompt": "2026년 10월 16일 17:00 JAMSIL 경기 기준입니다. 카페 갔다가 구장 내부에서 간식 먹고 경기 본 다음 술집 갔다가 숙박하는 코스 짜줘.",
+      "paired_success": true,
+      "openai": {
+        "total_usd": 0.030765146,
+        "model_usd": 0.010765146,
+        "search_usd": 0.02,
+        "seconds": 89.038,
+        "broker_wall_seconds": 0,
+        "checks": {
+          "no_error": true,
+          "course_present": true,
+          "correct_stadium": true,
+          "correct_game": true,
+          "origin_preserved": true,
+          "stadium_in_course": true,
+          "stay_after_game": true,
+          "stay_nol_identity_verified": true,
+          "cafe_before_game": true,
+          "internal_snack_before_game": true,
+          "snack_arrival_30min_before": true,
+          "bar_after_game": true,
+          "stadium_time_policy": true,
+          "stay_is_last": true
+        },
+        "pass": true,
+        "web_search_actions": 2,
+        "calls": 15,
+        "ledger_reconciled": true,
+        "cache_zero": true,
+        "unpriced_calls": 0,
+        "ledger": {
+          "status": "settled",
+          "input_tokens": 88850,
+          "output_tokens": 4333,
+          "calls": 14,
+          "unknown_calls": 0
+        },
+        "raw_sha256": "c6c6add23db7b8b8b8b62fc98c9c19e87fe96d15008bbca032bc125ae1693deb",
+        "course": [
+          {
+            "name": "투썸플레이스 포스코사거리점",
+            "category": "CAFE",
+            "phase": "BEFORE",
+            "time": "15:25"
+          },
+          {
+            "name": "통밥",
+            "category": "FOOD",
+            "phase": "BEFORE",
+            "time": "16:30"
+          },
+          {
+            "name": "잠실야구장",
+            "category": "STADIUM",
+            "phase": "GAME",
+            "time": "17:00"
+          },
+          {
+            "name": "백세주 마을 삼성점",
+            "category": "FOOD",
+            "phase": "AFTER",
+            "time": "20:39"
+          },
+          {
+            "name": "글래드 강남 코엑스센터",
+            "category": "STAY",
+            "phase": "AFTER",
+            "time": "22:15"
+          }
+        ],
+        "usage": [
+          {
+            "kind": "classifier",
+            "model": "jev-1.13",
+            "input": 2053,
+            "output": 342,
+            "cached": null,
+            "cache_write": null,
+            "usd": 8.6226e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6429,
+            "output": 209,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0007474000000000001,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 12082,
+            "output": 754,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0015852000000000002,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "embedding",
+            "model": "text-embedding-3-small",
+            "input": 186,
+            "output": 0,
+            "cached": null,
+            "cache_write": null,
+            "usd": 3.7200000000000004e-06,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 730,
+            "output": 39,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 9.25e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 453,
+            "output": 56,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 7.33e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "responses",
+            "model": "gpt-6-luna",
+            "input": 24034,
+            "output": 561,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0026839,
+            "web_search_calls": 1,
+            "web_search_usd": 0.01
+          },
+          {
+            "kind": "responses",
+            "model": "gpt-6-luna",
+            "input": 27953,
+            "output": 599,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0030948,
+            "web_search_calls": 1,
+            "web_search_usd": 0.01
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1379,
+            "output": 126,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0002009,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 889,
+            "output": 94,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0001359,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1477,
+            "output": 282,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0002887,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1806,
+            "output": 191,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.00027610000000000004,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1396,
+            "output": 109,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0001941,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1241,
+            "output": 126,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.00018710000000000002,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6928,
+            "output": 845,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0011153000000000003,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          }
+        ]
+      },
+      "chrome": {
+        "total_usd": 0.005517046,
+        "model_usd": 0.005517046,
+        "search_usd": 0.0,
+        "seconds": 135.362,
+        "broker_wall_seconds": 60.339,
+        "checks": {
+          "no_error": true,
+          "course_present": true,
+          "correct_stadium": true,
+          "correct_game": true,
+          "origin_preserved": true,
+          "stadium_in_course": true,
+          "stay_after_game": true,
+          "stay_nol_identity_verified": true,
+          "cafe_before_game": true,
+          "internal_snack_before_game": true,
+          "snack_arrival_30min_before": true,
+          "bar_after_game": true,
+          "stadium_time_policy": true,
+          "stay_is_last": true
+        },
+        "pass": true,
+        "web_search_actions": 0,
+        "calls": 14,
+        "ledger_reconciled": true,
+        "cache_zero": true,
+        "unpriced_calls": 0,
+        "ledger": {
+          "status": "settled",
+          "input_tokens": 39239,
+          "output_tokens": 3759,
+          "calls": 13,
+          "unknown_calls": 0
+        },
+        "raw_sha256": "bf5eea1373d337ed83c066bf971d068df87ba69edd6ae3f86b87ec6236d8f125",
+        "course": [
+          {
+            "name": "투썸플레이스 포스코사거리점",
+            "category": "CAFE",
+            "phase": "BEFORE",
+            "time": "15:25"
+          },
+          {
+            "name": "통밥",
+            "category": "FOOD",
+            "phase": "BEFORE",
+            "time": "16:30"
+          },
+          {
+            "name": "잠실야구장",
+            "category": "STADIUM",
+            "phase": "GAME",
+            "time": "17:00"
+          },
+          {
+            "name": "백세주 마을 삼성점",
+            "category": "FOOD",
+            "phase": "AFTER",
+            "time": "20:39"
+          },
+          {
+            "name": "글래드 강남 코엑스센터",
+            "category": "STAY",
+            "phase": "AFTER",
+            "time": "22:15"
+          }
+        ],
+        "usage": [
+          {
+            "kind": "classifier",
+            "model": "jev-1.13",
+            "input": 2053,
+            "output": 342,
+            "cached": null,
+            "cache_write": null,
+            "usd": 8.6226e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6429,
+            "output": 225,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0007554,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 12082,
+            "output": 673,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0015447,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "embedding",
+            "model": "text-embedding-3-small",
+            "input": 186,
+            "output": 0,
+            "cached": null,
+            "cache_write": null,
+            "usd": 3.7200000000000004e-06,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 730,
+            "output": 35,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 9.05e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 453,
+            "output": 41,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 6.580000000000001e-05,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 2360,
+            "output": 388,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.00043,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1379,
+            "output": 106,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0001909,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 889,
+            "output": 111,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0001444,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1477,
+            "output": 405,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.00035020000000000006,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1806,
+            "output": 300,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0003306,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1396,
+            "output": 117,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0001981,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 1241,
+            "output": 137,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.00019260000000000002,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          },
+          {
+            "kind": "chat",
+            "model": "gpt-6-luna",
+            "input": 6944,
+            "output": 879,
+            "cached": 0,
+            "cache_write": 0,
+            "usd": 0.0011339000000000002,
+            "web_search_calls": null,
+            "web_search_usd": 0.0
+          }
+        ]
+      }
+    }
+  ]
+}

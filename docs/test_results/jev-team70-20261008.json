@@ -1,0 +1,51 @@
+{
+  "date_kst": "2026-10-08",
+  "team_commit": "33e475c",
+  "native_search_calls": 0,
+  "serper_calls": 0,
+  "scope": "Live JEV reader and candidate discovery probes, not a full course benchmark",
+  "production_lodging_provider_changed": false,
+  "windows_crlf_build_fix": true,
+  "runs": [
+    {
+      "case": "public_page_control",
+      "tool": "jev_read_body",
+      "seconds": 5.107,
+      "reported_status": "ok",
+      "verified_hotel_evidence": false,
+      "observation": "일반 공개 페이지 본문 읽기 성공"
+    },
+    {
+      "case": "known_nol_hotel_detail",
+      "tool": "jev_read_body",
+      "seconds": 3.596,
+      "reported_status": "ok",
+      "verified_hotel_evidence": false,
+      "observation": "서비스 이용 불가 화면; reader ok는 숙소 검증 성공이 아님"
+    },
+    {
+      "case": "jamsil_candidate_discovery",
+      "tool": "jev_browse",
+      "seconds": 4.26,
+      "reported_status": "blocked",
+      "verified_hotel_evidence": false,
+      "observation": "Google reCAPTCHA; agent blocked"
+    },
+    {
+      "case": "gwangju_candidate_discovery",
+      "tool": "jev_browse",
+      "seconds": 3.863,
+      "reported_status": "blocked",
+      "verified_hotel_evidence": false,
+      "observation": "Google reCAPTCHA; agent blocked"
+    }
+  ],
+  "cleanup": "Test container and private network removed",
+  "raw_evidence": "Local ignored backend/artifacts/jev-lodging-20261008/team70-live.json",
+  "limitations": [
+    "Known detail reader mislabeled a service error page as ok",
+    "No hotel body or candidate URL verified",
+    "No new complete course generated",
+    "No conclusion about all environments or exact blocking rules"
+  ]
+}
