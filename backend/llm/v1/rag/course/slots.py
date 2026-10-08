@@ -333,18 +333,14 @@ def apply_requested_visits(sl, visits, question):
     """Reuse the conversational interpreter's grounded activities, without another model call."""
     if visits is None:
         return sl
+    from .visit_requests import normalize
+    normalized = normalize(question, visits)
+    if normalized is None:
+        return sl
     itinerary = {"BEFORE": [], "AFTER": []}
-    compact = lambda value: re.sub(r"\s+", "", value)
-    for visit in visits:
-        if (not isinstance(visit, dict) or visit.get("kind") not in ACTIVITY_LABEL
-                or visit.get("phase") not in itinerary or not visit.get("expression")
-                or compact(visit["expression"]) not in compact(question)):
-            return sl
-        if (visit["kind"] == "SPOT" and re.search(r"구장|경기장|야구장", visit["expression"])
-                and not re.search(r"투어|박물관|기념관|관광", visit["expression"])):
-            continue
+    for visit in normalized:
         itinerary[visit["phase"]].append(visit["kind"])
-    return {**sl, "itinerary": itinerary, "after_kinds": itinerary["AFTER"],
+    return {**sl, "itinerary": itinerary, "after_kinds": itinerary["AFTER"], "requested_visits": normalized,
             "extras": [k.lower() for k in ("STAY", "WALK", "INDOOR") if any(k in v for v in itinerary.values())]}
 
 

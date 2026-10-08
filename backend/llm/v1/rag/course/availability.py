@@ -68,6 +68,7 @@ def parse(body, observed_on=None):
     past_details, pending_holiday, uncertain_context = False, False, False
     observed_on = observed_on or datetime.now(KST).date()
     active_dates = None
+    unbound_dates = False
     facility_section = False
     for line in lines:
         if END.search(line):
@@ -87,7 +88,9 @@ def parse(body, observed_on=None):
             else:
                 continue
         short_dates = re.findall(r"(?<!\d)(\d{1,2})월\s*(\d{1,2})일(?:\s*\([월화수목금토일]\))?", line)
-        # Date tabs displayed above a timetable are dated facts, not a weekly rule.
+        # A flattened row of date tabs loses the association with each timetable.
+        # Only a single date can scope subsequent text. The HTML reader supplies
+        # separately paired date/time rows when the source structure is intact.
         date_label = re.sub(r"\d{1,2}월\s*\d{1,2}일(?:\s*\([월화수목금토일]\))?", "", line)
         if short_dates and not date_label.strip(" ,·"):
             candidates = []
@@ -100,10 +103,14 @@ def parse(body, observed_on=None):
                         pass
                 if possible:
                     candidates.append(min(possible, key=lambda d: abs((d - observed_on).days)).isoformat())
-            active_dates = candidates or None
+            active_dates = candidates if len(short_dates) == len(candidates) == 1 else None
+            unbound_dates = active_dates is None
+            active, pending_holiday, uncertain_context = None, False, False
+            in_section, count = True, 0
             continue
         if re.fullmatch(r"오늘(?:\([월화수목금토일]\))?", line):
             active_dates = [observed_on.isoformat()]
+            active, pending_holiday, unbound_dates = None, False, False
             continue
         # A present-tense platform status, not a review about a former business.
         if re.fullmatch(r"(?:(?:영업|운영)\s*상태\s*[:：]?\s*)?(?:폐업|영구\s*폐업|영구\s*영업\s*종료)(?:\s*안내|했습니다|한\s*장소입니다)?[.!]?", line):
@@ -131,12 +138,15 @@ def parse(body, observed_on=None):
                 dated = date(*map(int, full_date.groups())).isoformat()
             except ValueError:
                 continue
+            active_dates, active, unbound_dates = [dated], None, False
         explicit = days(line)
         if explicit is not None:
             active = explicit
-            active_dates = None
+            if not dated:
+                active_dates = None
+            unbound_dates = False
             uncertain_context = False
-        if uncertain_context:
+        if uncertain_context or unbound_dates:
             continue
         applicable = {"days": active if active is not None else ALL_DAYS, "date": dated, "dates": active_dates,
                       "specific": explicit is not None or active is not None, "evidence": line[:180]}
@@ -194,7 +204,9 @@ def observe(place, page, url=""):
         normalized["title"] = re.split(r"\s(?:호텔/리조트|모텔|펜션|게스트하우스|리조트)\s+예약", normalized["title"])[0]
     if not identity.address or not title_matches(identity, normalized) or not address_in_body(identity.address, body):
         return
-    info = parse(body)
+    info = parse(page.get("availability_text", body))
+    for dated_hours in page.get("dated_hours", []):
+        info["rules"].extend(parse(dated_hours)["rules"])
     info["closed"] = info["closed"] or closed_title
     if info["closed"] or info["rules"]:
         info["url"] = page.get("url") or url

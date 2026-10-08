@@ -177,6 +177,7 @@ export function ChatPopup({
       </div>
 
       {<div className="chat-popup-composer-area">
+        {chat.context?.currentCourse?.selectedPlace && <p className="chat-popup-context"><Icon name="pin" size={13} />기준 장소: {chat.context.currentCourse.selectedPlace.name} · “여기 앞뒤에 추가해줘”</p>}
           <ChatSubAgentStatus items={busy ? chat.timeline : []} />
         <ChatQueue focusInput={() => inputRef.current?.focus()} />
         {chat.editingMessageId !== null && <p className="chat-popup-edit-banner" role="status">질문을 수정하고 있어요. 보내면 이 질문 이후의 대화는 지워져요. <button type="button" onClick={chat.onCancelEdit}>수정 취소</button></p>}

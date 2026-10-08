@@ -117,7 +117,8 @@ def apply(places, current, tl, plan=None, inbound=0):
     for i in range(count, len(rows)):
         row = rows[i]
         if i == g:
-            row["time"] = max(start - timeline.ENTER_BEFORE_MIN, cursor + (rows[i - 1]["legMin"] if i else 0)) if cursor is not None else row["time"]
+            arrival_target = tl.get("gameArrivalMinute", start - timeline.ENTER_BEFORE_MIN)
+            row["time"] = max(arrival_target, cursor + (rows[i - 1]["legMin"] if i else 0)) if cursor is not None else row["time"]
             row["until"] = max(end, row["time"])
             cursor = row["until"]
         elif g is not None and i > g:

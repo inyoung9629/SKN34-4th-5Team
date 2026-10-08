@@ -70,7 +70,10 @@ COURSE_REQUEST_CRITERIA = {
            "팀·구장을 새로 지정해 코스를 만드는 요청도 NEW. 단 기존 장소 일부만 바꾸거나 유지하라는 요청은 EDIT.",
     "EDIT": "현재 코스/조건을 이어서 수정·확인. 카페만 교체, 순서 변경, 추가/삭제, 출발지/날짜/시간/이동수단 변경, "
             "방문 완료, 지연, 고정, 취소, 취향 기억/해제, 직전 수정에 대한 조건 답변. "
-            "'카페만 바꿔서 다시 짜줘', '나머지는 그대로', '같은 조건으로'처럼 기존 코스/조건을 명시적으로 참조하면 EDIT.",
+            "'카페만 바꿔서 다시 짜줘', '나머지는 그대로', '같은 조건으로'처럼 기존 코스/조건을 명시적으로 참조하면 EDIT. "
+            "지도에서 클릭한 장소를 기준으로 '가기 전에/다녀온 뒤/먹고 난 다음 코스 짜줘'도 EDIT다. "
+            "앞뒤를 동시에 요청할 수 있고 코스에 아직 담지 않은 선택 장소도 기준으로 포함한다. "
+            "수동 선택한 장소가 있고 아직 구장 방문이 없는 상태에서 날짜/경기를 지정해 코스를 짜는 요청도 EDIT다. 선택 장소를 보존하며 경기 관람을 연결한다.",
     "NONE": "코스 생성·수정과 관계없는 질문, 일반 정보 조회 또는 잡담.",
 }
 
@@ -113,6 +116,9 @@ def _context_text(context) -> str:
         parts.append("지도에서 선택한 경로 있음: 이 경로로 코스를 요청하면 day_plan")
     if context.get("currentCourse"):
         parts.append("현재 지도에 코스 있음: 특정 카페/식당 교체·순서 변경·후속 조건 답변은 day_plan")
+        if selected := context["currentCourse"].get("selectedPlace"):
+            parts.append("클릭한 기준 장소=" + json.dumps({k: selected[k] for k in ("name", "category", "visitId")}, ensure_ascii=False)
+                         + "; 여기 앞뒤에 일정 추가는 day_plan/EDIT")
     return ", ".join(parts)
 
 
@@ -273,6 +279,9 @@ def selected_context_text(context) -> str:
         parts.append("현재 지도 코스(이전 대화보다 우선, 부분 수정은 반드시 plan_course): " + json.dumps([
             {"label": p["label"], "name": p["name"], "category": p["category"], "phase": p["phase"]}
             for p in current["places"]], ensure_ascii=False))
+        if current.get("selectedPlace"):
+            parts.append("지금 클릭한 기준 장소(여기/이곳 앞뒤에 추가할 때 사용, 명시한 다른 장소가 우선): "
+                         + json.dumps(current["selectedPlace"], ensure_ascii=False))
     return "; ".join(parts) or "(없음)"
 
 
@@ -319,6 +328,10 @@ class JevGuidelineMiddleware(AgentMiddleware):
         decision = classify(question, history, state.get("context"))
         if decision["allowed"] is not True:
             return {"decision": decision, "messages": [AIMessage(SCOPE_MESSAGE)], "jump_to": "end"}
+        from llm.v1.rag.course.selection import selected_relative_request
+        if selected_relative_request(question, (state.get("context") or {}).get("currentCourse")):
+            # Do this before NEW clears the map selection/history.
+            decision = {**decision, "course_request": "EDIT"}
         if decision.get("course_request") in ("NEW", "EDIT"):
             decision = {**decision, "capabilities": list(dict.fromkeys([*decision.get("capabilities", []), "day_plan"]))}
         if decision.get("course_request") == "NEW":

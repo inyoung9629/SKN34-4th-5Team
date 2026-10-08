@@ -27,6 +27,8 @@ import math
 import os
 import re
 import time
+from functools import partial
+from contextlib import nullcontext
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -41,7 +43,7 @@ from ..domain_tools import invoke as invoke_domain_tool, run_model, visible_text
 from ..nearby import agent as nearby_agent
 from ..nearby import kakao, lodging
 from ...progress import ProgressCancelled, ProgressStorageError
-from . import arrival, availability, corridor, feasibility, geo, route_ranking, save, slots, timeline, transport, venue_policy
+from . import arrival, availability, corridor, feasibility, geo, parallel, place_quality, route_ranking, save, slots, timeline, transport, venue_policy, visit_requests
 from .prompts import NO_GAME, NO_PLACES, SYSTEM, USER_TEMPLATE, WARN_THIRD_PARTY
 
 log = logging.getLogger(__name__)
@@ -224,9 +226,9 @@ def valid_origin(origin):
 def _origin_text(origin, anchor):
     meters = geo.haversine_m(anchor.get("lat"), anchor.get("lng"), origin["lat"], origin["lng"])
     if meters is None:
-        return "사용자가 지도에서 고른 출발지에서 출발한다."
+        return "코스에 설정된 출발지에서 출발한다."
     where = geo.bearing_label(anchor, origin)
-    return (f"사용자가 지도에서 고른 출발지(구장 {where}쪽 {int(meters)}m)에서 출발한다. "
+    return (f"코스 출발지(구장 {where}쪽 {int(meters)}m)에서 출발한다. "
             "경기 전 장소는 출발지에서 구장으로 오는 길목에서, 앞 장소와 가까운 순서로 고른다.")
 
 
@@ -248,7 +250,11 @@ def requested_date(question, history, today, stadium_code=None):
             previous_code = detect_stadium(message.get("content", ""))
             if current_code and previous_code and current_code != previous_code:
                 break
-            if want := structured.date_in(message.get("content", ""), today):
+            try:
+                want = structured.date_in(message.get("content", ""), today)
+            except structured.DateRequestError:
+                continue
+            if want:
                 return want
             if NEXT_GAME_REQUEST.search(message.get("content", "")):
                 break
@@ -403,32 +409,26 @@ def fallback_course(cands, evening, sl):
     return course
 
 
-def _live_candidates(code, anchor, question, game):
+def _live_candidates(code, anchor, question, game, kinds=None):
     """기존 공개 서비스 결과를 안전한 후보 형태로 좁혀 반환한다."""
     if None in (anchor.get("lat"), anchor.get("lng")):
         return [], {}
     common = {"latitude": anchor["lat"], "longitude": anchor["lng"], "radius": MAX_DISTANCE_M, "limit": 15}
-    results = {}
+    results, lookups, jobs = {}, [], []
     for label, category in (("food", "FD6"), ("cafe", "CE7")):
-        # 이름에 '야구장'이 없는 일반 가게도 찾고, 첫 페이지가 구장 매점으로 채워져도 밖의 가게까지 조회한다.
-        found = {}
-        for page in range(1, 4):
-            payload = invoke_domain_tool("course", "search_places", {
-                "method": "category", "category": category, "page": page, **common,
-            })
-            if not isinstance(payload, dict):
-                results[label] = {"places": list(found.values()), "warning": str(payload)}
-                break
-            for item in venue_policy.filter_candidates(payload.get("places", []), category):
-                key = item.get("id") or item.get("place_name")
-                if key:
-                    found.setdefault(key, item)
-            results[label] = {**payload, "places": list(found.values())}
-            if len(found) >= 15 or not payload.get("hasNextPage"):
-                break
+        if kinds is not None and not ({"FOOD", "BAR"} if label == "food" else {"CAFE"}) & set(kinds):
+            continue
+        details = {}
+        args = {"method": "category", "category": category, **common}
+        lookups.append((label, category, args, details))
+        jobs.append(partial(venue_policy.discover_candidates, invoke_domain_tool, args, category, diagnostics=details))
+    for (label, category, args, details), discovered in zip(lookups, parallel.reads(jobs)):
+        # Keep evidence allocation/selection independent of provider completion order.
+        found = venue_policy.search_candidates(invoke_domain_tool, args, category, diagnostics=details, discovered=discovered)
+        results[label] = {**details, "places": found}
     results["tourism"] = invoke_domain_tool("course", "search_tourism", {
         "stadium_code": code, "latitude": anchor["lat"], "longitude": anchor["lng"],
-    })
+    }) if kinds is None or "SPOT" in kinds else {}
     if isinstance(results["tourism"], dict):
         results["tourism"] = {**results["tourism"], "places": venue_policy.filter_candidates(results["tourism"].get("places", []), "SPOT")}
     if game and "날씨" in question:
@@ -448,7 +448,7 @@ def _live_candidates(code, anchor, question, game):
                 "distance": int(distance or 0), "lat": lat, "lng": lng,
                 "address": str(item.get("road_address_name") or item.get("address_name") or "")[:500],
                 "placeId": str(item.get("id") or "") or None, "placeUrl": str(item.get("url") or item.get("place_url") or ""),
-                "doc_id": f"kakao:{item.get('id')}", "stadiumArea": item.get("stadiumArea"),
+                "doc_id": item.get("placeId") if item.get("source") == "MYSEATCHECK" else f"kakao:{item.get('id')}", "stadiumArea": item.get("stadiumArea"),
             })
     tourism = results.get("tourism")
     for item in tourism.get("places", [])[:10] if isinstance(tourism, dict) else []:
@@ -514,6 +514,8 @@ def plan_steps(sl, evening):
 
 
 def _step_keyword(kind, sl):
+    if sl.get("visit_query"):
+        return sl["visit_query"]
     prefs = sl["prefs"] or []
     if kind == "FOOD":
         return next((w for w in prefs if w not in CAFE_PREFS and w not in BAR_PREFS and "," not in w), None)
@@ -532,7 +534,7 @@ def _step_matches(kind, p):
     return (timeline.kind_of(p) == "BAR") == (kind == "BAR")
 
 
-def _kakao_step(kind, center, radius, anchor, sl):
+def _kakao_step(kind, center, radius, anchor, sl, *, candidate_filter=None, quality_reuse=True):
     if kind == "STAY" and "verified_stays" in sl:
         # 새 경로 검색/범위 확대로 야놀자 미확인 숙소가 다시 끼어들지 않게 한다.
         return [p for p in sl["verified_stays"] if geo._dist(p, center) <= radius]
@@ -544,33 +546,42 @@ def _kakao_step(kind, center, radius, anchor, sl):
         args["category"] = STEP_KAKAO[kind]
     if keyword:
         args["query"] = keyword
-    try:
-        items = venue_policy.search_candidates(invoke_domain_tool, args, STEP_CATEGORY[kind])
-    except Exception:
-        log.exception("course step search failed")
-        return []
-    found = []
-    for item in items:
+    def candidate(item):
         lat, lng = _f(item.get("y")), _f(item.get("x"))
         if lat is None or lng is None:
-            continue
+            return None
+        if geo._dist({"lat": lat, "lng": lng}, anchor) > MAX_DISTANCE_M:
+            return None
         detail = str(item.get("category_name") or item.get("category_group_name") or "")[:255]
         name = str(item.get("place_name") or "")
         # 지도와 같은 기준: 산책은 공원·산책로류, 실내는 실내 놀거리류만
         if kind == "WALK" and not kakao._WALK.search(detail):
-            continue
+            return None
         if kind == "INDOOR" and not kakao._INDOOR.search(f"{detail} {name}"):
-            continue
+            return None
         if kind == "BAR" and keyword and not any(w in detail for w in timeline.BAR_WORDS):
             detail = f"{detail} > 술집"[:255]               # 술집 검색 결과는 체류시간을 술집 기준으로
-        found.append({
+        return {
             "dist": 0.3, "category": STEP_CATEGORY[kind], "name": str(item.get("place_name") or "")[:255],
             "detail": detail, "distance": int(geo.haversine_m(anchor.get("lat"), anchor.get("lng"), lat, lng) or 0),
             "lat": lat, "lng": lng,
             "address": str(item.get("road_address_name") or item.get("address_name") or "")[:500],
             "placeId": str(item.get("id") or "") or None, "placeUrl": str(item.get("url") or item.get("place_url") or "")[:500],
-            "doc_id": f"kakao:{item.get('id')}", "stadiumArea": item.get("stadiumArea"),
-        })
+            "doc_id": item.get("placeId") if item.get("source") == "MYSEATCHECK" else f"kakao:{item.get('id')}", "stadiumArea": item.get("stadiumArea"),
+            **({"_internal_menu_query": item["_internal_menu_query"]} if item.get("_internal_menu_query") else {}),
+        }
+    def allowed(item):
+        row = candidate(item)
+        return row is not None and (candidate_filter is None or candidate_filter(row))
+    try:
+        items = venue_policy.search_candidates(invoke_domain_tool, args, STEP_CATEGORY[kind],
+                                               candidate_filter=allowed, quality_reuse=quality_reuse)
+    except (ProgressCancelled, ProgressStorageError):
+        raise
+    except Exception:
+        log.exception("course step search failed")
+        return []
+    found = [row for item in items if (row := candidate(item)) is not None]
     return venue_policy.filter_candidates(found)
 
 
@@ -648,7 +659,8 @@ def unverified_course(code, timings, missing=None):
     label = " · ".join(missing or ["요청한 장소"])
     return {"answer": f"{STADIUM_KO.get(code, code)} 주변에서 이번에 확인한 후보만으로는 {label}의 조건 충족 근거를 확인하지 못했어요. "
                       "해당 장소를 넣은 코스는 만들지 않았어요. 주변 전체에 그런 장소가 없다는 뜻은 아니에요. "
-                      "필수 조건을 완화하거나 원하는 가게 이름을 알려주시면 다시 확인할게요.",
+                      "필수 조건을 완화하거나 원하는 가게 이름을 알려주시면 다시 확인할게요."
+                      + ("\n" + notice if (notice := place_quality.missing_notice()) else ""),
             "sources": [], "places": [], "route": f"course:{code}:conditions_unverified",
             "evidenceHandled": True, "timing": timings}
 
@@ -667,10 +679,19 @@ def build_origin_course(origin, anchor, pool, sl, evening, route_segments=None, 
     path_searches = {}
     steps, prev, prev_label = [], origin, "출발지"
     choices, last_choices = [], []
+    active_visit, active_sl = None, sl
+
+    def filter_for_visit(items):
+        if active_visit and isinstance(candidate_filter, visit_requests.Selector):
+            return candidate_filter.for_visit(items, active_visit)
+        return candidate_filter(items) if candidate_filter else items
 
     def choose(kind, phase):
         nonlocal last_choices
         last_choices = []
+        reuse = candidate_filter is None
+        if active_visit and isinstance(candidate_filter, visit_requests.Selector):
+            reuse = active_visit["internal"] or place_quality.reusable_conditions(candidate_filter.conditions(active_visit))
         if route_segments:
             def allowed(p):
                 if (not _step_matches(kind, p) or not p["name"] or p["name"] in used_names or p["name"] in exclude
@@ -680,35 +701,39 @@ def build_origin_course(origin, anchor, pool, sl, evening, route_segments=None, 
                 text = p["name"] + " " + p["detail"]
                 if kind == "FOOD":
                     food_words = {"치킨", "피자", "햄버거", "한식", "육류", "고기", "국밥", "일식", "초밥", "돈까스", "중식", "양식", "파스타", "분식", "떡볶이", "국수", "냉면", "칼국수"}
-                    wanted = food_words.intersection(sl["prefs"] or [])
+                    wanted = food_words.intersection(active_sl["prefs"] or [])
                     if wanted and not any(word in text for word in wanted):
                         return False
-                if kind == "CAFE" and sl.get("cheap_cafe"):
+                if kind == "CAFE" and active_sl.get("cheap_cafe"):
                     if not re.search(r"메가M?GC?커피|메가커피|컴포즈|빽다방|더벤티|매머드|하삼동|텐퍼센트", text, re.I):
                         return False
                 return True
             def path_search(center, radius):
-                key = (kind, center["lat"], center["lng"], radius)
+                key = ((active_visit or {}).get("id"), kind, center["lat"], center["lng"], radius)
                 if key not in path_searches:
-                    found = [p for p in venue_policy.filter_candidates(_kakao_step(kind, center, radius, anchor, sl)) if allowed(p)]
-                    path_searches[key] = candidate_filter(found) if candidate_filter else found
+                    found = [p for p in venue_policy.filter_candidates(_kakao_step(kind, center, radius, anchor, active_sl,
+                        candidate_filter=allowed, quality_reuse=reuse)) if allowed(p)]
+                    path_searches[key] = filter_for_visit(found)
                 return path_searches[key]
             minimum = corridor.distance_position(anchor, route_segments)[1] if phase == "AFTER" and prev == anchor else float(prev.get("routePosition", 0))
-            return corridor.choose(route_segments, pool, path_search,
-                                   allowed, lambda p: relevance(p, sl), minimum)
-        def eligible(found):
-            return [p for p in venue_policy.filter_candidates(found)
+            return corridor.choose(route_segments, filter_for_visit(pool), path_search,
+                                   allowed, lambda p: relevance(p, active_sl), minimum)
+        def eligible(found, check_quality=True):
+            return [p for p in venue_policy.filter_candidates(found, check_quality=check_quality)
                     if _step_matches(kind, p) and p["name"] and p["name"] not in used_names and p["name"] not in exclude
                     and geo._has_xy(p) and geo._dist(p, anchor) <= MAX_DISTANCE_M
                     and _brand(p) not in used_brands and not any(w in p["detail"] for w in ban)]
 
         def shortlist(items):
             unique = {route_ranking.identity(p): p for p in items}
-            return sorted(unique.values(), key=lambda p: geo.step_score(p, prev, anchor, lambda q: relevance(q, sl), phase), reverse=True)[:4]
+            return sorted(unique.values(), key=lambda p: geo.step_score(p, prev, anchor, lambda q: relevance(q, active_sl), phase), reverse=True)[:4]
 
         detours = {}
+        def search(center, radius):
+            return _kakao_step(kind, center, radius, anchor, active_sl,
+                candidate_filter=lambda p: bool(eligible([p], check_quality=False)), quality_reuse=reuse)
         for radius in STEP_RADII_M:
-            found = _kakao_step(kind, prev, radius, anchor, sl) + [
+            found = search(prev, radius) + [
                 p for p in pool
                 if _step_matches(kind, p) and (geo.haversine_m(prev["lat"], prev["lng"], p.get("lat"), p.get("lng")) or 1e9) <= radius
             ]
@@ -720,27 +745,27 @@ def build_origin_course(origin, anchor, pool, sl, evening, route_segments=None, 
             # 조건 필터는 한 후보를 고를 수 있다. 먼저 경계·중복을 검사하지 않으면
             # 반경 밖 첫 후보가 선택됐다가 탈락하면서 안쪽의 유효한 후보도 잃는다.
             if candidate_filter:
-                ok = candidate_filter(ok)
+                ok = filter_for_visit(ok)
             if ok:
                 last_choices = shortlist(ok)
                 return last_choices[0]
         # 경기 후 선호 반경 밖도 조건·2.5km 경계를 유지하면서 확인한다.
         alternatives = list(detours.values())
         if candidate_filter:
-            alternatives = candidate_filter(alternatives)
+            alternatives = filter_for_visit(alternatives)
         if alternatives:
             last_choices = shortlist(alternatives)
             selected = last_choices[0]
             return selected
         # The preceding-stop search may miss the far side of the permitted
         # circle. Only then fall back to the stadium area, under identical filters.
-        nearby_stadium = eligible(_kakao_step(kind, anchor, MAX_DISTANCE_M, anchor, sl) + [p for p in pool if _step_matches(kind, p)])
+        nearby_stadium = eligible(search(anchor, MAX_DISTANCE_M) + [p for p in pool if _step_matches(kind, p)])
         if candidate_filter:
-            nearby_stadium = candidate_filter(nearby_stadium)
+            nearby_stadium = filter_for_visit(nearby_stadium)
         if nearby_stadium:
             last_choices = shortlist(nearby_stadium)
             advancing = [p for p in nearby_stadium if geo.progress_m(p, prev, anchor) >= 0] if phase == "BEFORE" else []
-            selected = max(advancing or nearby_stadium, key=lambda p: relevance(p, sl) - geo._dist(prev, p) / 1000
+            selected = max(advancing or nearby_stadium, key=lambda p: relevance(p, active_sl) - geo._dist(prev, p) / 1000
                            + (geo.progress_m(p, prev, anchor) / 800 if phase == "BEFORE" else 0))
             if selected not in last_choices:
                 last_choices = last_choices[:3] + [selected]
@@ -754,8 +779,12 @@ def build_origin_course(origin, anchor, pool, sl, evening, route_segments=None, 
             choices.append([None])
             if geo._has_xy(anchor):
                 prev, prev_label = anchor, "구장"
-        for kind in kinds:
-            place = choose(kind, phase)
+        for index, kind in enumerate(kinds):
+            active_visit = visit_requests.at(sl, phase, index)
+            active_sl = visit_requests.local_slots(sl, active_visit)
+            policy = candidate_filter.policy(active_visit) if active_visit and isinstance(candidate_filter, visit_requests.Selector) else nullcontext()
+            with policy:
+                place = choose(kind, phase)
             if place is None:
                 continue
             place = dict(place)
@@ -844,17 +873,20 @@ def enforce_itinerary(course, lookup, cands, sl, evening):
         if phase == "AFTER":
             result.append({"key": "STADIUM", "phase": "GAME", "reason": "경기 관람"})
         for index, kind in enumerate(kinds, 1):
+            visit = visit_requests.at(sl, phase, index - 1)
             # 모델이 시점을 틀렸어도 후보 종류가 맞으면 요청한 구간에 재배치한다.
             preferred = [lookup[c["key"]] for c in course if c["phase"] == phase]
             preferred += [lookup[c["key"]] for c in course if c["phase"] != phase]
             place = next((p for p in preferred + cands
                           if p["key"] not in used and p.get("name") not in used
-                          and _step_matches(kind, p)), None)
+                          and _step_matches(kind, p) and visit_requests.matches(p, visit)), None)
             label = "경기 전" if phase == "BEFORE" else "경기 후"
             if place is None:
                 missing.append(f"{label} {index}번째 {slots.ACTIVITY_LABEL[kind]}")
                 continue
             used.update((place["key"], place["name"]))
+            if visit:
+                lookup[place["key"]] = {**place, "_request_visit_id": visit["id"]}
             result.append({"key": place["key"], "phase": phase,
                            "reason": f"{label} {slots.ACTIVITY_LABEL[kind]}"})
     return result, missing
@@ -886,14 +918,24 @@ def build_answer(intro, course, lookup, tl, walk, sl, assumed, travel=None):
 def availability_alternatives(target, index, rows, rejected, *, origin, anchor, pool, sl,
                               candidate_filter, visit_date, route_segments=None):
     """Refill only the unavailable visit, keeping the original request filters."""
+    if isinstance(candidate_filter, visit_requests.Selector):
+        visit = next((v for v in candidate_filter.visits if v["id"] == target.get("_request_visit_id")), None)
+        if visit:
+            with candidate_filter.policy(visit):
+                alternatives = availability_alternatives(target, index, rows, rejected, origin=origin, anchor=anchor,
+                    pool=pool, sl=visit_requests.local_slots(sl, visit), visit_date=visit_date, route_segments=route_segments,
+                    candidate_filter=lambda items: candidate_filter.for_visit(items, visit))
+            return [{**p, "_request_visit_id": visit["id"]} for p in alternatives]
     fixed = rows + rejected
-    excluded = {p["name"] for p in fixed} | set(sl.get("exclude") or [])
+    from .memory import same
+    excluded = {p["name"] for p in rows if p is not target} | set(sl.get("exclude") or [])
     brands = {_brand(p) for p in rows if p.get("category") != "STADIUM" and p is not target}
     prev = rows[index - 1] if index else origin or anchor
     kind = "WALK" if target["category"] == "WALK" else timeline.kind_of(target)
     phase = target.get("phase", "BEFORE")
     def allowed(p):
-        return (_step_matches(kind, p) and p["name"] not in excluded and _brand(p) not in brands
+        return (_step_matches(kind, p) and p["name"] not in excluded and not any(same(p, old) for old in fixed)
+                and _brand(p) not in brands
                 and geo._has_xy(p) and geo._dist(p, anchor) <= MAX_DISTANCE_M
                 and not any(w in p.get("detail", "") for w in sl.get("ban", [])))
     def search(center, radius):
@@ -913,7 +955,7 @@ def availability_alternatives(target, index, rows, rejected, *, origin, anchor, 
     return []
 
 
-def course_timing(rows, game_time, mode, ranker):
+def course_timing(rows, game_time, mode, ranker, *, entry_minute=None):
     """Recalculate the edited route using cached directed legs wherever possible."""
     legs = transport.legs(rows, mode)
     if len(rows) >= 2 and all(geo._has_xy(p) for p in rows):
@@ -942,7 +984,8 @@ def course_timing(rows, game_time, mode, ranker):
                 ranker.cache[route_ranking.edge_key(a, b)] = real
     course = [{"key": p["key"], "phase": p["phase"], "reason": p.get("reason", "")} for p in rows]
     lookup = {p["key"]: p for p in rows}
-    return {"legs": legs, "tl": timeline.build(course, lookup, game_time, transport.leg_minutes(legs))}
+    legs = timeline.scheduled_legs(rows, legs)
+    return {"legs": legs, "tl": timeline.build(course, lookup, game_time, transport.leg_minutes(legs), entry_minute=entry_minute)}
 
 
 # ── 6. 진입점 ─────────────────────────────────────────────────────────────────
@@ -1027,7 +1070,8 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
                     "sources": [], "places": [], "route": f"course:{code}:path_unresolved", "timing": timings}
     if selected_paths and not origin and not arrival.origin_query(question):
         origin = selected_paths[0][0]
-    original_origin, origin_label, origin_error = arrival.resolve_origin(question, [] if origin_cleared else history, origin, anchor, invoke_domain_tool)
+    original_origin, origin_label, origin_error, default_origin_notice = arrival.resolve_course_origin(
+        question, [] if origin_cleared else history, origin, anchor, invoke_domain_tool, code)
     if origin_error:
         return {"answer": origin_error, "sources": [], "route": f"course:{code}:origin_unresolved", "places": [], "timing": timings}
     route_segments = corridor.clip(selected_paths, anchor)
@@ -1044,6 +1088,9 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
     if route_segments:
         origin = origin or route_segments[0][0]
     entry_point = origin if origin and original_origin and geo._dist(original_origin, anchor) > MAX_DISTANCE_M else None
+    if default_origin_notice:
+        approach_notice = "\n".join(filter(None, (default_origin_notice, approach_notice)))
+        route.append("origin:default-station")
 
     # ③ 후보 — 공개 장소/관광 서비스 + 기존 RAG 후보를 같은 안전 필터로 거른다.
     radius = min(sl["radius"] or MAX_DISTANCE_M, TIGHT_DISTANCE_M if sl["spare"] == "tight" else MAX_DISTANCE_M)
@@ -1056,7 +1103,13 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
     timings["embed_ms"] = round((time.perf_counter() - t0) * 1000)
 
     t0 = time.perf_counter()
-    live_candidates, live_data = _live_candidates(code, anchor, question, game)
+    visit_selector = visit_requests.Selector(sl["requested_visits"], course_memory, code) if sl.get("requested_visits") else None
+    # Required menus must get first use of the bounded review/interior lookup.
+    # Generic nearby food/cafes can otherwise exhaust it before the menu query runs.
+    requested_candidates = visit_selector.search(anchor, origin=origin) if visit_selector else []
+    with place_quality.research_policy(not bool(origin or visit_selector)):
+        live_candidates, live_data = _live_candidates(code, anchor, question, game,
+                                                     kinds=[kind for group in plan_steps(sl, evening) for kind in group])
     cands, seen = [], set()
     widen = 2 if origin else 1                           # 출발지 기준으로 고르려면 방향별 후보가 더 필요하다
     for category, _, k in SEARCHES:
@@ -1110,7 +1163,9 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
         for p in edit_candidates({**anchor, "category": "CAFE"}, anchor, {"query": brand.group()}, []):
             if not any(course_memory_tools.same(p, old) for old in cands):
                 cands.append({**p, "dist": .25, "distance": round(geo._dist(p, anchor)), "doc_id": f"kakao:{p['placeId']}"})
-    if course_memory:
+    if visit_selector:
+        cands.extend(requested_candidates)
+    elif course_memory:
         kinds = sum((list(k) for k in plan_steps(sl, evening)), [])
         for p in requested_menu_candidates(anchor, course_memory, kinds):
             previous = next((old for old in cands if course_memory_tools.same(p, old)), None)
@@ -1119,8 +1174,10 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
             else:
                 cands.append(p)
     cands = [p for p in venue_policy.filter_candidates(cands) if geo._has_xy(p) and geo._dist(p, anchor) <= MAX_DISTANCE_M]
-    candidate_filter = None
-    if course_memory:
+    candidate_filter = visit_selector
+    if visit_selector:
+        cands = visit_selector(cands)
+    elif course_memory:
         condition_cache = {}
         candidate_filter = lambda items: remembered_candidates(items, course_memory, condition_cache)
         cands = candidate_filter(cands)
@@ -1150,10 +1207,13 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
             msg = "앞서 추천한 곳 말고는 조건에 맞는 데를 더 못 찾았어요. 취향이나 구장을 바꿔서 말씀해 주시면 다시 찾아볼게요!"
         if lodging_result is not None:
             msg += "\n" + lodging.notice(lodging_result)
+        if notice := place_quality.missing_notice():
+            msg += "\n" + notice
         return {"answer": msg, "sources": [], "route": f"course:{code}:no_places", "places": [], "timing": timings}
 
     if origin_steps:
-        # 출발지부터 단계별로 고른 코스 — LLM 은 인트로와 장소별 한 줄 이유만 쓴다
+        # Selection and evidence checks are complete. Describe the confirmed
+        # route directly; another model pass must not rewrite its facts.
         cands = [s["place"] for s in origin_steps if s["place"]]
         if route_segments:
             approach_notice = " ".join(filter(None, [approach_notice, corridor.notice(cands)]))
@@ -1163,18 +1223,8 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
         lookup["STADIUM"] = anchor
         course = [{"key": s["place"]["key"] if s["place"] else "STADIUM", "phase": s["phase"], "reason": s["reason"]}
                   for s in origin_steps]
-        intro = None
-        try:
-            raw, ms = call_llm(planning_question, game_text, cands, anchor, sl, evening, live_data, origin) if cands else ("", 0)
-            timings["llm_ms"] = round(ms)
-            picked, intro = parse_course(raw, set(lookup))
-            reasons = {c["key"]: c["reason"] for c in picked or [] if c["reason"] and c["key"] != "STADIUM"}
-            course = [{**c, "reason": reasons.get(c["key"], c["reason"])} for c in course]
-        except (ProgressCancelled, ProgressStorageError):
-            raise
-        except Exception:
-            log.exception("course llm failed")
-        intro = intro or f"{game_text.split(' (')[0]} 기준으로, 찍어 주신 출발지에서 구장까지 이어지는 코스를 짜 봤어요."
+        timings["llm_ms"] = 0
+        intro = f"{game_text.split(' (')[0]} 기준으로, 출발지에서 구장까지 이어지는 코스를 짜 봤어요."
         route.append("origin:steps")
     else:
         for i, p in enumerate(cands, 1):
@@ -1268,13 +1318,17 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
         if place.get("lodgingCheck"):
             # 모델의 자유 문장 대신 실제 확인한 조건만 이유로 기록한다.
             step["reason"] = lodging.reason(place["lodgingCheck"])
+        if place.get("_signature_reason"):
+            step["reason"] = place["_signature_reason"]
     intro = f"{game_text.split(' (')[0]} 기준 코스예요."
     if sl.get("itinerary") is None:
         intro += " 활동을 지정하지 않아 기본 구성으로 제안해요."
     mode = sl.get("mode")
+    from .entry_timing import requested_entry
+    entry_minute = requested_entry(question, game_time_of(game), history)
     rows = [{**lookup[c["key"]], **c} for c in course]
     rows, calculated, availability_changes = availability.repair(rows,
-        lambda items: course_timing(items, game_time_of(game), mode, ranker),
+        lambda items: course_timing(items, game_time_of(game), mode, ranker, entry_minute=entry_minute),
         lambda target, i, items, rejected: availability_alternatives(target, i, items, rejected,
             origin=origin, anchor=anchor, pool=availability_pool, sl=sl, candidate_filter=candidate_filter,
             visit_date=(game or {}).get("date"), route_segments=route_segments), (game or {}).get("date"))
@@ -1296,7 +1350,10 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
         travel.setdefault("notes", []).append(lodging_notice)
     if missing:
         travel.setdefault("notes", []).append(
-            f"요청한 {' · '.join(missing)}에 맞는 장소를 찾지 못했어요. 해당 방문은 코스에 담지 못했고 다른 활동으로 대체하지 않았어요.")
+            f"요청한 {' · '.join(missing)}는 이번 검색에서 메뉴·방문 조건을 확인하지 못해 코스에 담지 못했어요. "
+            "주변에 해당 매장이 없다는 뜻은 아니며, 다른 활동으로 대체하지 않았어요.")
+        if notice := place_quality.missing_notice():
+            travel["notes"].append(notice)
     travel["legs"] = legs
 
     # ⑥ 시간표 — 경기 시작에서 역산 (구간 시간은 이동수단 기준)
@@ -1315,7 +1372,7 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
             "category": "STADIUM" if c["key"] == "STADIUM" else CAT_LABEL[p["category"]],
             "placeId": p["placeId"], "address": p["address"], "placeUrl": p["placeUrl"],
             "distance": p["distance"], "reason": c["reason"],
-            "time": row["time"], "stayMin": row["stayMin"],
+            "time": row["time"], "until": row["until"], "stayMin": row["stayMin"],
             "nextLeg": nxt,
         })
     sources = [{"doc_id": lookup[c["key"]]["doc_id"],
@@ -1342,6 +1399,8 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
     weather = live_data.get("weather")
     if isinstance(weather, dict) and weather.get("label"):
         text += f"\n경기 시각 예보는 {weather['label']}, {weather.get('temperature')}°C예요. (기상청 단기예보)"
+    if any(p.get("source") == "MYSEATCHECK" for p in rows):
+        text += "\n구장 내부 먹거리는 자리어때 수집 목록만 사용했어요. 핀은 구장 옆 표시 위치입니다. 실제 위치는 매장 상세 위치 링크를 확인하세요. 현재 영업·메뉴·입장권 필요 여부는 미확인입니다."
     if not _WARN.search(text):
         text = f"{text}\n{WARN_THIRD_PARTY}"
 
@@ -1369,17 +1428,30 @@ def answer(question, history=None, hint_stadium=None, origin=None, requested_aft
     from llm.tools.assistant import request_state
     from .evidence_memory import request_budget
     from . import editing, memory
+    from .selection import connect_game_context, selected_relative_request
+    from .progress import ProgressError
     from copy import deepcopy
+    try:
+        structured.date_in(question, datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat())
+    except structured.DateRequestError as exc:
+        return {"answer": str(exc), "sources": [], "places": [], "route": "course:invalid_date"}
     selected_code = detect_stadium(question) or hint_stadium or (current_course or {}).get("stadiumCode")
     selected_writer = (current_course or {}).get("writerState")
     selected_origin = selected_writer.get("origin") if selected_writer is not None else origin
+    anchored_request = selected_relative_request(question, current_course)
+    if anchored_request:
+        course_request = "EDIT"
     if course_request == "NEW":
         history, course_memory, current_course, origin = [], memory.empty(), None, selected_origin
         hint_stadium = selected_code
-    with request_state(hint_stadium, question, history), request_budget():
-        if course_memory is None and current_course is None:
+    quality_code = selected_code or ((course_memory or {}).get("current") or {}).get("stadiumCode") or (course_memory or {}).get("stadiumCode") or next(
+        (detected for message in reversed(history or []) if message.get("role") == "user"
+         and (detected := detect_stadium(message.get("content", "")))), None)
+    with place_quality.request_scope(quality_code), request_state(hint_stadium, question, history), request_budget():
+        if course_memory is None and current_course is None and not venue_policy.mentions_internal(question):
             return _answer(question, history, hint_stadium, origin, requested_after, route_path)
         saved = deepcopy(course_memory or memory.empty())
+        saved["conditions"] = venue_policy.persistent_conditions(saved.get("conditions", []))
         code = (detect_stadium(question) or hint_stadium or (current_course or {}).get("stadiumCode")
                 or saved.get("current", {}).get("stadiumCode") or saved.get("stadiumCode"))
         if code:
@@ -1394,8 +1466,12 @@ def answer(question, history=None, hint_stadium=None, origin=None, requested_aft
         if writer is not None and (supplied_current or valid_origin(origin) is None):
             origin = writer["origin"]
         context = editable or {"places": [], "stadiumCode": code, "travelMode": "walk", "legModes": {}}
+        before_context = context
         try:
+            context, game_connected = connect_game_context(question, context, code)
             parsed = editing.interpret(question, context, history, saved)
+            if (anchored_request or game_connected) and parsed["operation"] == "new":
+                return memory.attach(editing.unchanged("선택한 장소를 기준으로 추가할 활동과 앞·뒤 순서를 확인하지 못했어요. 다시 요청해 주세요."), saved, undo=False)
             # 부분 수정 판정과 별개로 생성기로 넘어갈 때도 이전 코스가 섞이지 않도록 보장한다.
             # V2는 모델 호출 전 이미 비운다. 직접 호출/분류 불일치만 깨끗한 입력으로 다시 해석한다.
             if parsed["operation"] == "new" and (history or editable or any(memory.core(saved).values())):
@@ -1404,23 +1480,35 @@ def answer(question, history=None, hint_stadium=None, origin=None, requested_aft
                 parsed["operation"] = "new"
         except (ProgressCancelled, ProgressStorageError):
             raise
+        except ProgressError as exc:
+            return memory.attach(editing.unchanged(str(exc)), saved, undo=False)
         except Exception:
             return memory.attach(editing.unchanged("수정할 내용과 조건을 해석하지 못했어요. 다시 요청해 주세요."), saved, undo=False)
         if course_request == "NEW":
             parsed["operation"] = "new"
         if editable or parsed["operation"] not in ("new",):
             with venue_policy.request_policy(question, code, parsed.get("internal_venue_requests")):
-                edited = editing.answer(question, history, context, code, valid_origin(origin), saved, parsed)
+                edited = editing.answer(question, history, context, code, valid_origin(origin), saved, parsed, route_path=route_path)
+                edited = venue_policy.explain_missing_signature(edited)
             if edited is not None:
+                if game_connected and edited.get("places"):
+                    if not edited.get("game"):
+                        return memory.attach(editing.unchanged("경기의 날짜와 시각을 확인하지 못해 구장 방문을 연결하지 못했어요."), saved, undo=False)
+                    # Undo must restore the user's manual route, before the stadium was prepared.
+                    undo = edited.get("courseMemory", {}).get("undo")
+                    if undo:
+                        undo["before"] = deepcopy(before_context)
                 return edited
         # 여기부터는 새 생성이다. 이전 방문/고정/제외/날짜/이동수단/undo는 전부 경계 밖에 둔다.
         saved = editing.update_memory(memory.empty(), parsed, {"places": [], "stadiumCode": selected_code})
         origin = selected_origin
-        with request_state(selected_code, question, []), venue_policy.request_policy(question, selected_code, parsed.get("internal_venue_requests")):
+        with request_state(selected_code, question, []), venue_policy.request_policy(question, selected_code,
+                parsed.get("internal_venue_requests"), visits=parsed.get("requested_visits")):
             result = _answer(question, [], selected_code, origin, requested_after, route_path,
                          course_memory=editing.request_memory(saved, parsed),
                          origin_cleared=origin is None,
                          requested_visits=parsed.get("requested_visits") if parsed else None)
+            result = venue_policy.explain_missing_signature(result)
         result["courseHistoryReset"] = True
         if result.get("places"):
             for i, p in enumerate(result["places"]):

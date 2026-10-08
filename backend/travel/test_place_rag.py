@@ -63,8 +63,8 @@ class PlaceRagTest(SimpleTestCase):
     def test_internal_and_uncertain_are_not_external(self):
         self.assertEqual(self.search("매점", stadium_code="JAMSIL")["count"], 0)
         result = self.search("매점", stadium_code="JAMSIL", scope="internal")
-        self.assertEqual([p["place_id"] for p in result["items"]], ["inside"])
-        self.assertEqual(self.search("매점", stadium_code="JAMSIL", scope="all")["count"], 3)
+        self.assertEqual(result["items"], [])  # Non-collected internal rows are never eligible.
+        self.assertEqual(self.search("매점", stadium_code="JAMSIL", scope="all")["count"], 2)
 
     def test_research_is_separate_and_never_fact(self):
         result = self.search("돈카츠", stadium_code="JAMSIL", include_research=True)
@@ -196,4 +196,4 @@ class AnalysisImporterTest(SimpleTestCase):
         self.assertGreater(len(facilities), 400)
         self.assertTrue(all(d["scope"] != "external_candidate" for d in facilities))
         self.assertEqual(len(provenance["manifest_sha256"]), 64)
-        self.assertEqual(len(facility_sources), 3)
+        self.assertEqual(len(facility_sources), 4)

@@ -29,6 +29,49 @@ const places = [place("100", "FOOD", .001), place("200", "CAFE", .002), place("3
 const course = { places, stadiumCode: "JAMSIL", notes: [], origin, title: "추천 코스", content: "코스 안내", travelMode: "walk" };
 const apply = (state, value = course) => reduceCourse(state, { type: "apply", course: value, stadiumCode: value.stadiumCode, how: "replace" });
 
+test("collected stadium food retains source identity and category through manual selection and chat edits", () => {
+  for (const [name, category] of [["치킨", "FOOD"], ["달콤커피", "CAFE"], ["세븐일레븐", "CONVENIENCE"]]) {
+    const stop = { name, category: "구장 내부", lat: 37.512, lng: 127.072,
+      placeId: "stadium-facility:SC_FOOD_JAMSIL_027:JAMSIL-027-5", visitId: "collected-visit" };
+    const state = createCourseState({ ...base, stops: [stop] });
+    const current = courseContext(state, undefined, stop).currentCourse;
+    assert.equal(current.places[0].category, category);
+    assert.equal(current.selectedPlace.category, category);
+    const rebuilt = apply(createCourseState(base), { ...course, edit: true, places: current.places });
+    assert.equal(rebuilt.data.stops[0].placeId, stop.placeId);
+    assert.equal(courseContext(rebuilt).currentCourse.places[0].category, category);
+  }
+});
+
+test("manual selection works for every category without inserting a preview into the course", () => {
+  const categories = { "먹거리": "FOOD", "카페·디저트": "CAFE", "산책": "WALK", "관광 명소": "SPOT", "실내 놀거리": "INDOOR", "편의점": "CONVENIENCE", "숙박": "STAY", "야구장": "STADIUM" };
+  for (const [category, expected] of Object.entries(categories)) {
+    const selected = { name: category, category, placeId: `test:${expected}`, lat: 37.51, lng: 127.08 };
+    const state = createCourseState(base);
+    const preview = courseContext(state, undefined, selected).currentCourse;
+    assert.equal(preview.selectedPlace.category, expected);
+    assert.deepEqual(preview.places, []);
+    assert.deepEqual(state.data.stops, []);
+    const stop = { ...selected, visitId: `manual:${expected}` };
+    const added = reduceCourse(state, { type: "patch", patch: { stops: [stop] } });
+    const current = courseContext(added, undefined, stop).currentCourse;
+    assert.deepEqual(current.selectedPlace, current.places[0]);
+    assert.equal(current.selectedPlace.visitId, stop.visitId);
+    assert.equal(courseContext(state, undefined, stop).currentCourse.selectedPlace, undefined);
+  }
+});
+
+test("selection identifies the visit, never guesses among repeated visits or an origin", () => {
+  const cafe = { name: "같은 카페", category: "카페·디저트", placeId: "repeat", lat: 37.51, lng: 127.08 };
+  const stops = [{ ...cafe, visitId: "before" }, { ...cafe, visitId: "after" }];
+  const state = createCourseState({ ...base, stops });
+  assert.equal(courseContext(state, undefined, stops[1]).currentCourse.selectedPlace.visitId, "after");
+  assert.equal(courseContext(state, undefined, cafe).currentCourse.selectedPlace, undefined);
+  assert.equal(courseContext(state, undefined, { ...cafe, placeId: "route:origin" }).currentCourse.selectedPlace, undefined);
+  assert.equal(courseContext(state, undefined, { ...cafe, lat: NaN }).currentCourse.selectedPlace, undefined);
+  assert.equal(courseContext(state, undefined, null).currentCourse.selectedPlace, undefined);
+});
+
 test("creation -> manual order/mode -> chat cafe edit -> full deletion -> explicit restore share the same course", () => {
   let state = apply(createCourseState(base));
   const original = state;
@@ -81,9 +124,9 @@ test("fresh recommendation never restores a deleted draft; reopening the saved e
   assert.equal(fresh.writerDraft, undefined);
   assert.equal(apply(createCourseState(base), fresh).data.stops.length, 3);
   const saved = restoreWriterCourse(course, "member:1", "s", 9, storage);
-  const restored = reduceCourse(apply(createCourseState(base)), { type: "restore", data: saved.writerDraft });
+  const restored = apply(apply(createCourseState(base)), saved);
   assert.deepEqual(restored.data.stops, []);
-  assert.equal(restored.data.title, draft.title);
+  assert.equal(restored.data.title, "");
   assert.deepEqual(readRouteDraft(storage, writerKey).draft.data, JSON.parse(JSON.stringify(draft)));
 });
 
@@ -109,7 +152,35 @@ test("stadium change and clear remove every old course reference atomically", ()
   }
 });
 
-test("titles and full snapshots preserve user edits; tab navigation does not invalidate a request", () => {
+test("recommendations never autofill empty story fields or replace an image-only story", () => {
+  const imageDoc = { version: 1, blocks: [{ type: "image", id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" }] };
+  for (const story of [{}, { content: "", contentDoc: imageDoc }, { content: "<p></p>", contentFormat: "html" }]) {
+    for (const how of ["replace", "append"]) {
+      const before = createCourseState({ ...base, ...story });
+      const next = reduceCourse(before, { type: "apply", course, stadiumCode: "JAMSIL", how });
+      for (const field of ["title", "content", "contentDoc", "contentFormat", "tab"]) {
+        assert.strictEqual(next.data[field], before.data[field], `${how}: ${field}`);
+      }
+      assert.equal(next.data.stops.length, 3);
+      assert.equal(next.data.plannerCompleted, true);
+    }
+  }
+});
+
+test("reopening a chat draft restores only its itinerary and preserves the active story", () => {
+  const before = createCourseState({ ...base, title: "작성 중인 제목", content: "작성 중인 후기", duration: "하루", tags: ["친구"] });
+  const draft = { ...apply(createCourseState(base)).data, title: "옛 제목", content: "옛 후기", tab: "write", travelMode: "transit", start: undefined, plannerCompleted: false };
+  const next = apply(before, { ...course, writerDraft: draft });
+  for (const field of ["title", "content", "contentDoc", "contentFormat", "tab", "tags", "duration"]) {
+    assert.strictEqual(next.data[field], before.data[field], field);
+  }
+  assert.deepEqual(next.data.stops, draft.stops);
+  assert.equal(next.data.start, undefined);
+  assert.equal(next.data.travelMode, "transit");
+  assert.equal(next.data.plannerCompleted, false);
+});
+
+test("course edits preserve user stories; tab navigation does not invalidate a request", () => {
   let state = apply(createCourseState(base));
   state = reduceCourse(state, { type: "patch", patch: { title: "직접 쓴 제목", content: "직접 쓴 후기" } });
   const next = apply(state, { ...course, title: "새 자동 제목", content: "새 안내" });

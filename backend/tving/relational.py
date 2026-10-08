@@ -10,7 +10,7 @@ from django.utils.dateparse import parse_datetime
 from baseball.data_loader import stable_id
 from baseball.models import (
     Game, Player, PlayerCareerRecord, PlayerSeasonRecord, ScheduleDay,
-    StandingHistory, Team, TeamProfile, TeamRoster, TeamSeasonRecord,
+    Stadium, StandingHistory, Team, TeamProfile, TeamRoster, TeamSeasonRecord,
     TeamTopPlayer,
 )
 
@@ -19,10 +19,25 @@ KST = ZoneInfo("Asia/Seoul")
 TEAM_MAP = {"SS": "SAMSUNG", "KT": "KT", "LG": "LG", "HT": "KIA", "OB": "DOOSAN", "NC": "NC", "HH": "HANWHA", "LT": "LOTTE", "SK": "SSG", "WO": "KIWOOM"}
 RAW_STATUS = {"scheduled": "PREV", "live": "NOW", "final": "END", "cancelled": "CANCEL", "postponed": "CANCEL", "suspended": "SUSPENDED", "unknown": "UNKNOWN"}
 NORMAL_STATUS = {"PREV": "scheduled", "READY": "scheduled", "NOW": "live", "END": "final", "CANCEL": "cancelled", "SUSPENDED": "suspended"}
+STADIUM_CODES = {"잠실": "JAMSIL", "고척": "GOCHEOK", "문학": "MUNHAK", "인천": "MUNHAK",
+                 "수원": "SUWON", "대전": "DAEJEON", "대구": "DAEGU", "광주": "GWANGJU",
+                 "사직": "SAJIK", "창원": "CHANGWON"}
 
 
 class RelationalDataError(ValueError):
     pass
+
+
+def stadium_for(name):
+    """Resolve only a provider venue name, never infer a venue from the home team."""
+    normalized = "".join((name or "").split()).casefold()
+    if not normalized:
+        return None
+    code = STADIUM_CODES.get(normalized)
+    matches = [stadium for stadium in Stadium.objects.all()
+               if stadium.stadium_code == code
+               or "".join(stadium.stadium_name_ko.split()).casefold() == normalized]
+    return matches[0] if len(matches) == 1 else None
 
 
 def team_for(code):
@@ -100,6 +115,7 @@ def _game_values(game, now, raw=False):
         "game_date": day, "game_time": game_time, "home_score": home.get("score"), "away_score": away.get("score"),
         "status_code": status, "collected_at": now, "source": "tving",
         "source_external_code": game["id"], "source_stadium_name": game["stadium"],
+        "stadium": stadium_for(game["stadium"]),
         "source_status_label": game["statusLabel"] if "statusLabel" in game else game["status"], "source_fetched_at": now, "last_synced_at": now,
         "source_home_code": home["code"], "source_home_name": home["name"], "source_away_code": away["code"], "source_away_name": away["name"],
         "home_starting_pitcher": home.get("startingPitcher"), "away_starting_pitcher": away.get("startingPitcher"),
@@ -157,7 +173,7 @@ def _upsert_game(game, now, raw=False, reserved_pk=None, reserved_else=frozenset
         for field, value in values.items(): setattr(row, field, value)
         row.save(update_fields=(*values, "updated_at"))
         return row, True
-    row = Game(id=_new_game_id(game["id"]), game_code=f"tving:{game['id']}", home_team=home_team, away_team=away_team, stadium=None, postseason_stage=None, game_type="UNKNOWN", **values)
+    row = Game(id=_new_game_id(game["id"]), game_code=f"tving:{game['id']}", home_team=home_team, away_team=away_team, postseason_stage=None, game_type="UNKNOWN", **values)
     try:
         with transaction.atomic(): row.save(force_insert=True)
     except IntegrityError:

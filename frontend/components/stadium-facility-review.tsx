@@ -40,13 +40,13 @@ function FacilityMap({code, records, selected, onSelect}: {code: string; records
     }
     if (selected) {
       const pin = selected.pin;
-      overlays.push(new maps.Circle({map,center:new maps.LatLng(pin.lat,pin.lng),radius:pin.uncertaintyM,strokeWeight:1,strokeColor:"#dd932b",strokeOpacity:.9,strokeStyle:"dash",fillColor:"#f2b64f",fillOpacity:.16}));
+      if (pin.quality !== "display_reference") overlays.push(new maps.Circle({map,center:new maps.LatLng(pin.lat,pin.lng),radius:pin.uncertaintyM,strokeWeight:1,strokeColor:"#dd932b",strokeOpacity:.9,strokeStyle:"dash",fillColor:"#f2b64f",fillOpacity:.16}));
     }
     const fit = () => {map.relayout(); const bounds = new maps.LatLngBounds(); frame.path.forEach(([lat,lng])=>bounds.extend(new maps.LatLng(lat,lng))); map.setBounds(bounds,45,45,45,45);};
     fit(); const observer = new ResizeObserver(fit); observer.observe(element);
     return () => {observer.disconnect(); overlays.forEach(o=>o.setMap(null)); element.replaceChildren();};
   },[maps,code,records,selected]);
-  return <><div ref={node} className={styles.map} aria-label="구장 소속 먹거리 근사 핀 지도" />{error && <p role="alert">{error}</p>}</>;
+  return <><div ref={node} className={styles.map} aria-label="구장 소속 먹거리 표시 핀 지도" />{error && <p role="alert">{error}</p>}</>;
 }
 
 const EMPTY: StadiumFacility[] = [];
@@ -61,16 +61,16 @@ export function StadiumFacilityReview() {
   const selected = selection?.row.stadium === code && records.some(row=>row.id === selection.row.id) ? selection : undefined;
   return <main className={styles.page}>
     <Link href="/dev/stadium-locations">← 구장 범위 확인</Link><h1>구장 먹거리·시설 위치 검토</h1>
-    <p>구장 내부 / 구장 외부 부속 / 내외부 미확인을 분리했습니다. 코스 자동 생성의 포함·제외 정책은 변경하지 않았습니다.</p>
+    <p>자리어때 먹거리 목록의 모든 매장을 내부 먹거리로 분류합니다. 내부 먹거리 코스는 이번 요청에서 구장 내부를 명시했을 때만 추천합니다.</p>
     <div className={styles.tabs} role="group" aria-label="구장 선택">{stadiums.map(s=><button type="button" key={s.code} aria-pressed={code===s.code} onClick={()=>{setCode(s.code);setSelection(undefined);setFloor("all");setQuery("");}}>{s.name}</button>)}</div>
     <div className={styles.layout}><section>
       <label>지도에 표시할 층 <select value={floor} onChange={e=>setFloor(e.target.value)}><option value="all">전체 층</option>{[...new Set(allRecords.map(r=>r.floor))].sort().map(f=><option key={f} value={f}>{f || "층 미확인"}</option>)}</select></label>
       <FacilityMap code={code} records={records} selected={selected} onSelect={setSelection}/>
-      <p>점: 매장 근사 위치 · 초록: 구장 전체 건물 확인 범위 · 노랑 원: 선택 핀의 검토 여유(실측 정확도 보증 아님). 층이 다르면 핀이 겹칠 수 있어요.</p>
-      {selected && <section className={styles.selected} aria-label="선택한 구장 매장"><h2>{selected.row.name}</h2><p>{selected.row.scopeLabel} · {selected.row.floor} · {selected.row.zone}</p><p>{selected.pin.label} · {selected.pin.quality === "diagram_approximate" ? "안내도" : "통로·구역"} 기반 근사 위치 · 검토 여유 {selected.pin.uncertaintyM}m</p><p>{selected.pin.source.note}</p><a href={selected.row.sourceUrl} target="_blank" rel="noreferrer">자리어때 매장·구역 원문 ↗</a>{selected.pin.source.imageUrl && <> · <a href={selected.pin.source.imageUrl} target="_blank" rel="noreferrer">참고한 안내도 원본 ↗</a></>}</section>}
+      <p>점: 구장 중심과 겹치지 않게 배치한 먹거리 표시 핀 · 초록: 구장 확인 범위. 실제 매장 위치는 상세 링크의 층·구역을 확인하세요.</p>
+      {selected && <section className={styles.selected} aria-label="선택한 구장 매장"><h2>{selected.row.name}</h2><p>{selected.row.scopeLabel} · {selected.row.locationLabel ?? `${selected.row.floor} · ${selected.row.zone}`}</p><p>{selected.pin.quality === "display_reference" ? "구장 옆 표시 핀 · 실제 매장 좌표가 아닙니다" : `${selected.pin.label} · ${selected.pin.quality === "diagram_approximate" ? "안내도" : "통로·구역"} 기반 근사 위치 · 검토 여유 ${selected.pin.uncertaintyM}m`}</p><p>{selected.pin.source.note}</p><a href={selected.row.sourceUrl} target="_blank" rel="noreferrer">매장 상세 위치 ↗</a>{selected.pin.source.imageUrl && <> · <a href={selected.pin.source.imageUrl} target="_blank" rel="noreferrer">참고한 안내도 원본 ↗</a></>}</section>}
       <p>{result.data?.review.note}</p>
       {result.data?.review.source && <p><a href={result.data.review.source.pageUrl} target="_blank" rel="noreferrer">이 구장에서 확인한 자리어때 사진 페이지 ↗</a>{result.data.review.source.imageUrl && <> · <a href={result.data.review.source.imageUrl} target="_blank" rel="noreferrer">구장 전체 안내도 원본 ↗</a></>}</p>}
-      <p>위치 확인에는 자리어때 안내도와 구장 건물 방향을 참고했습니다. 사진은 복제·재배포하지 않고 원문에 연결합니다. <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">건물 외곽 © OpenStreetMap contributors · ODbL</a></p>
+      <p>매장 위치 설명은 자리어때 상세 페이지를 기준으로 합니다. 사진은 복제·재배포하지 않고 원문에 연결합니다. <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">건물 외곽 © OpenStreetMap contributors · ODbL</a></p>
     </section><aside><label className={styles.search}>구장 매장 검색<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="매장명, 층, 1루·3루" /></label><StadiumFacilityList key={code} data={result.data} error={result.error} query={query} selectedId={selected?.pin.id} onSelect={(row,pin)=>{setFloor(row.floor);setSelection({row,pin});}}/></aside></div>
   </main>;
 }

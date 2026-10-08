@@ -21,6 +21,9 @@ def start_minute(question):
             continue
         if re.search(r"경기(?:는|가|\s*시작(?:은|이)?)?\s*$", before) and (not action or action[1] == "시작"):
             continue
+        if (re.search(r"(?:야구장|경기장|구장)(?:에는|에|엔|까지)?\s*$", before)
+                or re.match(r"\s*(?:에|까지|에는|쯤)?\s*(?:야구장|경기장|구장)(?:에는|에|엔|까지)?\s*(?:도착|입장)", after)):
+            continue  # Stadium arrival is the end of the pre-game course, not its start.
         hour = int(match["hour"])
         minute = 30 if match["half"] else int(match["minute"] or match["colon"] or 0)
         period = match["period"]
@@ -38,7 +41,7 @@ def time_warning(course, lookup, tl, game, question, now, to_stadium_minutes):
     """첫 방문지부터 출발하는 낙관적 예상. 접두 코스를 방문하고 곧장 구장에 가도 늦는 첫 장소를 알린다.
 
     다음 경기 날짜를 미루거나 코스를 줄이지 않는다. 아직 방문 시작 시각을 모르는 미래 일정은
-    역산한 권장 시간표를 사용한다. 45분 전 입장 권장 시각이 아니라 실제 경기 시작과 비교한다.
+    역산한 권장 시간표를 사용한다. 기본 입장 권장 시각이 아니라 실제 경기 시작과 비교한다.
     """
     if not game:
         return ""

@@ -12,11 +12,8 @@ from ..middleware.dynamic_tools import DynamicToolMiddleware, request_args
 
 class CourseBoundaryMiddleware(DynamicToolMiddleware):
     def __init__(self):
-        super().__init__(["plan_course"])
-
-    def allowed(self, state):
-        decision = state.get("decision") or {}
-        return self.role_tools if decision.get("allowed") is True and "day_plan" in decision.get("capabilities", ()) else frozenset()
+        # 메인과 같은 요청별 도구 선택을 인정하되 서비스 범위 판정은 유지한다.
+        super().__init__(["plan_course"], {"day_plan": ("plan_course",)})
 
 
 def build(model, tools_by_name):

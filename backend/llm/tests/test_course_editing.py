@@ -77,7 +77,7 @@ class CourseEditingTest(SimpleTestCase):
         with patch.object(editing, "interpret", return_value=operation), patch.object(agent, "stadium_anchor", return_value=PLACES[2]), \
                 patch.object(editing, "candidates", return_value=[{**PLACES[0], "placeId": "new"}]), patch.object(editing, "choose", return_value=None):
             result = agent.answer("카페 전에 자장면 먹을 중식집 추가", hint_stadium="JAMSIL", current_course=CURRENT)
-        self.assertIn("1곳의 후보를 찾았지만", result["answer"])
+        self.assertIn("검증 후 남은 1곳의 후보", result["answer"])
         self.assertIn("자장면", result["answer"])
         self.assertNotIn("브랜드나 업종을 알려", result["answer"])
         self.assertEqual(result["places"], [])
@@ -95,7 +95,7 @@ class CourseEditingTest(SimpleTestCase):
         self.assertEqual(schedule.call_args.args[1], "2026-10-06")
         self.assertEqual([c.args[2]["mode"] for c in directions.call_args_list], ["walk", "walk", "transit"])
         self.assertEqual(result["legModes"], {key: "transit"})
-        self.assertEqual([p["time"] for p in result["places"]], ["16:03", "16:49", "17:45", "21:46"])
+        self.assertEqual([p["time"] for p in result["places"]], ["16:28", "17:14", "18:10", "21:46"])
         self.assertEqual(result["game"], CURRENT["game"])
         self.assertIn("16분", result["travel"]["summary"])  # ceil(301 * 3 / 60), 지도 전체 합계와 같은 반올림
         self.assertEqual([p["placeId"] for p in result["places"]], ["2", "1", "3", "4"])
@@ -108,6 +108,39 @@ class CourseEditingTest(SimpleTestCase):
             result = editing.rebuild(places, CURRENT, "JAMSIL", None, "카페 맨 뒤로", [])
         self.assertEqual([p["phase"] for p in result["places"]], ["BEFORE", "GAME", "AFTER", "AFTER"])
         self.assertEqual(len(result["places"]), 4)
+
+    def test_explicit_date_edit_overrides_saved_game_and_recalculates_times(self):
+        changed_game = {**GAME, "date": "2026-10-15", "time": "17:00"}
+        before = deepcopy(CURRENT)
+        with patch.object(editing, "route_legs", return_value=[{"minutes": 5, "meters": 400, "by": "walk"}] * 3), \
+                patch.object(agent, "load_schedule", return_value=({}, 1)) as schedule, \
+                patch.object(agent, "find_game", return_value=(changed_game, False, [])):
+            result = editing.answer("10월 15일로 바꿔줘", [], CURRENT, "JAMSIL", None, parsed=plan("date", []))
+        self.assertEqual(schedule.call_args.args[1], "2026-10-15")
+        self.assertEqual(result["game"], {"date": "2026-10-15", "time": "17:00"})
+        self.assertEqual(next(p for p in result["places"] if p["category"] == "STADIUM")["time"], "16:40")
+        self.assertEqual([p["placeId"] for p in result["places"]], [p["placeId"] for p in CURRENT["places"]])
+        self.assertEqual(CURRENT, before)
+
+    def test_requested_date_with_no_game_preserves_course_without_old_game_fallback(self):
+        with patch.object(editing, "route_legs", return_value=[{"minutes": 5, "meters": 400, "by": "walk"}] * 3), \
+                patch.object(agent, "load_schedule", return_value=({"items": []}, 1)), \
+                patch.object(agent, "find_game", return_value=(None, False, [])):
+            result = editing.answer("10월 15일로 맞춰줘", [], CURRENT, "JAMSIL", None, parsed=plan("date", []))
+        self.assertEqual(result["places"], [])
+        self.assertNotIn("game", result)
+        self.assertIn("다른 날짜로 바꾸지 않고", result["answer"])
+
+    def test_combined_date_and_place_edit_searches_availability_on_requested_day(self):
+        dates = []
+        def candidates(*args):
+            dates.append(editing.availability.visit_date())
+            return []
+        with editing.availability.session(), patch.object(agent, "stadium_anchor", return_value=PLACES[2]), patch.object(editing, "candidates", side_effect=candidates):
+            result = editing.answer("2026-10-15로 바꾸고 카페 교체", [], CURRENT, "JAMSIL", None,
+                                    parsed=plan("replace", ["cafe"], category="CAFE"))
+        self.assertEqual(dates, ["2026-10-15"])
+        self.assertEqual(result["places"], [])
 
     def test_manual_course_without_stadium_has_no_invented_game_or_absolute_time(self):
         with patch.object(editing, "route_legs", return_value=[{"minutes": 8, "meters": 600, "by": "walk"}]), patch.object(agent, "load_schedule") as games:

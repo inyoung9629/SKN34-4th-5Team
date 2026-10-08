@@ -1,9 +1,10 @@
 """Bounded comparison of complete, condition-checked itineraries. No LLM calls."""
 import math
 import time
+from functools import partial
 
 from ...progress import ProgressCancelled, ProgressStorageError
-from . import geo
+from . import geo, parallel
 
 MAX_VARIANTS = 4
 BEAM_WIDTH = 12
@@ -117,19 +118,11 @@ class RouteRanker:
         self.deadline = None
         self.stopped = False
         self.failures = 0
+        self.failed_edges = set()
         self.report = {}
 
-    def _leg(self, a, b):
-        key = edge_key(a, b)
-        if key in self.cache:
-            return self.cache[key]
-        if key[:2] == key[2:]:
-            self.cache[key] = {"status": "ok", "distance": 0, "seconds": 0, "paths": []}
-            return self.cache[key]
-        if self.stopped or self.calls >= MAX_LEGS or time.monotonic() >= self.deadline:
-            self.stopped = True
-            return None
-        self.calls += 1
+    def _fetch_leg(self, a, b):
+        # Workers only fetch. Deduplication, budgets and ranking stay on the caller.
         try:
             result = self.invoke("course", "get_directions", {"mode": self.mode,
                 "points": [{"lat": p["lat"], "lng": p["lng"]} for p in (a, b)]})
@@ -139,13 +132,36 @@ class RouteRanker:
             raise
         except Exception:
             leg = None
-        if not valid_leg(leg):
-            self.cache[key] = None
-            self.failures += 1
-            self.stopped = self.failures >= 2  # Try another route, but never retry a failed edge.
-            return None
-        self.cache[key] = leg
-        return leg
+        return leg if valid_leg(leg) else None
+
+    def _legs(self, points):
+        edges = {edge_key(a, b): (a, b) for a, b in zip(points, points[1:])}
+        for key in edges:
+            if key[:2] == key[2:]:
+                self.cache[key] = {"status": "ok", "distance": 0, "seconds": 0, "paths": []}
+        while True:
+            failed = next((key for key in edges if key in self.cache and self.cache[key] is None), None)
+            if failed is not None:
+                # A speculative later edge can fail too. Count only the first
+                # blocking edge, as serial traversal did; otherwise two errors
+                # in one unusable route could suppress a valid alternative.
+                if failed not in self.failed_edges:
+                    self.failed_edges.add(failed)
+                    self.failures += 1
+                self.stopped = self.failures >= 2
+                break
+            if all(key in self.cache for key in edges):
+                break
+            if self.stopped or self.calls >= MAX_LEGS or time.monotonic() >= self.deadline:
+                self.stopped = True
+                break
+            limit = min(parallel.WORKERS, MAX_LEGS - self.calls, 2 - self.failures)
+            batch = [(key, pair) for key, pair in edges.items() if key not in self.cache][:limit]
+            self.calls += len(batch)
+            results = parallel.reads(partial(self._fetch_leg, *pair) for _, pair in batch)
+            for (key, _), leg in zip(batch, results):
+                self.cache[key] = leg
+        return self.known_legs(points)
 
     def optimize(self, steps, choices, origin, anchor, relevance):
         routes = variants(steps, choices, origin, anchor, relevance)
@@ -155,13 +171,8 @@ class RouteRanker:
         measured = []
         for rows in routes:
             points = points_of(rows, origin, anchor)
-            legs = []
-            for a, b in zip(points, points[1:]):
-                leg = self._leg(a, b)
-                if leg is None:
-                    break
-                legs.append(leg)
-            if len(legs) == len(points) - 1:
+            legs = self._legs(points)
+            if all(leg is not None for leg in legs):
                 seconds = sum(leg["seconds"] for leg in legs)
                 meters = sum(leg["distance"] for leg in legs)
                 measured.append(((seconds, meters, tuple(leg["seconds"] for leg in legs)), rows))

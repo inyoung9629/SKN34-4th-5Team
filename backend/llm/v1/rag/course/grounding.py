@@ -41,6 +41,10 @@ def address_in_body(address, body):
     # Region abbreviations differ between Kakao and page text, but the complete
     # road/building number and city/district must still occur together.
     def normalize(value):
+        # Live Kakao records use this prefix while restaurant pages still use
+        # 광주광역시. Limit the alias to Gwangju's five districts; do not equate
+        # every address in the combined region with Gwangju.
+        value = re.sub(r"전남광주통합특별시\s*(?=(?:동구|서구|남구|북구|광산구)(?:\s|$))", "광주 ", value)
         for long, short in (("서울특별시", "서울"), ("부산광역시", "부산"), ("대구광역시", "대구"),
                             ("광주광역시", "광주"), ("인천광역시", "인천"), ("대전광역시", "대전"),
                             ("경기도", "경기"), ("경상남도", "경남"), ("경상북도", "경북")):

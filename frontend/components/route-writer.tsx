@@ -20,7 +20,7 @@ import { withCourseStart } from "@/lib/drawn-course";
 import { createClientId } from "@/lib/client-id";
 import { GUIDE_COURSE, type GuideCourseStop } from "@/lib/route-guide-events";
 import { teamBoards } from "@/lib/team-community";
-import { browserDraftStorage, createDraftAutosave, readRouteDraft, recoverRouteDraft, removeRouteDraft, saveRouteDraft, type MemoryRouteDraft, type RouteDraftData } from "@/lib/route-draft";
+import { browserDraftStorage, createDraftAutosave, latestNewDraftStadium, readRouteDraft, recoverRouteDraft, removeRouteDraft, saveRouteDraft, type MemoryRouteDraft, type RouteDraftData } from "@/lib/route-draft";
 import type { LegModes, TravelMode } from "@/lib/course-directions";
 import { courseContext, courseGeometryKey, type CourseAction } from "@/lib/course-state";
 import { useCourseState } from "./use-course-state";
@@ -62,15 +62,18 @@ export default function RouteWriter({ editId, copyId, initialStadium }: { editId
   const [attempt, setAttempt] = useState(0);
   // Fixed per visit so the random default stadium does not change on every render.
   const [randomPick] = useState(() => Math.random());
+  const [draftStadium, setDraftStadium] = useState<string | undefined>();
   useEffect(() => {
     if (authStatus !== "authenticated" && authStatus !== "anonymous") return;
     const controller = new AbortController();
     fetchBaseballStadiums(controller.signal).then(page => {
       const available = page.results.map(adaptStadium).filter((item): item is Stadium => item !== null);
+      setDraftStadium(authStatus === "authenticated" && !initialStadium && !editId && !copyId
+        ? latestNewDraftStadium(browserDraftStorage(), available.map(stadium => stadium.code)) : undefined);
       setStadiums(available); setInvalidCount(page.results.length - available.length);
     }).catch(cause => { if (!controller.signal.aborted) setStadiumError(cause instanceof Error ? cause.message : "구장 목록을 불러오지 못했어요."); });
     return () => controller.abort();
-  }, [attempt, authStatus]);
+  }, [attempt, authStatus, user?.id, initialStadium, editId, copyId]);
   const sourceId = copyId ?? editId;
   const existing = sourceId ? routes.find((route) => route.id === sourceId || route.legacySourceId === sourceId) : undefined;
   if (authStatus === "loading") return <main className="container writer-empty"><p role="status"><span className="writer-spinner" aria-hidden="true" />로그인 상태를 확인하고 있어요.</p></main>;
@@ -83,11 +86,12 @@ export default function RouteWriter({ editId, copyId, initialStadium }: { editId
   if (stadiumError) return <main className="container writer-empty" role="alert"><h1>구장 목록을 불러오지 못했어요</h1><p>{stadiumError} 작성 중이던 기기 내 초안은 지우지 않았어요.</p><button type="button" onClick={() => { setStadiums(null); setStadiumError(""); setAttempt(value => value + 1); }}>다시 시도</button></main>;
   if (!stadiums) return <main className="container writer-empty"><p role="status"><span className="writer-spinner" aria-hidden="true" />DB에서 구장 목록을 불러오고 있어요.</p></main>;
   if (!stadiums.length) return <main className="container writer-empty"><h1>선택할 수 있는 구장이 없어요</h1><p>{invalidCount ? "적재된 구장 좌표를 확인해 주세요." : "구장 데이터가 적재된 뒤 다시 시도해 주세요."} 기존 초안은 유지됩니다.</p></main>;
-  // Explicit stadium (edit/copy/?stadium=) first, then the member's team home, otherwise a random one.
+  // Explicit stadium first; an ordinary return resumes the latest draft before
+  // choosing a team's home/random stadium, which could resurrect an older story.
   const requested = existing?.stadium ?? initialStadium;
   const teamStadium = teamBoards.find(team => team.code === user?.team_code)?.stadium;
   const findStadium = (name?: string) => name ? stadiums.find(item => matchesStadium(item, name)) : undefined;
-  const initial = requested ? findStadium(requested) : findStadium(teamStadium) ?? stadiums[Math.floor(randomPick * stadiums.length)];
+  const initial = requested ? findStadium(requested) : (authStatus === "authenticated" ? findStadium(draftStadium) : undefined) ?? findStadium(teamStadium) ?? stadiums[Math.floor(randomPick * stadiums.length)];
   if (!initial) return <main className="container writer-empty"><h1>선택한 구장을 사용할 수 없어요</h1><p>구장이 삭제됐거나 좌표를 확인할 수 없어요. 다른 구장을 직접 선택해 주세요. 기존 초안은 유지했습니다.</p><Link href="/routes/new" className="button button-secondary">구장 다시 선택하기</Link></main>;
   return <WriterForm key={`${authStatus}:${user?.id ?? "guest"}:${copyId ? "copy:" : "edit:"}${existing?.legacySourceId ?? sourceId ?? initial.code}`} stadiums={stadiums} initial={initial} copying={Boolean(copyId)} existing={existing} />;
 }
@@ -133,11 +137,16 @@ function WriterForm({ stadiums, initial, existing, copying = false, sample = fal
   }));
   const { stadiumCode, title, content, contentFormat, contentDoc, duration, tags, stops, start, tab, travelMode,
     legModes = {}, plannerCompleted = false, plannerMode = "places", chatCourseKey } = courseState.data;
-  const [initialDoc, setInitialDoc] = useState(() => restoredDraft?.contentDoc ?? copiedStory ?? existing?.contentDoc
+  const [initialDoc] = useState(() => restoredDraft?.contentDoc ?? copiedStory ?? existing?.contentDoc
     ?? plainRichDoc(routeContentToText(restoredDraft?.content ?? existing?.content ?? "", restoredDraft ? restoredDraft.contentFormat : existing?.contentFormat)));
   const linkedDraftRaw = useRef<{ key: string; raw: string | null } | null>(null);
-  const [editorVersion, setEditorVersion] = useState(0);
   const [pathResult, setPathResult] = useState<{ key: string; path?: ChatRoutePath }>();
+  const [selectedPlace, setSelectedPlace] = useState<RouteStop | null>(null);
+  const selectedPlaceRef = useRef<RouteStop | null>(null);
+  const changeSelectedPlace = useCallback((place: RouteStop | null) => {
+    selectedPlaceRef.current = place;
+    setSelectedPlace(place);
+  }, []);
   const geometryKey = courseGeometryKey(courseState.data);
   const routePath = pathResult?.key === geometryKey ? pathResult.path : undefined;
   const pathRef = useRef(pathResult);
@@ -234,14 +243,14 @@ function WriterForm({ stadiums, initial, existing, copying = false, sample = fal
 
   const readCurrentContext = useCallback(() => {
     const context = courseContext(courseRef.current,
-      pathRef.current?.key === courseGeometryKey(courseRef.current.data) ? pathRef.current.path : undefined);
+      pathRef.current?.key === courseGeometryKey(courseRef.current.data) ? pathRef.current.path : undefined, selectedPlaceRef.current);
     return { ...context, stadium: stadiums.find(item => item.code === context.stadium)?.name ?? context.stadium };
   }, [courseRef, stadiums]);
   useEffect(() => {
     if (!current) return;
     const next = readCurrentContext();
     if (JSON.stringify(next) !== JSON.stringify(chatContext)) onContextChange(next);
-  }, [current, courseState, routePath, chatContext, onContextChange, readCurrentContext]);
+  }, [current, courseState, routePath, selectedPlace, chatContext, onContextChange, readCurrentContext]);
 
   useEffect(() => {
     if (sample) return;
@@ -296,33 +305,25 @@ function WriterForm({ stadiums, initial, existing, copying = false, sample = fal
   const changeLegModes = useCallback((next: LegModes) => changeCourse({ legModes: next }), [changeCourse]);
   const setTab = useCallback((next: WriterTab) => changeCourse({ tab: next }), [changeCourse]);
   const setPlannerMode = useCallback((next: PlannerMode) => changeCourse({ plannerMode: next }), [changeCourse]);
-  const syncEditor = useCallback((data: RouteDraftData) => {
-    setInitialDoc(data.contentDoc ?? plainRichDoc(routeContentToText(data.content, data.contentFormat)));
-    setEditorVersion(value => value + 1);
-  }, []);
   const applyCourse = useCallback((course: ChatCourse, how: "replace" | "append") => {
     const target = course.stadiumCode ? stadiums.find(stadium => matchesStadium(stadium, course.stadiumCode!)) : stadiums.find(stadium => stadium.code === courseRef.current.data.stadiumCode);
     if (!target) return null;
     const before = courseRef.current;
     course = { ...course, places: course.places.map(place => place.category === "STADIUM"
       ? { ...place, name: target.name, lat: target.lat, lng: target.lng, address: target.address || place.address } : place) };
-    const next = commitCourse(course.writerDraft && how === "replace"
-      ? { type: "restore", data: course.writerDraft }
-      : { type: "apply", course, stadiumCode: target.code, how });
-    if (next.data.content !== before.data.content || next.data.contentDoc !== before.data.contentDoc) syncEditor(next.data);
+    const next = commitCourse({ type: "apply", course, stadiumCode: target.code, how });
     setCourseApplied({ version: next.revision, stadiumCode: next.data.stadiumCode, completed: next.data.plannerCompleted });
     return () => {
       const current = courseRef.current;
       const undone = commitCourse({ type: "undo", before, expectedRevision: next.revision });
       if (undone !== current) {
-        syncEditor(undone.data);
         setCourseApplied({ version: undone.revision, stadiumCode: undone.data.stadiumCode, completed: undone.data.plannerCompleted });
         return true;
       }
       setError("코스를 추가로 수정했어요. 최신 내용을 보호하기 위해 이전 추천 적용을 되돌리지 않았어요.");
       return false;
     };
-  }, [stadiums, courseRef, commitCourse, syncEditor]);
+  }, [stadiums, courseRef, commitCourse]);
   const applyCourseRef = useRef(applyCourse);
   useLayoutEffect(() => { applyCourseRef.current = applyCourse; }, [applyCourse]);
   const readCourseVersion = useCallback(() => JSON.stringify([courseRef.current.revision,
@@ -454,13 +455,13 @@ function WriterForm({ stadiums, initial, existing, copying = false, sample = fal
                 </div>
                 <div className="writer-field planner-stadium-field"><label className="sr-only" htmlFor="route-stadium">구장 선택</label><select id="route-stadium" aria-label="구장 선택" value={stadiumCode} onChange={(event) => changeStadium(event.target.value)}>{stadiums.map((stadium) => <option key={stadium.code} value={stadium.code}>{stadium.name}</option>)}</select></div>
               </div>
-              <NearbyRoutePlanner key={`${stadiumCode}:${plannerMode}`} plannerMode={plannerMode} stadium={current} stops={stops} onChange={changeStops} initialStart={start} onStartChange={changeStart} onCourseChange={changeCourse} courseRevision={courseState.revision} originSource={courseState.originSource} onRoutePathChange={changeRoutePath} initialTravelMode={travelMode} travelMode={travelMode} legModes={legModes} onLegModesChange={changeLegModes} courseApplied={courseApplied} onTravelModeChange={changeTravelMode} courseName={title} onCourseNameChange={(name) => changeCourse({ title: name })} allowSave={showMemberFields} onSaveCourse={() => saveCourse()} saving={saving} saveError={error} startWithAllPlaces={copying} onCompletionChange={changeCompletion} initialCompleted={plannerCompleted} autoComplete={autoCompleteCourse} onAutoCompleted={() => setAutoCompleteCourse(false)} guide={sample} />
+              <NearbyRoutePlanner key={`${stadiumCode}:${plannerMode}`} plannerMode={plannerMode} stadium={current} stops={stops} onChange={changeStops} initialStart={start} onStartChange={changeStart} onCourseChange={changeCourse} courseRevision={courseState.revision} originSource={courseState.originSource} onRoutePathChange={changeRoutePath} onSelectedPlaceChange={changeSelectedPlace} initialTravelMode={travelMode} travelMode={travelMode} legModes={legModes} onLegModesChange={changeLegModes} courseApplied={courseApplied} onTravelModeChange={changeTravelMode} courseName={title} onCourseNameChange={(name) => changeCourse({ title: name })} allowSave={showMemberFields} onSaveCourse={() => saveCourse()} saving={saving} saveError={error} startWithAllPlaces={copying} onCompletionChange={changeCompletion} initialCompleted={plannerCompleted} autoComplete={autoCompleteCourse} onAutoCompleted={() => setAutoCompleteCourse(false)} guide={sample} />
             </section>
             {showMemberFields && <div className="writer-writing writer-panel" id="writer-panel-write" role="tabpanel" aria-labelledby="writer-tab-write" tabIndex={0}>
               <section className="writer-card">
                 <div className="writer-section-title"><span>02</span><h2><label htmlFor="route-content">나만의 이야기를 담아보세요</label></h2></div>
                 <div className="writer-field"><label htmlFor="route-title">루트 제목 <em>*</em></label><input id="route-title" value={title} onChange={(event) => changeCourse({ title: event.target.value })} maxLength={80} placeholder="예: 친구와 함께, 잠실에서 보내는 하루" required /><span className="writer-field-hint">함께 가는 사람에게 소개하듯 제목을 지어보세요. <b>{title.length}/80</b></span></div>
-                <CommunityRichEditor key={editorVersion} id="route-content" label="직관 루트 이야기" placeholder="방문 순서와 나만의 이야기를 적어 주세요." maxLength={12000}
+                <CommunityRichEditor id="route-content" label="직관 루트 이야기" placeholder="방문 순서와 나만의 이야기를 적어 주세요." maxLength={12000}
                   initial={initialDoc} notifyInitial={false} disabled={saving} imageUploadDisabled={sample || !showMemberFields}
                   onUploadingChange={setUploading} onError={setError} onChange={(doc, value) => changeCourse({ contentDoc: doc, content: value, contentFormat: undefined })} />
                 <p className="writer-field-hint writer-content-tip">방문 순서, 이동 계획, 준비물을 적으면 함께 가는 사람에게 더 도움이 돼요.</p>

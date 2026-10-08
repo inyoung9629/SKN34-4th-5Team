@@ -149,7 +149,7 @@ export function courseToStops(course: ChatCourse, newId: () => string = () => cr
     lat: place.lat,
     lng: place.lng,
     category: COURSE_CATEGORY_LABEL[place.category],
-    placeId: place.placeId && /^(?:\d+|collected:(?:SBIZ|PARK|TOUR):.+)$/.test(place.placeId) ? place.placeId : `chat:${place.category === "STADIUM" ? `stadium:${course.stadiumCode ?? place.name}` : newId()}`,
+    placeId: place.placeId && /^(?:\d+|collected:(?:SBIZ|PARK|TOUR):.+|stadium-facility:SC_(?:FOOD|FAC)_[A-Z]+_\d{3}:[\w-]+)$/.test(place.placeId) ? place.placeId : `chat:${place.category === "STADIUM" ? `stadium:${course.stadiumCode ?? place.name}` : newId()}`,
     ...(place.address ? { address: place.address } : {}),
     isDrawnPoint: true,
     ...metadata,

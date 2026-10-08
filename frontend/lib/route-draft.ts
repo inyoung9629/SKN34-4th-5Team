@@ -98,6 +98,21 @@ export function readRouteDraft(storage: StorageLike | undefined, context: string
   catch { return { raw: null, error: true }; }
 }
 
+/** A new writer resumes the last draft, not a random stadium's older draft.
+ * Return its storage key's stadium: the selected stadium may have changed since
+ * the draft was first opened, so using data.stadiumCode would load another slot.
+ */
+export function latestNewDraftStadium(storage: StorageLike | undefined, stadiumCodes: string[]): string | undefined {
+  let latest: { code: string; timestamp: number } | undefined;
+  for (const code of stadiumCodes) {
+    const draft = readRouteDraft(storage, `new:${code}`).draft;
+    if (!draft || !stadiumCodes.includes(draft.data.stadiumCode)) continue;
+    const timestamp = Date.parse(draft.updatedAt);
+    if (!latest || timestamp > latest.timestamp) latest = { code, timestamp };
+  }
+  return latest?.code;
+}
+
 export function recoverRouteDraft(stored: ReturnType<typeof readRouteDraft>, memory?: MemoryRouteDraft) {
   return memory ? { data: memory.data, expectedRaw: memory.expectedRaw, dirty: true as const } : { data: stored.draft?.data, expectedRaw: stored.raw, dirty: false as const };
 }

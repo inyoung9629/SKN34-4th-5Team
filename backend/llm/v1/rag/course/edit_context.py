@@ -37,6 +37,14 @@ def validate(value):
         seen.add(place["visitId"])
     result = {"places": cleaned["places"], "stadiumCode": value["stadiumCode"],
               "travelMode": value["travelMode"], "legModes": dict(value.get("legModes", {}))}
+    if "selectedPlace" in value:
+        raw = value["selectedPlace"]
+        selected = public_course({"places": [raw], "edit": True})
+        if not isinstance(raw, dict) or not selected or any(not isinstance(raw.get(k), str) or not 1 <= len(raw[k]) <= limit
+                               for k, limit in (("visitId", 255), ("label", 20))):
+            raise ValueError("선택한 장소를 확인해 주세요.")
+        result["selectedPlace"] = next((p.copy() for p in result["places"] if p["visitId"] == raw["visitId"]),
+                                       {**selected["places"][0], "visitId": raw["visitId"], "label": raw["label"]})
     if "writerState" in value:
         from .writer_state import clean
         writer = clean(value["writerState"])

@@ -247,11 +247,9 @@ class KakaoCourseCandidates:
                     self.excluded.add(place["placeId"])
                     continue
                 if area["scope"] == "internal":
-                    place["stadiumAffiliation"] = {**area, "basis": "reviewed_main_frame"}
-                    if not origin_label:
-                        self.internal_excluded.add(place["placeId"])
-                        self.excluded.add(place["placeId"])
-                        continue
+                    self.internal_excluded.add(place["placeId"])
+                    self.excluded.add(place["placeId"])
+                    continue
                 tenant = TENANT.search(place["name"]) and not re.search(r"역|사거리|앞점|입구점", place["name"])
                 if not origin_label and (tenant or not outside_stadium(place, self.frames)):
                     self.excluded.add(place["placeId"])

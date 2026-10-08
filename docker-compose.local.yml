@@ -1,6 +1,11 @@
 # Local HTTP startup: use the pinned MinIO source build from docker-compose.yml.
 # Run: docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 services:
+  frontend:
+    # Windows bind mounts can miss Turbopack file events and keep serving old JS.
+    command: ["npm", "run", "dev", "--", "--webpack", "-H", "0.0.0.0"]
+    environment:
+      WATCHPACK_POLLING: "1000"
   backend:
     environment:
       COURSE_WEB_VERIFICATION_ENABLED: "true"

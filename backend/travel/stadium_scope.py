@@ -135,7 +135,7 @@ def filter_provider_places(documents):
     result = []
     for doc in documents:
         area = classify_stadium_point({"lat": float(doc["y"]), "lng": float(doc["x"])}, zones)
-        if area["scope"] == "excluded_complex":
+        if area["scope"] != "external":
             continue
         result.append({**doc, "stadiumArea": area})
     return result
@@ -143,9 +143,18 @@ def filter_provider_places(documents):
 
 def scoped_document(document, zones):
     """Recheck old RAG scope at read time without rewriting stored observations."""
+    if document.get("document_type") == "facility":
+        from .stadium_facilities import facility_catalogue, facility_document
+        # Rehydrate source facts, rather than trusting old payloads or source labels.
+        code = document.get("stadium")
+        if code not in zones:
+            return None
+        row = next((p for p in facility_catalogue(code)["records"]
+                    if p["id"] == document.get("place_id") and p["name"] == document.get("name")
+                    and p["sourceUrl"] == document.get("source_url")), None)
+        return facility_document(row) if row else None
     area = classify_stadium_point(document, zones)
-    if area["scope"] == "excluded_complex":
+    if (area["scope"] in ("internal", "excluded_complex") or document.get("scope") == "internal"
+            or (document.get("stadiumArea") or {}).get("scope") in ("internal", "excluded_complex")):
         return None
-    if area["scope"] == "internal":
-        return {**document, "scope": "internal", "stadiumArea": area}
     return document

@@ -8,8 +8,10 @@ from llm.v1.rag.nearby import kakao
 
 class StadiumLocationTests(SimpleTestCase):
     def test_old_rag_address_coordinate_cannot_move_first_team_venue(self):
-        with patch.object(agent, "invoke_domain_tool", return_value={}), patch.object(agent, "connection") as connection:
-            connection.cursor.return_value.__enter__.return_value.fetchone.return_value = ({"lat_y": "37.51619878", "lng_x": "127.07594059"},)
+        with patch.object(agent, "invoke_domain_tool", return_value={}), patch(
+            "llm.vector_store.iter_documents",
+            side_effect=lambda **_kwargs: iter([{"metadata": {"lat_y": "37.51619878", "lng_x": "127.07594059"}}]),
+        ):
             for code in agent.STADIUM_KO:
                 anchor = agent.stadium_anchor(code)
                 point = reviewed_venue(code)

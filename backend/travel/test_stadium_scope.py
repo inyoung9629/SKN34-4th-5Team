@@ -9,7 +9,7 @@ from django.test import SimpleTestCase
 
 from .collected_places import CatalogueUnavailable
 from .stadium_scope import classify_stadium_point, reviewed_zones, filter_provider_places
-from .stadium_facilities import _root
+from .stadium_facilities import _root, facility_catalogue, facility_document
 from .kakao_course_candidates import KakaoCourseCandidates
 from .test_kakao_course_candidates import FakeKakao, FAST, document
 from .place_service import search_live_places, search_live_lodging
@@ -60,7 +60,7 @@ class StadiumScopeTests(SimpleTestCase):
             with self.assertRaises(CatalogueUnavailable):
                 filter_provider_places([provider_doc(1, self.external)])
 
-    def test_live_search_keeps_internal_tag_but_never_returns_red_only_all_categories(self):
+    def test_live_search_excludes_internal_and_red_only_all_categories(self):
         for category in ("FD6", "CE7", "CS2", "CT1", "AT4", "AD5"):
             with self.subTest(category=category):
                 query = {"method": "category", "category": category, "lat": self.main["lat"],
@@ -69,8 +69,8 @@ class StadiumScopeTests(SimpleTestCase):
                 original = deepcopy(docs)
                 with patch("travel.place_service._request_kakao", return_value={"meta": {"is_end": False}, "documents": docs}):
                     result = (search_live_lodging if category == "AD5" else search_live_places)(query)
-                self.assertEqual([p["id"] for p in result["places"]], ["1", "3"])
-                self.assertEqual(result["places"][0]["stadiumArea"]["scope"], "internal")
+                self.assertEqual([p["id"] for p in result["places"]], ["3"])
+                self.assertEqual(result["places"][0]["stadiumArea"]["scope"], "external")
                 self.assertTrue(result["hasNextPage"])
                 self.assertEqual(docs, original)
 
@@ -92,7 +92,7 @@ class StadiumScopeTests(SimpleTestCase):
         self.assertEqual(audit["excluded_internal_count"], 1)
         self.assertEqual(audit["status"], "complete")
         # Named-origin search cannot reintroduce red-only facilities either.
-        self.assertEqual({p["placeId"] for p in source.search(self.main, 1500, "origin", origin_label="가상")}, {"1", "3"})
+        self.assertEqual({p["placeId"] for p in source.search(self.main, 1500, "origin", origin_label="가상")}, {"3"})
 
     def test_existing_rag_is_refiltered_before_limit_without_rebuild(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -106,8 +106,20 @@ class StadiumScopeTests(SimpleTestCase):
             build_index(path, docs, analyses)
             original = path.read_bytes()
             self.assertEqual([p["place_id"] for p in retrieve(stadium_code="DAEJEON", path=path, limit=1)["items"]], ["2"])
-            self.assertEqual([p["place_id"] for p in retrieve(stadium_code="DAEJEON", path=path, scope="internal")["items"]], ["1"])
-            self.assertEqual({p["place_id"] for p in retrieve(stadium_code="DAEJEON", path=path, scope="all")["items"]}, {"1", "2"})
+            self.assertEqual([p["place_id"] for p in retrieve(stadium_code="DAEJEON", path=path, scope="internal")["items"]], [])
+            self.assertEqual({p["place_id"] for p in retrieve(stadium_code="DAEJEON", path=path, scope="all")["items"]}, {"2"})
             research = retrieve("돈까스", stadium_code="DAEJEON", path=path, scope="all", include_research=True)
-            self.assertEqual({p["place_id"] for p in research["research_records"]}, {"1", "2"})
+            self.assertEqual({p["place_id"] for p in research["research_records"]}, {"2"})
             self.assertEqual(path.read_bytes(), original)
+
+    def test_rag_internal_food_rehydrates_only_real_collected_records(self):
+        row = next(p for p in facility_catalogue("JAMSIL")["records"] if p["kind"] == "food" and p["scope"] == "internal")
+        canonical = facility_document(row)
+        documents = [{**canonical, "current_operation": "open", "menu_verified": True},
+                     {**canonical, "id": "fake", "place_id": "123456", "source": "MYSEATCHECK"},
+                     {**canonical, "id": "fake2", "place_id": "7890", "document_type": "place"}]
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "index.sqlite3"
+            build_index(path, documents, [])
+            result = retrieve(stadium_code="JAMSIL", scope="internal", path=path)
+        self.assertEqual(result["items"], [canonical])

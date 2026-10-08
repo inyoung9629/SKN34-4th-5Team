@@ -27,7 +27,7 @@ const originalRaw = JSON.stringify({ version: 1, revision: "original", updatedAt
 
 // Execute the actual component and its handlers, with hook state and boundary services stubbed.
 // No DOM/test dependency is needed; Kakao rendering is covered by the existing planner tests.
-function harness(status = "anonymous", sample = false, userId = 1, draftContext = "new:JAMSIL") {
+function harness(status = "anonymous", sample = false, userId = 1, draftContext = "new:JAMSIL", availableStadiums = [stadium]) {
   let cursor = 0;
   let auth = { status, user: status === "authenticated" ? { id: userId } : null };
   const state = [], effects = [], listeners = new Map(), calls = [];
@@ -49,6 +49,7 @@ function harness(status = "anonymous", sample = false, userId = 1, draftContext 
   const drafts = {
     browserDraftStorage() { calls.push("storage"); return browserStorage; },
     readRouteDraft(storage, key) { calls.push(["read", key]); return draftService.readRouteDraft(storage, key); },
+    latestNewDraftStadium: draftService.latestNewDraftStadium,
     recoverRouteDraft: draftService.recoverRouteDraft,
     saveRouteDraft(storage, key, data, expectedRaw) { calls.push(["write", key]); return draftService.saveRouteDraft(storage, key, data, expectedRaw); },
     removeRouteDraft(storage, key, expectedRaw) { calls.push(["delete", key]); return draftService.removeRouteDraft(storage, key, expectedRaw); },
@@ -86,7 +87,7 @@ function harness(status = "anonymous", sample = false, userId = 1, draftContext 
       if (id.endsWith("/team-community")) return { teamBoards: [] };
       if (id.endsWith("/drawn-course")) return { withCourseStart: value => value };
       if (id.endsWith("/nearby-places")) return { MAX_ROUTE_STOPS: 12 };
-      if (id.endsWith("/baseball/client")) return { fetchBaseballStadiums: async () => { calls.push("stadiums"); return { results: [stadium] }; } };
+      if (id.endsWith("/baseball/client")) return { fetchBaseballStadiums: async () => { calls.push("stadiums"); return { results: availableStadiums }; } };
       if (id.endsWith("/baseball/adapters")) return { adaptStadium: value => value };
       return new Proxy({}, { get: (_, name) => name });
     }, AbortController,
@@ -103,7 +104,7 @@ function elements(node) {
 const find = (tree, predicate) => elements(tree).find(predicate);
 const plannerProps = tree => find(tree, item => item.type === "NearbyRoutePlanner").props;
 
-test("a linked conversation reopens title, origin and completion, and refresh preserves the new draft", () => {
+test("a linked conversation reopens the itinerary without copying its story, and refresh preserves the draft", () => {
   const h = harness("authenticated");
   h.storage.clear();
   const writerKey = "chat:member:1:session:42";
@@ -116,7 +117,8 @@ test("a linked conversation reopens title, origin and completion, and refresh pr
   h.chat.takePendingCourse = () => { const value = pending; pending = null; return value; };
   h.render(); h.mountEffects();
   let tree = h.render(); h.mountEffects();
-  assert.equal(find(tree, item => item.props.id === "route-title").props.value, writerDraft.title);
+  assert.equal(find(tree, item => item.props.id === "route-title").props.value, "");
+  assert.doesNotMatch(JSON.stringify(find(tree, item => item.type === "CommunityRichEditor").props.initial), /복원할 이야기/);
   assert.deepEqual(plannerProps(tree).initialStart, writerDraft.start);
   assert.equal(plannerProps(tree).initialCompleted, true);
   let prevented = false;
@@ -124,7 +126,8 @@ test("a linked conversation reopens title, origin and completion, and refresh pr
   assert.equal(prevented, false, "a safely persisted member draft can reload without discarding its state");
   h.listeners.get("pagehide")();
   const saved = draftService.parseRouteDraft(h.storage.get(draftService.ROUTE_DRAFT_PREFIX + "new:JAMSIL"));
-  assert.equal(saved.data.title, writerDraft.title);
+  assert.equal(saved.data.title, "");
+  assert.equal(saved.data.content, "");
   assert.equal(saved.data.plannerCompleted, true);
   assert.deepEqual(saved.data.start, writerDraft.start);
   plannerProps(tree).onCompletionChange(false);
@@ -133,15 +136,52 @@ test("a linked conversation reopens title, origin and completion, and refresh pr
   assert.equal(draftService.parseRouteDraft(h.storage.get(draftService.ROUTE_DRAFT_PREFIX + writerKey)).data.plannerCompleted, false);
 });
 
-test("restoring a server course also fills the visible rich editor", () => {
+test("restoring a server course leaves the story editor empty and mounted", () => {
   const h = harness("authenticated");
   h.storage.clear();
   let pending = { stadiumCode: "JAMSIL", places: [stop("식당")], notes: [], title: "원래 코스",
     content: "식사 후 구장으로 이동합니다.", writerKey: "chat:member:1:session:88" };
   h.chat.takePendingCourse = () => { const value = pending; pending = null; return value; };
-  h.render(); h.mountEffects();
+  const initial = find(h.render(), item => item.type === "CommunityRichEditor"); h.mountEffects();
   const tree = h.render(); h.mountEffects();
-  assert.match(JSON.stringify(find(tree, item => item.type === "CommunityRichEditor").props.initial), /식사 후 구장으로 이동합니다/);
+  const editor = find(tree, item => item.type === "CommunityRichEditor");
+  assert.strictEqual(editor.props.initial, initial.props.initial);
+  assert.equal(editor.key, initial.key);
+  assert.doesNotMatch(JSON.stringify(editor.props.initial), /식사 후 구장으로 이동합니다/);
+  assert.equal(find(tree, item => item.props.id === "route-title").props.value, "");
+  assert.equal(plannerProps(tree).stops[0].name, "식당");
+});
+
+test("chat generation, edits, appends and undo preserve the typed story, images and editor instance", () => {
+  const h = harness("authenticated");
+  h.storage.clear();
+  let tree = h.render(); h.mountEffects();
+  const editor = find(tree, item => item.type === "CommunityRichEditor");
+  const { plainRichDoc } = createRequire(join(scratch, "entry.cjs"))("./community-rich-content.js");
+  const doc = plainRichDoc("직접 쓴 후기");
+  doc.blocks.push({ type: "image", id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" });
+  editor.props.onChange(doc, "직접 쓴 후기\n[이미지]");
+  find(tree, item => item.props.id === "route-title").props.onChange({ target: { value: "내 제목" } });
+  tree = h.render(); h.mountEffects();
+  for (const [how, edit] of [["replace", false], ["replace", true], ["append", false]]) {
+    const before = plannerProps(tree).stops;
+    const undo = h.chat.target.apply({ stadiumCode: "JAMSIL", notes: [], edit, title: "자동 제목", content: "자동 설명",
+      places: [{ name: "식당", lat: 37.5, lng: 127.1, category: "FOOD", phase: "BEFORE" }] }, how);
+    tree = h.render(); h.mountEffects();
+    assert.equal(plannerProps(tree).stops[0].name, "식당");
+    for (const undone of [false, true]) {
+      if (undone) { assert.equal(undo(), true); tree = h.render(); h.mountEffects(); }
+      const currentEditor = find(tree, item => item.type === "CommunityRichEditor");
+      assert.strictEqual(currentEditor.props.initial, editor.props.initial);
+      assert.equal(currentEditor.key, editor.key);
+      assert.equal(find(tree, item => item.props.id === "route-title").props.value, "내 제목");
+      h.listeners.get("pagehide")();
+      const saved = draftService.parseRouteDraft(h.storage.get(draftService.ROUTE_DRAFT_PREFIX + "new:JAMSIL"));
+      assert.equal(saved.data.content, "직접 쓴 후기\n[이미지]");
+      assert.deepEqual(saved.data.contentDoc, doc);
+    }
+    assert.deepEqual(plannerProps(tree).stops, before);
+  }
 });
 
 test("opening an older conversation never silently replaces a populated writer", () => {
@@ -161,9 +201,25 @@ test("anonymous new writer loads public stadiums, but editing remains login-only
   const fresh = h.render(h.wrapper, {});
   assert.ok(h.calls.includes("stadiums"));
   assert.equal(typeof fresh.type, "function");
+  assert.ok(!h.calls.includes("storage"), "guest navigation never reads member drafts");
   const edit = h.render(h.wrapper, { editId: "private" });
   assert.equal(edit.type, "main");
   assert.ok(find(edit, item => item.props.href?.startsWith("/login?next=")));
+});
+
+test("default navigation resumes the latest draft slot, stays stable and respects an explicit stadium", async () => {
+  const changwon = { ...stadium, code: "CHANGWON", name: "창원" };
+  const daejeon = { ...stadium, code: "DAEJEON", name: "대전" };
+  const h = harness("authenticated", false, 1, "new:JAMSIL", [stadium, changwon, daejeon]);
+  h.storage.set(draftService.ROUTE_DRAFT_PREFIX + "new:CHANGWON", JSON.stringify({ version: 1, revision: "cleared", updatedAt: "2026-10-08T00:00:00Z",
+    data: { ...originalData, stadiumCode: "DAEJEON", title: "", content: "" } }));
+  h.render(h.wrapper, {}); h.mountEffects();
+  await Promise.resolve();
+  const resumed = h.render(h.wrapper, {});
+  assert.equal(resumed.props.initial.code, "CHANGWON", "load the storage slot, not its changed stadium");
+  h.storage.set(draftService.ROUTE_DRAFT_PREFIX + "new:JAMSIL", originalRaw.replace("2026-09-01", "2026-10-09"));
+  assert.equal(h.render(h.wrapper, {}).props.initial.code, "CHANGWON", "a draft saved in another tab cannot remount the active writer");
+  assert.equal(h.render(h.wrapper, { initialStadium: "JAMSIL" }).props.initial.code, "JAMSIL");
 });
 
 test("guest course mutations stay in memory, cannot save, and protect unsaved navigation", async () => {

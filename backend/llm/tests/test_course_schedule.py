@@ -73,6 +73,49 @@ class CourseScheduleTest(SimpleTestCase):
         self.assertEqual(chosen["date"], "2026-10-06")
         self.assertFalse(assumed)
 
+    def test_day_only_and_month_day_select_requested_game_not_nearest(self):
+        rows = [game("2026-10-09"), game("2026-10-15", time="14:00")]
+        for question in ("15일에 광주 코스 짜줘", "10월 15일 광주 코스", "2026-10-15 광주 코스"):
+            with self.subTest(question=question):
+                chosen, assumed, _ = self.choose(rows, question)
+                self.assertEqual((chosen["date"], chosen["time"]), ("2026-10-15", "14:00"))
+                self.assertFalse(assumed)
+
+    def test_explicit_date_beats_history_and_incidental_today(self):
+        history = [{"role": "user", "content": "10월 9일 광주 코스"}]
+        self.assertEqual(course.requested_date("15일로 바꿔줘", history, "2026-10-08"), "2026-10-15")
+        self.assertEqual(course.requested_date("오늘 말고 10월 15일", history, "2026-10-08"), "2026-10-15")
+        self.assertEqual(course.requested_date("오늘 말고 15일에", history, "2026-10-08"), "2026-10-15")
+
+    def test_day_only_month_boundaries_and_durations(self):
+        parse = course.structured.date_in
+        self.assertEqual(parse("다음 달 15일", "2026-12-08"), "2027-01-15")
+        self.assertEqual(parse("지난달 15일", "2026-01-08"), "2025-12-15")
+        self.assertEqual(parse("이번 달 5일", "2026-10-08"), "2026-10-05")
+        for text in ("2박3일 코스", "2박 3일 코스", "3일 동안 여행", "15일 후에", "3일째", "3일간"):
+            with self.subTest(text=text):
+                self.assertIsNone(parse(text, "2026-10-08"))
+        self.assertEqual(parse("2박 3일 여행을 15일에 시작", "2026-10-08"), "2026-10-15")
+
+    def test_invalid_date_requests_clarification_without_search_or_fallback(self):
+        for question in ("2026년 2월 30일 코스", "2월 30일 광주 코스", "32일에 갈래"):
+            with self.subTest(question=question), patch.object(course, "_answer") as generate:
+                result = course.answer(question, hint_stadium="GWANGJU")
+                self.assertEqual(result["route"], "course:invalid_date")
+                self.assertEqual(result["places"], [])
+                generate.assert_not_called()
+        history = [{"role": "user", "content": "2월 30일"}]
+        self.assertIsNone(course.requested_date("다시 코스 짜줘", history, "2026-10-08"))
+
+    def test_day_only_no_game_does_not_generate_for_a_different_date(self):
+        with patch.object(course, "load_schedule", return_value=({"items": []}, 7)) as schedule, \
+                patch.object(course, "embed_many") as embed:
+            result = course.answer("15일 광주 코스 짜줘", hint_stadium="GWANGJU")
+        self.assertEqual(schedule.call_args.args[1][-3:], "-15")
+        self.assertIn(":no_game:", result["route"])
+        self.assertEqual(result["places"], [])
+        embed.assert_not_called()
+
     def test_missing_explicit_date_does_not_substitute_another_game(self):
         chosen, assumed, _ = self.choose([game()], "10월 6일")
         self.assertIsNone(chosen)

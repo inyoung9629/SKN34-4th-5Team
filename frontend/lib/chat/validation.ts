@@ -1,5 +1,5 @@
 import { MAX_HISTORY_MESSAGES, MAX_MESSAGE_LENGTH, MAX_REPLY_LENGTH } from "./types";
-import type { ChatContext, ChatMessage, ChatRequest } from "./types";
+import type { ChatContext, ChatCurrentCourse, ChatMessage, ChatRequest } from "./types";
 import { isCourseProgress, parseChatCourse } from "./course";
 import { isLegModes } from "../course-directions";
 
@@ -41,8 +41,21 @@ export function parseChatRequest(value: unknown): ChatRequest {
         || raw.places.some(p => !isRecord(p) || typeof p.visitId !== "string" || !p.visitId || p.visitId.length > 255
           || typeof p.label !== "string" || !p.label || p.label.length > 20)
         || new Set(parsed.places.map(p => p.visitId)).size !== parsed.places.length) throw new ChatError("수정할 코스를 확인해 주세요.");
+      let selectedPlace: ChatCurrentCourse["selectedPlace"];
+      if (raw.selectedPlace !== undefined) {
+        const selected = raw.selectedPlace;
+        const selection = isRecord(selected) ? parseChatCourse({ places: [selected], edit: true })?.places[0] : undefined;
+        if (!isRecord(selected) || !selection || typeof selected.visitId !== "string" || !selected.visitId || selected.visitId.length > 255
+          || !["FOOD", "CAFE", "SPOT", "STADIUM", "STAY", "WALK", "INDOOR", "CONVENIENCE"].includes(String(selected.category))
+          || !["BEFORE", "GAME", "AFTER"].includes(String(selected.phase))
+          || typeof selected.label !== "string" || !selected.label || selected.label.length > 20) throw new ChatError("선택한 장소를 확인해 주세요.");
+        const existingIndex = parsed.places.findIndex(p => p.visitId === selected.visitId);
+        selectedPlace = existingIndex >= 0 ? { ...parsed.places[existingIndex], visitId: selected.visitId, label: (raw.places[existingIndex] as { label: string }).label }
+          : { ...selection, visitId: selected.visitId, label: selected.label };
+      }
       const rawPlaces = raw.places as { label: string }[];
       context.currentCourse = { places: parsed.places.map((p, i) => ({ ...p, visitId: p.visitId!, label: rawPlaces[i].label })),
+        ...(selectedPlace ? { selectedPlace } : {}),
         ...(parsed.writerState ? { writerState: parsed.writerState } : {}),
         stadiumCode: raw.stadiumCode, travelMode: parsed.travelMode!, legModes: raw.legModes, ...(parsed.game ? { game: parsed.game } : {}),
         ...(parsed.progress ? { progress: parsed.progress } : {}) };

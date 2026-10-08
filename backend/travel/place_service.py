@@ -374,6 +374,13 @@ def _search_live(query):
         payload = _request_kakao(query)
         if not isinstance(payload, dict) or not isinstance(payload.get("meta"), dict) or not isinstance(payload["meta"].get("is_end"), bool) or not isinstance(payload.get("documents"), list) or len(payload["documents"]) > query["size"]:
             raise PlaceUpstreamError
+        counts = {}
+        meta = payload["meta"]
+        if "total_count" in meta or "pageable_count" in meta:
+            total, pageable = meta.get("total_count"), meta.get("pageable_count")
+            if type(total) is not int or type(pageable) is not int or not 0 <= pageable <= min(total, 45):
+                raise PlaceUpstreamError
+            counts = {"totalCount": total, "pageableCount": pageable}
         documents = [_normalize_document(item)[0] for item in payload["documents"]]
         if len({item["id"] for item in documents}) != len(documents) or any(
             not item["id"].isdecimal() or not item["id"].isascii()
@@ -385,7 +392,7 @@ def _search_live(query):
             documents = filter_provider_places(documents)
         except CatalogueUnavailable as exc:
             raise PlaceUpstreamError from exc
-        return {"places": documents, "hasNextPage": not payload["meta"]["is_end"], "syncedAt": timezone.now().isoformat()}
+        return {"places": documents, "hasNextPage": not payload["meta"]["is_end"], "syncedAt": timezone.now().isoformat(), **counts}
     finally:
         _SEARCH_SLOTS.release()
 

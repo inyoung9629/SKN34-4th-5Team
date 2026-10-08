@@ -39,7 +39,7 @@ class RemainingCourseTest(SimpleTestCase):
 
     def test_late_arrival_keeps_places_and_warns_first_infeasible_visit(self):
         result = self.edit(plan("delay", [], delay_minutes=75), self.current)
-        self.assertIn("2번째 기존 카페", result["timeWarning"])
+        self.assertIn("1번째 기존 식당", result["timeWarning"])
         self.assertEqual(len(result["places"]), 4)
 
     def test_origin_departure_clock_includes_inbound_leg(self):

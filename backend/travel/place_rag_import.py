@@ -40,22 +40,9 @@ def collected_documents():
 
 def facility_documents():
     docs = []
-    mapping = {"internal": "internal", "exterior": "stadium_exterior", "unknown": "stadium_unknown"}
     for code in STADIUMS:
         data = stadium_facilities.facility_catalogue(code)
-        for p in data["records"]:
-            pins = [{key: pin.get(key) for key in ("id", "lat", "lng", "quality", "uncertaintyM")}
-                    for pin in p["pins"]]
-            docs.append({
-                "id": f"facility:{p['id']}", "place_id": p["id"], "document_type": "facility",
-                "stadium": code, "kind": p["kind"], "scope": mapping[p["scope"]],
-                "name": p["name"], "floor": p["floor"], "zone": p["zone"],
-                "source": "자리어때 수집 목록", "source_url": p["sourceUrl"],
-                "checked_at": p["sourceCheckedAt"], "evidence_type": p["evidenceType"],
-                "pins": pins, "location_status": p["locationStatus"],
-                "current_operation": "unverified", "ticket_required": "unverified",
-                "menu_verified": False, "review_verified": False,
-            })
+        docs.extend(stadium_facilities.facility_document(p) for p in data["records"])
     root = stadium_facilities._root()
     return docs, {name: fingerprint(root / name) for name in stadium_facilities.FILES}
 

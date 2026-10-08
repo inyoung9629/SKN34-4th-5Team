@@ -3989,6 +3989,10 @@ export interface components {
         PlaceSearchResponse: {
             places: components["schemas"]["KakaoPlace"][];
             hasNextPage: boolean;
+            /** @description 필터 적용 전 카카오 검색 결과 수 */
+            totalCount?: number;
+            /** @description 해당 검색에서 카카오가 반환할 수 있는 결과 수 */
+            pageableCount?: number;
             /**
              * Format: date-time
              * @description 카카오 공급자 응답을 성공적으로 조회한 시각이며 모든 저장 행의 동기화 시각을 뜻하지 않습니다.

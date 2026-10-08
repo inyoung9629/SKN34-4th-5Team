@@ -83,7 +83,7 @@ class CorridorTests(SimpleTestCase):
 
 class RouteContextTests(SimpleTestCase):
     def test_normalized_provider_url_reaches_course_candidate(self):
-        document = {"id": "123", "place_name": "카페", "x": "126.99", "y": "37.501", "category_name": "카페",
+        document = {"id": "123", "place_name": "카페", "x": "126.988", "y": "37.501", "category_name": "카페",
                     "url": "http://place.map.kakao.com/123"}
         with patch.object(agent, "invoke_domain_tool", return_value={"places": [document]}):
             actual = agent._kakao_step("CAFE", WEST, 800, ANCHOR, slots.parse("카페"))
@@ -121,6 +121,8 @@ class RouteContextTests(SimpleTestCase):
                  "stadium_anchor": stadium, "_live_candidates": ([wanted, forbidden], {}), "search_places": [],
                  "invoke_domain_tool": {}, "_kakao_step": [], "call_llm": ('{"course": []}', 0)}
         with ExitStack() as stack:
+            # Route geometry fixtures have no real shop rating/interior evidence.
+            stack.enter_context(patch.object(agent.place_quality, "active", return_value=False))
             for name, result in mocks.items():
                 stack.enter_context(patch.object(agent, name, return_value=result))
             stack.enter_context(patch.object(agent.transport, "info", return_value={"mode": "walk", "label": "도보", "taxi": False, "lines": []}))

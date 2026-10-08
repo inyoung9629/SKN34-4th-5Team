@@ -32,6 +32,17 @@ const { MAX_HISTORY_MESSAGES, MAX_MESSAGE_LENGTH, MAX_REPLY_LENGTH } = requireTe
 const { CHAT_INSTRUCTIONS } = requireTestModule("./prompt.js");
 
 const question = { messages: [{ role: "user", content: "잠실 직관 코스를 추천해줘" }] };
+test("selected place survives the request boundary while stale duplicate metadata cannot override a visit", () => {
+  const place = { name: "선택한 공원", category: "WALK", phase: "BEFORE", lat: 37.51, lng: 127.08, visitId: "park", label: "1" };
+  const current = { places: [], stadiumCode: "JAMSIL", travelMode: "walk", legModes: {}, writerState: { title: "", origin: null, completed: false }, selectedPlace: place };
+  const parse = value => parseChatRequest({ ...question, context: { currentCourse: value } }).context.currentCourse;
+  assert.deepEqual(parse(current).selectedPlace, place);
+  assert.deepEqual(parse(current).places, []);
+  assert.deepEqual(parse({ ...current, places: [place], selectedPlace: { ...place, name: "오래된 이름", category: "CAFE" } }).selectedPlace, place);
+  for (const selectedPlace of [null, {}, { ...place, lat: NaN }, { ...place, category: "OTHER" }, { ...place, visitId: "" }]) {
+    assert.throws(() => parse({ ...current, selectedPlace }), ChatError);
+  }
+});
 // Deliberately synthetic: tests never load a real .env or contact a provider.
 const secret = "unit-test-synthetic-key-not-a-real-credential";
 const openaiEnv = { CHAT_PROVIDER: "openai", OPENAI_API_KEY: secret, OPENAI_MODEL: "gpt-6-luna" };

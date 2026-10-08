@@ -58,3 +58,18 @@ class LivePlacesTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Cache-Control"], "no-store")
         self.assertEqual(Place.objects.count(), 0)
+
+    def test_live_counts_expose_truncation_before_stadium_filtering(self):
+        payload = {"meta": {"is_end": True, "total_count": 200, "pageable_count": 45}, "documents": [self.document]}
+        with patch("travel.place_service._request_kakao", return_value=payload), \
+                patch("travel.place_service.filter_provider_places", return_value=[]), self.assertNumQueries(0):
+            result = search_live_places(self.query)
+        self.assertEqual(result["places"], [])
+        self.assertFalse(result["hasNextPage"])
+        self.assertEqual((result["totalCount"], result["pageableCount"]), (200, 45))
+        for counts in ({"total_count": -1, "pageable_count": 0}, {"total_count": 1, "pageable_count": 2},
+                       {"total_count": True, "pageable_count": 0}, {"total_count": 100, "pageable_count": 46},
+                       {"total_count": 100}):
+            with self.subTest(counts=counts), patch("travel.place_service._request_kakao", return_value={
+                    "meta": {"is_end": True, **counts}, "documents": []}), self.assertRaises(PlaceUpstreamError):
+                search_live_places(self.query)

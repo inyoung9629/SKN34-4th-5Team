@@ -1,7 +1,7 @@
 """Stadium tenants stay separate from public nearby places and course policy.
 
-Source rows are historical observations, not live business listings. Never infer
-ticket access from 'outdoors', or manufacture a pin from the stadium centroid.
+Source rows are observations, not live business listings. Food pins are display
+references beside the stadium marker; only source text describes store location.
 """
 import csv
 import json
@@ -15,8 +15,25 @@ from django.conf import settings
 
 from .collected_places import CatalogueQueryError, CatalogueUnavailable
 
-FILES = ("구장먹거리_위치_자리어때.csv", "구장편의시설_위치_자리어때.csv", "stadium_facility_pins.json")
+FILES = ("구장먹거리_위치_자리어때.csv", "구장편의시설_위치_자리어때.csv", "stadium_facility_pins.json", "stadium_locations.json")
 SCOPES = {"internal": "구장 내부", "exterior": "구장 외부 부속", "unknown": "구장 소속 · 내외부 미확인"}
+
+
+def facility_document(row):
+    """Canonical RAG facts shared by import and read-time source enforcement."""
+    return {
+        "id": f"facility:{row['id']}", "place_id": row["id"], "document_type": "facility",
+        "stadium": row["stadium"], "kind": "cafe" if row.get("foodCategory") == "CAFE" else row["kind"],
+        "scope": {"internal": "internal", "exterior": "stadium_exterior", "unknown": "stadium_unknown"}[row["scope"]],
+        "name": row["name"], "floor": row["floor"], "zone": row["zone"],
+        "food_category": row.get("foodCategory"), "source_location": row.get("sourceLocation"),
+        "category": "카페·디저트" if row.get("foodCategory") == "CAFE" else "먹거리" if row["kind"] == "food" else "편의시설",
+        "source": "자리어때 수집 목록", "source_url": row["sourceUrl"],
+        "checked_at": row["sourceCheckedAt"], "evidence_type": row["evidenceType"],
+        "pins": [{k: pin.get(k) for k in ("id", "lat", "lng", "quality", "uncertaintyM")} for pin in row["pins"]],
+        "location_status": row["locationStatus"], "current_operation": "unverified",
+        "ticket_required": "unverified", "menu_verified": False, "review_verified": False,
+    }
 
 
 def _root():
@@ -33,10 +50,26 @@ def _source_url(value):
 
 def _scope(row, kind):
     if kind == "food":
-        return {"Y": "internal", "N": "exterior"}.get(row["in_stadium_flag"], "unknown")
+        return "internal"  # All MySeatCheck food listings, including source-labelled exterior stores.
     # A roofless outfield facility is NOT necessarily outside the ticket gates.
     text = " ".join(row.get(key, "") for key in ("floor", "location_detail"))
     return "exterior" if "외부" in text else "unknown"
+
+
+def _food_pin(row, center):
+    # Stable visual spreading, deliberately unrelated to floors/aisles in the source.
+    index = int(row["id"].rsplit("_", 1)[1])
+    angle = math.radians(index * 137.507764)
+    radius = 55 + (index % 3) * 5
+    return {
+        "id": f"{row['id']}-reference", "recordId": row["id"],
+        "lat": round(center["lat"] + radius * math.sin(angle) / 111320, 7),
+        "lng": round(center["lng"] + radius * math.cos(angle) / (111320 * math.cos(math.radians(center["lat"]))), 7),
+        "label": "구장 옆 표시 핀", "quality": "display_reference", "uncertaintyM": 0,
+        "checkedAt": row["sourceCheckedAt"],
+        "source": {"stadium": row["stadium"], "pageUrl": row["sourceUrl"],
+                   "note": "구장 핀과 겹치지 않게 배치한 표시 위치입니다. 실제 매장 위치는 상세 링크의 층·구역을 확인하세요."},
+    }
 
 
 @lru_cache(maxsize=2)
@@ -67,10 +100,25 @@ def _load(folder, versions):
                     "sourceUrl": _source_url(row["source_url"]), "sourceCheckedAt": row["verified_at"],
                     "evidenceType": "UNOFFICIAL", "operatingStatus": "unverified", "pin": None,
                     "locationStatus": "zone_only", "pins": [],
+                    **({"foodCategory": row.get("food_category") or "FOOD",
+                        "sourceLocation": row.get("source_location") or row["zone_location"],
+                        "sourceScope": {"Y": "internal", "N": "exterior"}.get(row["in_stadium_flag"], "unknown"),
+                        "scopeBasis": "myseatcheck_food_listing"} if kind == "food" else {}),
                 })
     by_id = {row["id"]: row for row in all_rows}
+    centers = json.loads((root / FILES[3]).read_text(encoding="utf-8"))["stadiums"]
+    for row in all_rows:
+        if row["kind"] == "food":
+            normalize = lambda value: re.sub(r"[\s()]", "", value)
+            location = row["sourceLocation"]
+            row["locationLabel"] = location if normalize(row["zone"]) in normalize(location) else " · ".join(dict.fromkeys(filter(None, [row["zone"], location])))
+            row["pin"] = _food_pin(row, centers[row["stadium"]])
+            row["pins"] = [row["pin"]]
+            row["locationStatus"] = "reference_pin"
     pin_ids = set()
     for pin in audit["pins"]:
+        if pin["recordId"].startswith("SC_FOOD_"):
+            continue
         row = by_id[pin["recordId"]]
         source = sources[pin["sourceId"]]
         lat, lng = pin["lat"], pin["lng"]
@@ -108,13 +156,15 @@ def facility_catalogue(code):
             if row["pins"] and not pins:
                 continue
             item = {**row, "pins": pins, "pin": pins[0] if pins else None}
-            if pins and all(classify_stadium_point(p, zones) == {"scope": "internal", "stadium": code} for p in pins):
+            if row["kind"] != "food" and pins and all(classify_stadium_point(p, zones) == {"scope": "internal", "stadium": code} for p in pins):
                 item.update(sourceScope=row["scope"], scope="internal", scopeLabel=SCOPES["internal"], scopeBasis="reviewed_main_frame")
             records.append(item)
         return {"stadium": code, "records": records, "count": len(records),
-                "pinCount": sum(len(row["pins"]) for row in records), "checkedAt": audit["checkedAt"],
-                "warning": "구장 소속 자료를 주변 상점과 분리한 목록입니다. 핀은 안내도·구역 기반 근사 위치이며 층·통로를 함께 확인하세요. 현재 영업 및 입장권 필요 여부는 미확인입니다. 핀이 없는 매장은 임의 좌표를 표시하지 않습니다.",
-                "review": {**audit["stadiums"][code], "source": audit["sources"][audit["stadiums"][code]["sourceId"]]}}
+                "pinCount": sum(len(row["pins"]) for row in records), "checkedAt": max([audit["checkedAt"]] + [row["sourceCheckedAt"] for row in records]),
+                "warning": "자리어때 먹거리 목록의 외부 표기 매장도 내부 먹거리로 분류합니다. 먹거리 핀은 구장 옆 표시 위치이며 실제 매장 위치가 아닙니다. 매장 상세 위치 링크에서 층·구역을 확인하세요. 현재 영업 및 입장권 필요 여부는 미확인입니다.",
+                "review": {**audit["stadiums"][code], "status": "food_details_complete",
+                           "note": "먹거리 목록의 매장별 상세 URL·층·구역을 대조했습니다. 먹거리 핀은 위치 안내용 표시이며 실제 매장 좌표가 아닙니다.",
+                           "source": audit["sources"][audit["stadiums"][code]["sourceId"]]}}
     except CatalogueQueryError:
         raise
     except (OSError, ValueError, KeyError, TypeError) as error:

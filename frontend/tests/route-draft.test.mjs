@@ -17,12 +17,28 @@ for (const name of ["client-id", "route-draft", "stadiums", "stadium-locations",
   writeFileSync(join(scratch, `${name}.js`), outputText);
 }
 const requireModule = createRequire(join(scratch, "entry.cjs"));
-const { ROUTE_DRAFT_PREFIX, createDraftAutosave, parseRouteDraft, readRouteDraft, recoverRouteDraft, removeRouteDraft, saveRouteDraft } = requireModule("./route-draft.js");
+const { ROUTE_DRAFT_PREFIX, createDraftAutosave, latestNewDraftStadium, parseRouteDraft, readRouteDraft, recoverRouteDraft, removeRouteDraft, saveRouteDraft } = requireModule("./route-draft.js");
 const data = { stadiumCode: "JAMSIL", title: "", content: "이야기", duration: "반나절", tags: ["첫 직관"], stops: [{ name: "잠실", category: "야구장", lat: 37.5, lng: 127, visitId: "v1", isMapPoint: true }], start: { lat: 37.4, lng: 127.1 }, tab: "chat", travelMode: "transit" };
 const memory = () => {
   const values = new Map();
   return { values, getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) };
 };
+
+test("new writer resumes the latest storage slot including cleared story after a stadium change", () => {
+  const storage = memory();
+  const older = saveRouteDraft(storage, "new:GWANGJU", { ...data, stadiumCode: "GWANGJU", title: "옛 자동 제목", content: "옛 자동 설명" }, null);
+  const latest = saveRouteDraft(storage, "new:CHANGWON", { ...data, stadiumCode: "DAEJEON", title: "", content: "" }, null);
+  storage.setItem(ROUTE_DRAFT_PREFIX + "new:GWANGJU", JSON.stringify({ ...older.draft, updatedAt: "2026-10-07T01:00:00Z" }));
+  storage.setItem(ROUTE_DRAFT_PREFIX + "new:CHANGWON", JSON.stringify({ ...latest.draft, updatedAt: "2026-10-08T01:00:00Z" }));
+  const key = latestNewDraftStadium(storage, ["DAEJEON", "GWANGJU", "CHANGWON"]);
+  assert.equal(key, "CHANGWON");
+  const restored = readRouteDraft(storage, `new:${key}`).draft.data;
+  assert.equal(restored.stadiumCode, "DAEJEON");
+  assert.equal(restored.title, "");
+  assert.equal(restored.content, "");
+  assert.equal(latestNewDraftStadium(undefined, ["DAEJEON"]), undefined);
+  assert.equal(latestNewDraftStadium(storage, ["JAMSIL"]), undefined);
+});
 
 test("conversation-linked draft restores title, named origin, completion and places into a blank writer", () => {
   const { restoreWriterCourse } = requireModule("./chat/writer-state.js");

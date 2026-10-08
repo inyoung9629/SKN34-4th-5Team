@@ -34,7 +34,7 @@ test('unlocated facilities remain list-only; selected pin retains source metadat
   const data={...payload,pinCount:0,records:[{...row,pins:[],locationStatus:'zone_only'}]};
   assert.equal(parseStadiumFacilities(data,'JAMSIL').pinCount,0);
   const place=facilityPlace(row,pin,{code:'JAMSIL',name:'잠실',lat:37.512,lng:127.072,address:'서울'});
-  assert.equal(place.category,'구장 내부');
+  assert.equal(place.category,'먹거리');
   assert.equal(place.stadiumFacility.uncertaintyM,30);
   assert.match(place.placeId,/^stadium-facility:SC_FOOD_JAMSIL_001:/);
   assert.throws(()=>facilityPlace(row,pin,{code:'SUWON'}));
@@ -42,11 +42,25 @@ test('unlocated facilities remain list-only; selected pin retains source metadat
 test('integration retains saved facility pins and leaves course policy untouched',()=>{
   const component=readFileSync(new URL('../components/nearby-route-planner.tsx',import.meta.url),'utf8');
   assert.match(component,/selectedPlacePins\(pinPlaces, selected, stops\)/);
-  assert.match(component,/onFocus=\{\(stop\) => selectPlace\(pinPlaces\.find/);
+  assert.match(component,/onFocus=\{selectPlace\}/);
   assert.match(component,/courseCompleted \? allowSave \?/);
   assert.match(component,/현재 코스는 저장되지 않습니다/);
   assert.match(component,/useStadiumFacilities\(stadium.code, !drawOnly\)/);
   assert.match(component,/stadiumAffiliation\.label/);
   const backend=readFileSync(new URL('../../backend/travel/stadium_facilities.py',import.meta.url),'utf8');
   assert.doesNotMatch(backend,/courseEligible|exclude_from_course|eligible_for_course/);
+});
+
+test('reference pins preserve audited cafe category and detail link without claiming positional accuracy',()=>{
+  const reference={...pin,quality:'display_reference',uncertaintyM:0};
+  const cafe={...row,name:'요아정',foodCategory:'CAFE',sourceLocation:'외부 3루 방면',pins:[reference],locationStatus:'reference_pin'};
+  assert.equal(parseStadiumFacilities({...payload,records:[cafe]},'JAMSIL').pinCount,1);
+  const place=facilityPlace(cafe,reference,{code:'JAMSIL',name:'잠실',lat:37.512,lng:127.072,address:'서울'});
+  assert.equal(place.kind,'cafe');
+  assert.equal(place.category,'카페·디저트');
+  assert.equal(place.stadiumFacility.referencePin,true);
+  assert.equal(place.stadiumFacility.sourceUrl,source.pageUrl);
+  assert.deepEqual(filterStadiumFacilities([row,cafe],'','internal','cafe'),[cafe]);
+  assert.deepEqual(filterStadiumFacilities([row,cafe],'','internal','food'),[row]);
+  assert.throws(()=>parseStadiumFacilities({...payload,records:[{...cafe,pins:[{...reference,uncertaintyM:30}]}]},'JAMSIL'));
 });

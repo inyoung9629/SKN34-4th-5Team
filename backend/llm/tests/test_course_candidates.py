@@ -33,7 +33,7 @@ class CourseCandidatesTest(SimpleTestCase):
                                {"id": "fixed", "place_name": "기존 식당", "x": "127.001", "y": "37.5"}]}
         with patch.object(course, "invoke_domain_tool", side_effect=search):
             result = candidates(anchor, anchor, {"query": "자장면"}, [{"placeId": "fixed", "name": "기존 식당", **anchor}])
-        self.assertEqual(calls, ["자장면", "짜장면"])
+        self.assertEqual(calls, ["자장면", "짜장면", "중식"])
         self.assertEqual([p["placeId"] for p in result], ["fresh"])
 
     def test_verified_candidates_survive_later_route_searches_and_new_candidate_failures(self):
@@ -156,7 +156,8 @@ class CourseCandidatesTest(SimpleTestCase):
 
         with patch.object(course, "invoke_domain_tool", side_effect=search):
             candidates, _ = course._live_candidates("CHANGWON", anchor, "식사하고 커피", None)
-        self.assertEqual(calls, [("FD6", 1), ("FD6", 2), ("CE7", 1), ("CE7", 2)])
+        for category in ("FD6", "CE7"):
+            self.assertEqual([page for kind, page in calls if kind == category], [1, 2])
         self.assertEqual([(p["category"], p["name"]) for p in candidates],
                          [("FOOD_OUT", "든든한 식당"), ("CAFE", "동네 카페")])
         self.assertTrue(all(p["placeUrl"] and p["distance"] > 0 for p in candidates))

@@ -113,7 +113,7 @@ class ConversationEditingTest(SimpleTestCase):
         current = _validate_context({"currentCourse": changed["courseMemory"]["current"]})["currentCourse"]
         reordered = self.edit(plan("swap", ["food", "cafe"]), current, changed["courseMemory"])
         self.assertEqual([p["stayMin"] for p in reordered["places"]][:2], [60, 30])
-        self.assertEqual([p["time"] for p in reordered["places"]][:3], ["16:05", "17:10", "17:45"])
+        self.assertEqual([p["time"] for p in reordered["places"]][:3], ["16:30", "17:35", "18:10"])
 
     def test_invalid_multi_duration_is_atomic(self):
         result = self.edit(plan("duration", [], durations=[{"visit_id": "food", "minutes": 30}, {"visit_id": "game", "minutes": 60}]))

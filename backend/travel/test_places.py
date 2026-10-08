@@ -52,7 +52,7 @@ def query(**changes):
     return data
 
 
-def document(place_id="1", name="잠실야구장", x="127.0719", y="37.5122"):
+def document(place_id="1", name="외부 장소", x="127.0800", y="37.5100"):
     return {
         "id": place_id,
         "place_name": name,
@@ -117,14 +117,14 @@ class PlaceServiceTests(TestCase):
 
         with patch("travel.place_service._request_kakao", return_value=payload(document(), is_end=False)):
             first = search_and_sync_places(query())
-        self.assertEqual((first["places"][0]["id"], first["places"][0]["x"], first["hasNextPage"]), ("1", "127.0719", True))
+        self.assertEqual((first["places"][0]["id"], first["places"][0]["x"], first["hasNextPage"]), ("1", "127.0800", True))
         self.assertEqual(first["places"][0]["place_url"], "https://place.map.kakao.com/1")
         saved = Place.objects.get(kakao_place_id="1")
         first_sync = saved.last_synced_at
         with patch("travel.place_service._request_kakao", return_value=payload(document(name="새 이름"))):
             second = search_and_sync_places(query())
         saved.refresh_from_db()
-        self.assertEqual((Place.objects.filter(kakao_place_id="1").count(), saved.name), (1, "잠실야구장"))
+        self.assertEqual((Place.objects.filter(kakao_place_id="1").count(), saved.name), (1, "외부 장소"))
         self.assertEqual(saved.last_synced_at, first_sync)
         self.assertEqual(second["places"][0]["place_name"], "새 이름")
         self.assertIn("syncedAt", second)
@@ -173,6 +173,19 @@ class PlaceServiceTests(TestCase):
         self.assertFalse(any(item["sql"].lstrip().upper().startswith("UPDATE") for item in queries.captured_queries))
         refreshed = Place.objects.get(kakao_place_id="stale")
         self.assertEqual((refreshed.name, refreshed.last_synced_at), ("공급자 stale", now))
+
+    def test_internal_kakao_rows_are_neither_returned_nor_synced_even_when_cached(self):
+        old = Place.objects.create(**manual_place(kakao_place_id="inside", name="기존 내부 장소"))
+        inside = document("inside", x="127.0719", y="37.5122")
+        unseen = document("new-inside", x="127.0719", y="37.5122")
+        with patch("travel.place_service._request_kakao", return_value=payload(inside, unseen, document("outside"), is_end=False)):
+            result = search_and_sync_places(query())
+        self.assertEqual([p["id"] for p in result["places"]], ["outside"])
+        self.assertTrue(result["hasNextPage"])
+        self.assertFalse(Place.objects.filter(kakao_place_id="new-inside").exists())
+        old.refresh_from_db()
+        self.assertEqual(old.name, "기존 내부 장소")
+        self.assertIsNone(old.last_synced_at)
 
     @override_settings(EXTERNAL_DATA_SYNC_INTERVAL_SECONDS=120)
     def test_search_sync_interval_honors_runtime_override_and_exact_boundary(self):

@@ -15,9 +15,10 @@ import type { Element, Root } from "hast";
 
 export function ChatPlaceSource({ place }: { place: ChatCoursePlace }) {
   if (!place.placeUrl) return null;
-  const label = /^https:\/\/nol\.yanolja\.com\/stay\/domestic\/\d+$/.test(place.placeUrl) ? "야놀자" : "출처";
+  const label = /^https:\/\/myseatcheck\.com\//.test(place.placeUrl) ? "매장 상세 위치"
+    : /^https:\/\/nol\.yanolja\.com\/stay\/domestic\/\d+$/.test(place.placeUrl) ? "야놀자" : "출처";
   return <a className="chat-place-source" href={place.placeUrl} target="_blank" rel="noopener noreferrer"
-    aria-label={`${place.name} 장소 정보 출처 (새 창)`} title={`${place.name} 장소 정보 확인`}>{label} <span aria-hidden="true">↗</span></a>;
+    aria-label={`${place.name} ${label} (새 창)`} title={place.address ?? `${place.name} 장소 정보 확인`}>{label} <span aria-hidden="true">↗</span></a>;
 }
 
 function ChatImage({ src, alt, title }: ComponentProps<"img">) {
@@ -41,7 +42,8 @@ export function ChatAnswer({ text, places = [] }: { text: string; places?: ChatC
           if (cited.has(i) || !href || !line.includes(place.name) || (place.time && !line.includes(place.time))) return [];
           cited.add(i);
           if (links.has(href)) return [];
-          const label = /^https:\/\/nol\.yanolja\.com\/stay\/domestic\/\d+$/.test(href) ? "야놀자" : "출처";
+          const label = /^https:\/\/myseatcheck\.com\//.test(href) ? "매장 상세 위치"
+            : /^https:\/\/nol\.yanolja\.com\/stay\/domestic\/\d+$/.test(href) ? "야놀자" : "출처";
           return [{ type: "element", tagName: "a", properties: { href, className: ["chat-place-source"],
             ariaLabel: `${place.name} 장소 정보 출처 (새 창)`, title: `${place.name} 장소 정보 확인` },
             children: [{ type: "text", value: `${label} ` }, { type: "element", tagName: "span",

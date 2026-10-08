@@ -64,6 +64,7 @@ def _delegate(name, description, agent, attachment_agent=None):
         try:
             for update in agent.stream({"messages": messages, "context": runtime.state.get("context"),
                                         "decision": runtime.state.get("decision"),
+                                        "tool_group_ids": list(runtime.state.get("tool_group_ids") or ()),
                                         **({"course_memory": runtime.state.get("course_memory", {})} if course else {})}, stream_mode="updates",
                                        config=merge_configs(runtime.config, {"metadata": {"parent_id": runtime.tool_call_id}})):
                 for node in update.values():

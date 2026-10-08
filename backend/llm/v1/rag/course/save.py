@@ -122,5 +122,5 @@ def _content(places, game, walk_summary, sl, tr=None):
     if sl.get("note"):
         lines.append(sl["note"])
     lines += (tr or {}).get("notes") or []
-    lines.append("카카오맵 기준 정보라 가시기 전에 영업 여부만 한 번 확인해 보세요!")
+    lines.append("방문 전 해당 매장의 영업 여부를 확인해 주세요.")
     return "\n".join(lines)

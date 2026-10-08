@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const path = '/opt/jev/src/model/text.ts';
-let source = readFileSync(path, 'utf8');
+let source = readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 const before = `  const reasoning = base.includes("api.deepseek.com/")
     ? { thinking: { type: "disabled" } }
     : { reasoning: reason ? { effort: "low" } : { enabled: false } };`;

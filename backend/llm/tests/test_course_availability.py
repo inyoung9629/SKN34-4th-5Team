@@ -1,11 +1,13 @@
 from contextlib import ExitStack
 from copy import deepcopy
-from datetime import date
+from datetime import date, datetime
 from unittest.mock import Mock, patch
 
+import httpx
 from django.test import SimpleTestCase
 
 from llm.v1.rag.course import agent, availability as hours, editing, evidence_memory, grounding, timeline
+from travel.public_page_reader import PublicReader, extract_dated_hours, extract_text
 from .test_course_route_ranking import ANCHOR, ORIGIN, NEAR, FAR, CAFE, PARK, provider
 
 
@@ -20,7 +22,7 @@ def document(text, **changes):
 
 class HoursRulesTests(SimpleTestCase):
     def test_date_tabs_are_not_promoted_to_recurring_weekly_hours(self):
-        info = hours.parse("오늘(월)\n영업시간: 11:30 - 19:30\n10월 6일(화) 10월 7일(수)\n영업시간: 11:30 - 19:30",
+        info = hours.parse("오늘(월)\n영업시간: 11:30 - 19:30\n10월 6일(화)\n영업시간: 11:30 - 19:30",
                            observed_on=date(2026, 10, 5))
         self.assertTrue(hours._verdict(info, date(2026, 10, 6), 1380, 50)[0])
         self.assertEqual(hours._verdict(info, date(2026, 10, 13), 1380, 50)[0], "")
@@ -31,6 +33,31 @@ class HoursRulesTests(SimpleTestCase):
         self.assertEqual(hours._verdict(special, date(2026, 10, 6), 1080, 50)[0], "")
         self.assertEqual(hours._verdict(special, date(2026, 10, 6), None, 0)[0], "")
         self.assertEqual(hours._verdict(special, date(2026, 10, 13), 1080, 50)[0], "휴무일")
+
+    def test_flattened_date_columns_do_not_apply_a_closure_or_hours_to_every_date(self):
+        info = hours.parse("오늘(수)\n영업시간: 11:30 - 22:00\n"
+                           "10월 8일(목) 10월 9일(금) 10월 10일(토) 10월 11일(일) 10월 12일(월) 10월 13일(화)\n"
+                           "영업시간: 11:30 - 22:00\n브레이크타임: 14:00 - 16:00\n라스트오더: 21:00\n휴무일",
+                           observed_on=date(2026, 10, 7))
+        for day in range(8, 14):
+            for start in (None, 600, 870, 1290):
+                with self.subTest(day=day, start=start):
+                    self.assertEqual(hours._verdict(info, date(2026, 10, day), start, 50), ("", False))
+        self.assertIn("영업시간 밖", hours._verdict(info, date(2026, 10, 7), 600, 50)[0])
+
+    def test_explicit_date_or_weekday_after_ambiguous_tabs_restores_scope(self):
+        prefix = "영업시간\n10월 8일(목) 10월 9일(금)\n휴무일\n"
+        for suffix in ("10월 12일(월)\n휴무일", "2026-10-12 휴무", "매주 월요일 휴무"):
+            info = hours.parse(prefix + suffix, observed_on=date(2026, 10, 7))
+            self.assertEqual(hours._verdict(info, date(2026, 10, 10), None, 0)[0], "")
+            self.assertEqual(hours._verdict(info, date(2026, 10, 12), None, 0)[0], "휴무일")
+
+    def test_single_date_resets_previous_weekday_and_full_date_scopes_following_line(self):
+        for marker in ("10월 10일(토)", "2026-10-10", "2026-10-10 (토)"):
+            info = hours.parse("영업시간\n매주 월요일 휴무\n" + marker + "\n휴무",
+                               observed_on=date(2026, 10, 7))
+            self.assertEqual(hours._verdict(info, date(2026, 10, 10), None, 0)[0], "휴무일")
+            self.assertEqual(hours._verdict(info, date(2026, 10, 17), None, 0)[0], "")
 
     def verdict(self, text, at="18:00", stay=50, day=DAY, **page_changes):
         with hours.session():
@@ -133,6 +160,94 @@ class HoursRulesTests(SimpleTestCase):
         self.assertEqual(hours.check(SHOP, DAY), "")
 
 
+class DatedHoursPageTests(SimpleTestCase):
+    def grid(self, dates, times, *, times_first=False, today=False):
+        date_column = '<div class="hour-dates-column">' + ''.join(
+            f'<span class="hour_date">{day}</span>' for day in dates) + '</div>'
+        time_column = '<div class="hour-times-column">' + ''.join(
+            f'<div class="hour_time_item">{text}</div>' for text in times) + '</div>'
+        header = ('<span class="open-desc">오늘(수)</span><span class="today-main-hours">영업시간: 11:30 - 22:00</span>'
+                  if today else '')
+        return ('<div class="hour-main-grid">' + header
+                + (time_column + date_column if times_first else date_column + time_column) + '</div>')
+
+    def test_reader_and_candidate_filter_keep_saturday_open_and_monday_closed(self):
+        # Reduced structure of the live page: dates in one column, one row of
+        # hours/break/last-order (or closure) per date in the other column.
+        dates = ["10월 8일(목)", "10월 9일(금)", "10월 10일(토)", "10월 11일(일)", "10월 12일(월)", "10월 13일(화)"]
+        open_row = ('<span class="hour_time">영업시간: 11:30 - 22:00</span><br>'
+                    '<span class="hour_time">브레이크타임: 14:00 - 16:00</span><br>'
+                    '<span class="hour_time">라스트오더: 21:00</span>')
+        html = ('<title>가상 식당 - 잠실 음식점</title><p>서울 송파구 올림픽로 10</p>'
+                + self.grid(dates, [open_row] * 4 + ['<span class="hour_time closed">휴무일</span>', open_row], today=True)
+                + '<h2>메뉴정보</h2><p>초밥</p>')
+        def handle(request):
+            return (httpx.Response(404) if request.url.path == "/robots.txt" else
+                    httpx.Response(200, text=html, headers={"content-type": "text/html"}))
+        with httpx.Client(transport=httpx.MockTransport(handle)) as client:
+            page = PublicReader(client=client, dns_check=lambda _: True, gap=0).read(document("")["url"], ["초밥"], complete_text=True)
+        self.assertTrue(page["body_read"])
+        self.assertEqual(len(page["dated_hours"]), 7)
+        self.assertIn("초밥", page["body_text"])
+        with hours.session(), patch.object(hours, "datetime", wraps=datetime) as clock:
+            clock.now.return_value = datetime(2026, 10, 7, 9, tzinfo=hours.KST)
+            hours.observe(SHOP, page)
+            self.assertEqual(hours.check(SHOP, "2026-10-07"), "")
+            self.assertEqual(hours.check(SHOP, "2026-10-10"), "")
+            self.assertEqual(hours.check(SHOP, "2026-10-10", {"time": "12:00", "stayMin": 50}), "")
+            self.assertEqual(hours.check(SHOP, "2026-10-10", {"time": "14:30", "stayMin": 50}), "브레이크타임")
+            self.assertEqual(hours.check(SHOP, "2026-10-10", {"time": "21:00", "stayMin": 20}), "주문 마감 이후")
+            self.assertEqual(hours.check(SHOP, "2026-10-12"), "휴무일")
+            self.assertEqual(hours.check(SHOP, "2026-10-13", {"time": "12:00", "stayMin": 50}), "")
+            self.assertEqual(hours.check(SHOP, "2026-10-19"), "")  # No invented weekly closure.
+
+    def test_each_date_keeps_its_own_hours_in_either_column_order(self):
+        for times_first in (False, True):
+            rows = extract_dated_hours(self.grid(["10월 10일(토)", "10월 11일(일)"],
+                ["영업시간: 11:00 - 18:00", "영업시간: 17:00 - 23:00"], times_first=times_first))
+            info = {"closed": False, "rules": [rule for row in rows for rule in hours.parse(row, date(2026, 10, 7))["rules"]]}
+            self.assertEqual(hours._verdict(info, date(2026, 10, 10), 720, 50)[0], "")
+            self.assertIn("영업시간 밖", hours._verdict(info, date(2026, 10, 11), 720, 50)[0])
+
+    def test_incomplete_or_mismatched_columns_do_not_guess_a_date(self):
+        for html in (self.grid(["10월 10일(토)", "10월 12일(월)"], ["휴무일"]),
+                     self.grid(["10월 10일(토)"], ["영업시간: 11:00 - 22:00", "휴무일"]),
+                     self.grid(["날짜 확인 필요"], ["휴무일"]),
+                     self.grid(["10월 10일(토)", "10월 10일(토)"], ["휴무일", "휴무일"]),
+                     self.grid(["10월 10일(토)"], ["휴무일"])[:-6]):
+            self.assertEqual(extract_dated_hours(html), [])
+            body = extract_text('<p>영업시간</p>' + html, skip_dated_grids=True)[0]
+            self.assertNotIn("휴무", body)
+            self.assertEqual(hours.parse(body)["rules"], [])
+
+    def test_separate_grids_and_hidden_scripts_are_not_combined(self):
+        html = self.grid(["10월 10일(토)"], []) + self.grid([], ["휴무일"])
+        self.assertEqual(extract_dated_hours(html), [])
+        for tag in ("script", "template", "noscript"):
+            self.assertEqual(extract_dated_hours(f'<{tag}>' + self.grid(["10월 10일(토)"], ["휴무일"]) + f'</{tag}>'), [])
+        rows = extract_dated_hours(self.grid(["10월 10일(토)"], [
+            '<span>영업시간: 11:00 - 22:00</span><script>휴무일</script>']))
+        self.assertEqual(len(rows), 1)
+        self.assertNotIn("휴무", rows[0])
+
+    def test_today_closure_is_limited_to_today(self):
+        html = self.grid(["10월 8일(목)"], ["영업시간: 11:00 - 22:00"], today=True)
+        html = html.replace('class="today-main-hours">영업시간: 11:30 - 22:00', 'class="today-main-hours">휴무일')
+        info = {"closed": False, "rules": [rule for row in extract_dated_hours(html)
+                                         for rule in hours.parse(row, date(2026, 10, 7))["rules"]]}
+        self.assertEqual(hours._verdict(info, date(2026, 10, 7), None, 0)[0], "휴무일")
+        self.assertEqual(hours._verdict(info, date(2026, 10, 8), None, 0)[0], "")
+        self.assertEqual(hours._verdict(info, date(2026, 10, 14), None, 0)[0], "")
+
+    def test_paired_dates_cross_the_year_without_becoming_weekly_rules(self):
+        rows = extract_dated_hours(self.grid(["12월 31일(목)", "1월 1일(금)"],
+                                  ["영업시간: 11:00 - 22:00", "휴무일"]))
+        info = {"closed": False, "rules": [rule for row in rows for rule in hours.parse(row, date(2026, 12, 30))["rules"]]}
+        self.assertEqual(hours._verdict(info, date(2026, 12, 31), None, 0)[0], "")
+        self.assertEqual(hours._verdict(info, date(2027, 1, 1), None, 0)[0], "휴무일")
+        self.assertEqual(hours._verdict(info, date(2027, 1, 8), None, 0)[0], "")
+
+
 class RepairTests(SimpleTestCase):
     def test_closed_then_bad_hours_then_unknown_candidate_and_recalculate(self):
         original = {**SHOP, "key": "food", "phase": "BEFORE"}
@@ -218,6 +333,36 @@ class RepairTests(SimpleTestCase):
 
 
 class AvailabilityPipelineTests(SimpleTestCase):
+    def test_requested_edit_keeps_its_visit_when_closed_first_choice_is_replaced(self):
+        self.check_requested_replacement(has_alternative=True)
+
+    def test_failed_requested_replacement_never_turns_into_unrequested_deletion(self):
+        self.check_requested_replacement(has_alternative=False)
+
+    def check_requested_replacement(self, has_alternative):
+        from llm.v1.rag.course.progress import ProgressError
+        near, far, cafe, park, stadium, game = self.fixture()
+        places = [{**p, 'category': 'FOOD' if p['category'] == 'FOOD_OUT' else p['category'], 'visitId': str(i)}
+                  for i, p in enumerate((near, cafe, stadium, park))]
+        current = {'places': deepcopy(places), 'travelMode': 'walk', 'legModes': {}, 'game': game, 'stadiumCode': 'JAMSIL'}
+        selected_plan = {'query':'초밥', 'conditions':['초밥'], 'closer_to_stadium':True, '_distance_limit':2000}
+        with hours.session(), patch.object(agent, 'load_schedule', return_value=({},1)), \
+                patch.object(agent, 'find_game', return_value=(game,False,[game])), \
+                patch.object(agent, 'stadium_anchor', return_value=stadium), \
+                patch.object(agent, 'invoke_domain_tool', provider()), \
+                patch.object(editing, 'candidates', return_value=[{**far,'category':'FOOD'}] if has_alternative else []) as search, \
+                patch.object(editing, 'choose', side_effect=lambda options,*a:options):
+            hours.observe(near, document('영업시간\n매일 11:00 - 12:00', title=near['name']))
+            if not has_alternative:
+                with self.assertRaisesRegex(ProgressError, '요청한 방문을 삭제하지 않고'):
+                    editing.rebuild(deepcopy(places), current, 'JAMSIL', ORIGIN, '더 가까운 곳', [], availability_plans={'0': selected_plan})
+            else:
+                result = editing.rebuild(deepcopy(places), current, 'JAMSIL', ORIGIN, '더 가까운 곳', [], availability_plans={'0': selected_plan})
+                self.assertEqual(result['places'][0]['name'], far['name'])
+                self.assertEqual([p['visitId'] for p in result['places']], ['0','1','2','3'])
+                self.assertEqual(search.call_args.args[2]['_distance_limit'], 2000)
+        self.assertEqual(current['places'], places)
+
     def fixture(self):
         def complete(p):
             return {"placeUrl": "https://example.com/place", "address": SHOP["address"], "distance": 500,
@@ -230,20 +375,29 @@ class AvailabilityPipelineTests(SimpleTestCase):
     def test_new_course_replaces_closed_meal_preserves_cafe_park_origin_and_payload(self):
         near, far, cafe, park, stadium, game = self.fixture()
         invoke = provider()
-        def model(*a):
+        build = agent.build_origin_course
+        def planned(*a, **kw):
+            result = build(*a, **kw)
+            # Simulate an observed closure after initial selection, before the
+            # final timetable repair. Description generation is no longer a step.
             hours.observe(near, document("폐업", title=near["name"]))
-            return '{"course": []}', 0
+            return result
         mocks = {"load_schedule": ({}, 1), "find_game": (game, False, [game]), "embed_many": ([.1], [.2]),
                  "stadium_anchor": stadium, "_live_candidates": ([near, far, cafe, park], {}), "search_places": []}
         with ExitStack() as stack:
+            # These fictional shops exercise closure recovery. Review eligibility
+            # is covered separately using the real reviewed catalogue.
+            stack.enter_context(patch.object(agent.place_quality, "filter_place", side_effect=lambda place, category: place))
             for name, value in mocks.items():
                 stack.enter_context(patch.object(agent, name, return_value=value))
-            stack.enter_context(patch.object(agent, "call_llm", side_effect=model))
+            stack.enter_context(patch.object(agent, "build_origin_course", side_effect=planned))
+            describe = stack.enter_context(patch.object(agent, "call_llm"))
             stack.enter_context(patch.object(agent, "invoke_domain_tool", invoke))
             stack.enter_context(patch.object(agent.kakao, "nearby", return_value=[]))
-            stack.enter_context(patch.object(agent, "_kakao_step", side_effect=lambda kind, *a: {
+            stack.enter_context(patch.object(agent, "_kakao_step", side_effect=lambda kind, *a, **kw: {
                 "FOOD": [near, far], "CAFE": [cafe], "WALK": [park]}[kind]))
             result = agent.answer("경기 전 식사하고 카페 갔다가 경기 후 산책만", hint_stadium="JAMSIL", origin=ORIGIN)
+        describe.assert_not_called()
         names = [far["name"], cafe["name"], stadium["name"], park["name"]]
         self.assertEqual([p["name"] for p in result["places"]], names)
         self.assertEqual([p["name"] for p in result["coursePayload"]["stops"]], names)

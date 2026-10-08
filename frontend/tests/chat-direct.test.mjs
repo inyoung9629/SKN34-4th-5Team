@@ -34,6 +34,14 @@ const { courseToStops, parseChatCourse } = require("./lib/chat/course.js");
 const { currentCourse } = require("./lib/chat/current-course.js");
 const { parseChatRequest } = require("./lib/chat/validation.js");
 
+test("tool menu accepts the server carry-in group without rejecting the entire menu", async () => {
+  const groups = [{ id: "web_research", label: "웹 조사" }, { id: "carry_in", label: "반입 규정" }, { id: "day_plan", label: "코스" }];
+  global.fetch = async () => json(groups);
+  assert.deepEqual(await fetchChatToolGroups("guest"), groups);
+  global.fetch = async () => json([...groups, { id: "unknown_group", label: "알 수 없음" }]);
+  await assert.rejects(fetchChatToolGroups("guest"), error => error instanceof ChatClientError && error.status === 502);
+});
+
 test("writer metadata survives public response, history and follow-up including an explicitly cleared origin", () => {
   const writerState = { title: "내 코스 제목", origin: { lat: 37.5, lng: 127.1, name: "잠실새내역" }, completed: false };
   const place = { name: "카페", lat: 37.51, lng: 127.1, category: "CAFE", phase: "BEFORE", visitId: "cafe", label: "1" };
@@ -239,8 +247,8 @@ test("carry_in selection survives POST, PUT and history with strict unknown and 
 
 test("message options map snake_case, PUT omissions preserve and explicit empty clears", async () => {
   const calls = [], log = record(calls); global.fetch = async (url, init) => { await log(url, init); return sse(answerEvents()); };
-  await sendChatMessage("guest", { sessionId: SESSION, content: "question", toolGroupIds: ["rules", "weather"], attachmentIds: [ATTACHMENT] });
-  assert.deepEqual(calls[0].body, { content: "question", tool_group_ids: ["rules", "weather"], attachment_ids: [ATTACHMENT] });
+  await sendChatMessage("guest", { sessionId: SESSION, content: "question", toolGroupIds: ["rules", "weather", "carry_in"], attachmentIds: [ATTACHMENT] });
+  assert.deepEqual(calls[0].body, { content: "question", tool_group_ids: ["rules", "weather", "carry_in"], attachment_ids: [ATTACHMENT] });
   await editChatMessage("guest", { sessionId: SESSION, messageId: 1, content: "edit" });
   assert.equal(Object.hasOwn(calls[1].body, "attachment_ids"), false);
   await editChatMessage("guest", { sessionId: SESSION, messageId: 1, content: "clear", toolGroupIds: [], attachmentIds: [] });

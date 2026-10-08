@@ -43,6 +43,9 @@ def identity(place):
 def same(a, b):
     if a.get("placeId") and b.get("placeId") and a["placeId"] == b["placeId"]:
         return True
+    if any(str(p.get("placeId", "")).startswith("stadium-facility:") for p in (a, b)):
+        # 수집 매장의 핀은 구장 옆 표시 좌표다. 다른 블럭의 동명 매장을 거리로 합치지 않는다.
+        return False
     return a.get("name") == b.get("name") and all(abs(a.get(k, 0) - b.get(k, 1)) < .0005 for k in ("lat", "lng"))
 
 

@@ -84,7 +84,7 @@ class RouteDurationTests(SimpleTestCase):
         self.assertEqual([s["place"] for s in chosen[1:]], [CAFE, None, PARK])
         self.assertEqual(ranker.report["strategy"], "stadium_fallback")
         self.assertIn("추정값", ranker.notice())
-        self.assertLessEqual(invoke.call_count, 2)
+        self.assertLessEqual(invoke.call_count, 3)  # At most one already-started parallel edge.
 
     def test_only_fully_measured_routes_compete_with_each_other(self):
         # The second route appears cheap but its last changed edge is unknown.
@@ -156,7 +156,7 @@ class OriginFallbackTests(SimpleTestCase):
         wrong = place("한식집", 37.503)
         wrong["detail"] = "한식"
         calls = []
-        def search(kind, center, radius, anchor, sl):
+        def search(kind, center, radius, anchor, sl, **kwargs):
             calls.append((center, radius))
             return [outside, rejected, wrong, FAR] if center == ANCHOR else []
         sl = slots.parse("경기 전에 중식집만")
@@ -216,13 +216,18 @@ class RouteDurationPipelineTests(SimpleTestCase):
                  "stadium_anchor": stadium, "_live_candidates": ([near, far, cafe, park], {}), "search_places": [],
                  "call_llm": ('{"course": []}', 0)}
         with ExitStack() as stack:
+            # These synthetic places test route timing; quality evidence is tested separately.
+            stack.enter_context(patch.object(agent.place_quality, "active", return_value=False))
             for name, result in mocks.items():
                 stack.enter_context(patch.object(agent, name, return_value=result))
+            describe = stack.enter_context(patch.object(agent, "call_llm"))
             stack.enter_context(patch.object(agent, "invoke_domain_tool", invoke))
             stack.enter_context(patch.object(agent.kakao, "nearby", return_value=[]))
-            stack.enter_context(patch.object(agent, "_kakao_step", side_effect=lambda kind, *a: {
+            stack.enter_context(patch.object(agent, "_kakao_step", side_effect=lambda kind, *a, **kw: {
                 "FOOD": [near, far], "CAFE": [cafe], "WALK": [park]}[kind]))
             result = agent.answer("경기 전 식사하고 카페 갔다가 경기 후 산책만", hint_stadium="JAMSIL", origin=ORIGIN)
+        describe.assert_not_called()
+        self.assertEqual(result["timing"]["llm_ms"], 0)
         names = [FAR["name"], CAFE["name"], "잠실야구장", PARK["name"]]
         self.assertEqual([p["name"] for p in result["places"]], names)
         self.assertEqual([p["name"] for p in result["coursePayload"]["stops"]], names)

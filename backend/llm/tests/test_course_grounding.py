@@ -21,6 +21,51 @@ def page(body):
 
 
 class CourseGroundingTests(SimpleTestCase):
+    def test_known_quality_profile_skips_search_only_after_actual_menu_verification(self):
+        from llm.v1.rag.course import place_quality
+        f = claim()
+        f._body_verified = True
+        candidate = {"placeId": f.place_id, "name": f.name, "address": f.address}
+        req = evidence.Requirement(term=f.term, attribute="menu", intent="required", group="meal")
+        with place_quality.request_scope("JAMSIL"), patch.object(place_quality, "resolve", return_value={"reviewUrl":f.url}), \
+                patch.object(grounding, "verify", return_value=[f]) as verify, patch.object(evidence, "_search_once") as search:
+            result, urls, calls = evidence.search([candidate], [req])
+        self.assertEqual(result, [f])
+        self.assertEqual(urls, {f.url})
+        self.assertEqual(calls, 0)
+        self.assertFalse(verify.call_args.args[0][0].body_read)
+        search.assert_not_called()
+        with place_quality.request_scope("JAMSIL"), patch.object(place_quality, "resolve", return_value={"reviewUrl":f.url}), \
+                patch.object(grounding, "verify", return_value=[]), patch.object(evidence, "_search_once", return_value=([],set(),1,[])) as search:
+            result, _, calls = evidence.search([candidate], [req])
+        search.assert_called_once()
+        self.assertEqual(result, [])
+        self.assertEqual(calls, 1)
+
+    def test_metadata_hook_on_public_search_page_does_not_claim_body_was_read(self):
+        def handle(request):
+            if request.url.path == "/robots.txt":
+                return httpx.Response(404)
+            return httpx.Response(200, headers={"content-type":"text/html"}, text='<script>public-data</script>')
+        with httpx.Client(transport=httpx.MockTransport(handle)) as client:
+            reader = PublicReader(client=client, dns_check=lambda _: True, gap=0)
+            row = reader.read('https://www.diningcode.com/list.dc?query=fixture', [], metadata_extractor=lambda html, url: {'found':'public-data' in html})
+        self.assertTrue(row['metadata']['found'])
+        self.assertFalse(row['body_read'])
+
+    def test_gwangju_provider_prefix_matches_full_legacy_address_without_relaxing_identity(self):
+        address = "전남광주통합특별시 북구 중흥로73번길 8"
+        self.assertTrue(grounding.address_in_body(address, "광주광역시 북구 중흥로73번길 8 1층"))
+        self.assertTrue(grounding.address_in_body("광주 북구 중흥로73번길 8", address))
+        for other in ("광주 북구 중흥로73번길 80", "광주 북구 중흥로73번길 8-1",
+                      "광주 남구 중흥로73번길 8", "경기 광주시 중흥로73번길 8"):
+            self.assertFalse(grounding.address_in_body(address, other))
+        self.assertFalse(grounding.address_in_body("전남광주통합특별시 해남군 중앙로 1", "광주 해남군 중앙로 1"))
+        finding = claim(name="가상 국밥집", address=address, term="국밥")
+        document = {"body_read": True, "title": "가상 국밥집 - 광주 음식점",
+                    "body_text": "광주광역시 북구 중흥로73번길 8\n메뉴정보\n모둠국밥\n방문자 리뷰"}
+        self.assertEqual(grounding.supported_quote(finding, document), "모둠국밥")
+
     def test_address_boundaries_distinguish_building_number_from_floor_and_hyphen(self):
         self.assertTrue(grounding.address_in_body("경기 수원시 장안구 경수대로927번길 17", "경기도 수원시 장안구 경수대로927번길 17 1층"))
         self.assertFalse(grounding.address_in_body("서울 송파구 올림픽로 10", "서울 송파구 올림픽로 100"))

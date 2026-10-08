@@ -2,9 +2,10 @@ import json
 import uuid
 from unittest.mock import patch
 
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, override_settings
 from langchain_core.messages import AIMessage, HumanMessage
 from rest_framework.test import APIClient
 
@@ -14,8 +15,10 @@ from llm.service import attachments
 from llm.service.chat_v2 import _model_history
 
 
+@override_settings(CHAT_GUEST_RATE_LIMIT=1000)
 class AttachmentRepairTests(TransactionTestCase):
     def setUp(self):
+        cache.clear()
         self.guest = uuid.uuid4()
         self.session = ChatSession.objects.create(guest=self.guest)
         self.client = APIClient()

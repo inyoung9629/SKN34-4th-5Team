@@ -33,6 +33,20 @@ def finding(**values):
 
 @override_settings(COURSE_WEB_VERIFICATION_ENABLED=True, PLACE_EVIDENCE_STORAGE_POLICIES=POLICY)
 class CourseEvidenceTests(TestCase):
+    def test_closing_time_fallback_reuses_verified_menu_within_turn_without_storage_permission(self):
+        second = {**PLACE, 'placeId':'fixture:second'}
+        proof = [finding(), finding(place_id=second['placeId'])]
+        with self.settings(PLACE_EVIDENCE_STORAGE_POLICIES=[]), evidence.request_budget(), \
+                patch.object(evidence, 'requirements', return_value=[requirement()]), \
+                patch.object(evidence, 'search', return_value=(proof, {'https://example.com/menu'}, 1)) as search:
+            first = evidence.enrich([PLACE, second], ['돈까스'])
+            fallback = evidence.enrich([dict(second)], ['돈까스'])
+            self.assertEqual(len(first), 2)
+            self.assertEqual([p['placeId'] for p in fallback], [second['placeId']])
+            self.assertEqual(PlaceKnowledgeObservation.objects.count(), 0)
+            search.assert_called_once()
+        self.assertIsNone(evidence._BUDGET.get())
+
     def setUp(self):
         self.now = timezone.now()
         self.requirement = requirement()

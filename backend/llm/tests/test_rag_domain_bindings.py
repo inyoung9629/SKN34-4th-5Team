@@ -235,11 +235,7 @@ class DomainAllowlistTest(SimpleTestCase):
                 return {"distance": 500, "seconds": 420, "legs": [{"seconds": 420}]}
             raise AssertionError(name)
 
-        selection = json.dumps({"intro": "최신 도구 자료 기준", "course": [
-            {"place_key": "P1", "phase": "BEFORE", "reason": "식사"},
-            {"place_key": "STADIUM", "phase": "GAME", "reason": "관람"},
-        ]}, ensure_ascii=False)
-        select = Mock(return_value=(selection, 1.0))
+        select = Mock(side_effect=AssertionError("description-only model call attempted"))
         # 에이전트 파이프라인(#30)을 실패시켜 이 테스트가 검증하려는 course 폴백 경로로 보낸다.
         # 실패시키지 않으면 assistant.answer 가 real OpenAI LLM/embedding 으로 먼저 나간다.
         # side_effect 로만 막으면 dispatcher._call 이 예외를 삼켜 위반을 가려버릴 수 있으므로,
@@ -255,6 +251,8 @@ class DomainAllowlistTest(SimpleTestCase):
             patch.object(course, "invoke_domain_tool", side_effect=invoke),
             patch.object(course, "embed_many", return_value=([0.0], [0.0])),
             patch.object(course, "search_places", return_value=[]),
+            # 품질 정책은 전용 테스트로 검증하고 이 테스트의 도구 응답 후보를 사용한다.
+            patch.object(course.place_quality, "active", return_value=False),
             patch.object(course.structured, "games", side_effect=AssertionError("old RAG schedule used")),
             patch.object(course, "call_llm", select),
             patch.object(course, "datetime", wraps=datetime) as clock,
@@ -269,10 +267,11 @@ class DomainAllowlistTest(SimpleTestCase):
         provider_llm_guard.assert_not_called()
         embed_guard.assert_not_called()
         embed_many_guard.assert_not_called()
-        self.assertIn("LG 트윈스 홈 vs 두산 베어스 원정", select.call_args.args[1])
+        select.assert_not_called()
+        self.assertIn("LG 트윈스 홈 vs 두산 베어스 원정", result["answer"])
         self.assertEqual(result["places"][0]["name"], "최신 맛집")
         self.assertIsNotNone(result["coursePayload"])
-        self.assertEqual({name for name, _ in calls}, {"get_stadium", "get_games", "search_places", "search_tourism", "get_directions"})
+        self.assertEqual({name for name, _ in calls}, {"get_stadium", "get_games", "search_places", "get_directions"})
 
     def test_course_model_binding_is_bounded_and_consumes_tool_result(self):
         model = ToolCallingModel("get_weather", {"stadium_code": "JAMSIL"})

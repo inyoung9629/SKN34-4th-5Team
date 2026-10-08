@@ -41,14 +41,23 @@ def dns_public(host):
 class VisibleText(HTMLParser):
     HIDDEN = {"script", "style", "noscript", "svg", "template"}
 
-    def __init__(self):
+    def __init__(self, *, skip_dated_grids=False):
         super().__init__(convert_charrefs=True)
         self.hidden = 0
         self.parts = []
         self.in_title = False
         self.title = []
+        self.skip_dated_grids = skip_dated_grids
+        self.skipped_divs = 0
 
     def handle_starttag(self, tag, attrs):
+        if self.skipped_divs:
+            self.skipped_divs += tag == "div"
+            return
+        if self.skip_dated_grids and tag == "div" and "hour-main-grid" in (dict(attrs).get("class") or "").split():
+            self.skipped_divs = 1
+            self.parts.append("\n")
+            return
         if tag in self.HIDDEN:
             self.hidden += 1
         if tag == "title":
@@ -57,23 +66,97 @@ class VisibleText(HTMLParser):
             self.parts.append("\n")
 
     def handle_endtag(self, tag):
+        if self.skipped_divs:
+            self.skipped_divs -= tag == "div"
+            return
         if tag in self.HIDDEN and self.hidden:
             self.hidden -= 1
         if tag == "title":
             self.in_title = False
 
     def handle_data(self, text):
-        if not self.hidden:
+        if not self.hidden and not self.skipped_divs:
             self.parts.append(text)
             if self.in_title:
                 self.title.append(text)
 
 
-def extract_text(html):
-    parser = VisibleText()
+def extract_text(html, *, skip_dated_grids=False):
+    parser = VisibleText(skip_dated_grids=skip_dated_grids)
     parser.feed(html)
     lines = [" ".join(line.split()) for line in " ".join(parser.parts).splitlines()]
     return "\n".join(line for line in lines if line), " ".join(parser.title)[:250]
+
+
+class DatedHours(HTMLParser):
+    """Keep Diningcode's parallel date/time columns paired within each grid."""
+    VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.stack = []
+        self.grid = None
+        self.rows = []
+        self.hidden = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in VisibleText.HIDDEN:
+            self.hidden += 1
+        if self.hidden:
+            return
+        classes = set((dict(attrs).get("class") or "").split())
+        if self.grid is None:
+            if tag != "div" or "hour-main-grid" not in classes:
+                return
+            self.grid = {"dates": [], "times": [], "today_date": [], "today_time": []}
+        ancestors = set().union(*(frame[1] for frame in self.stack))
+        kind = ("dates" if "hour_date" in classes and "hour-dates-column" in ancestors else
+                "times" if "hour_time_item" in classes and "hour-times-column" in ancestors else
+                "today_date" if "open-desc" in classes else
+                "today_time" if "today-main-hours" in classes else None)
+        if tag in {"br", "div", "p"}:
+            self.handle_data("\n")
+        if tag not in self.VOID:
+            self.stack.append((tag, classes, kind, []))
+
+    def handle_data(self, text):
+        if self.hidden:
+            return
+        for _, _, kind, parts in self.stack:
+            if kind:
+                parts.append(text)
+
+    def handle_endtag(self, tag):
+        if tag in VisibleText.HIDDEN and self.hidden:
+            self.hidden -= 1
+            return
+        if self.hidden:
+            return
+        index = next((i for i in range(len(self.stack) - 1, -1, -1) if self.stack[i][0] == tag), None)
+        if index is None:
+            return
+        for _, _, kind, parts in reversed(self.stack[index:]):
+            if kind:
+                lines = [" ".join(line.split()) for line in "".join(parts).splitlines()]
+                self.grid[kind].append("\n".join(line for line in lines if line))
+        del self.stack[index:]
+        if not self.stack:
+            today, today_hours = self.grid["today_date"], self.grid["today_time"]
+            if (len(today) == len(today_hours) == 1 and today_hours[0]
+                    and re.fullmatch(r"오늘(?:\([월화수목금토일]\))?", today[0])):
+                self.rows.append(f"영업시간\n{today[0]}\n{today_hours[0]}")
+            dates, times = self.grid["dates"], self.grid["times"]
+            # Incomplete/mismatched columns cannot establish which day is closed.
+            if (0 < len(dates) == len(times) <= 7 and len(set(dates)) == len(dates) and all(times)
+                    and all(re.fullmatch(r"\d{1,2}월\s*\d{1,2}일(?:\s*\([월화수목금토일]\))?", day) for day in dates)):
+                self.rows.extend(f"영업시간\n{day}\n{hours}" for day, hours in zip(dates, times))
+            self.grid = None
+
+
+def extract_dated_hours(html):
+    parser = DatedHours()
+    parser.feed(html)
+    return parser.rows
 
 
 def excerpt(text, terms, cap=6000):
@@ -185,7 +268,7 @@ class PublicReader:
             time.sleep(wait)
         return True, "robots_allowed"
 
-    def read(self, url, terms, *, complete_text=False):
+    def read(self, url, terms, *, complete_text=False, metadata_extractor=None):
         row = {"url": url, "body_read": False, "body_text": "", "status": "unread"}
         if not allowed_url(url):
             return {**row, "status": "unsupported_host_or_scheme"}
@@ -222,6 +305,9 @@ class PublicReader:
                     self.blocked.add(urlsplit(current).hostname)
                     row["status"] = "challenge_or_access_denied"
                     break
+                if metadata_extractor:
+                    # Public page metadata is data only; never execute scripts.
+                    row["metadata"] = metadata_extractor(html, current)
                 if len(text) < 250:
                     row["status"] = "thin_or_javascript_page"
                     break
@@ -229,6 +315,11 @@ class PublicReader:
                 row.update(status="read", body_read=True, body_text=passage, title=title,
                            visible_text_complete=complete, visible_text_characters=len(text),
                            text_sha256=sha256(text.encode()).hexdigest(), final_url=current)
+                if urlsplit(current).hostname in {"diningcode.com", "www.diningcode.com"}:
+                    # Identity/menu evidence retains the ordinary body. Hours
+                    # must not reuse flattened columns, even for a broken grid.
+                    row["availability_text"] = extract_text(html, skip_dated_grids=True)[0]
+                    row["dated_hours"] = extract_dated_hours(html)
                 break
         except (httpx.HTTPError, OSError, ValueError) as exc:
             row.update(status="read_error", error_type=type(exc).__name__)

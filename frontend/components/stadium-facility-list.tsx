@@ -30,19 +30,20 @@ export function StadiumFacilityList({ data, error, query, onSelect, selectedId }
   if (!data) return <p role="status">구장 소속 먹거리·시설을 불러오는 중…</p>;
   const rows = filterStadiumFacilities(data.records, query, scope, kind);
   return <section className={styles.panel} aria-label="구장 소속 먹거리와 시설">
-    <p>주변 독립 상점과 구분한 구장 소속 목록 · {data.count}건 / 근사 핀 {data.pinCount}개</p>
+    <p>구장 소속 먹거리·시설 · {data.count}건 / 표시 핀 {data.pinCount}개</p>
     <div className={styles.filters}>
       <label>위치 <select aria-label="구장 내외부 구분" value={scope} onChange={e => {setScope(e.target.value); setLimit(30);}}><option value="all">전체</option><option value="internal">구장 내부</option><option value="exterior">구장 외부 부속</option><option value="unknown">내외부 미확인</option></select></label>
-      <label>종류 <select aria-label="구장 시설 종류" value={kind} onChange={e => {setKind(e.target.value); setLimit(30);}}><option value="all">먹거리·시설</option><option value="food">먹거리</option><option value="facility">편의시설</option></select></label>
+      <label>종류 <select aria-label="구장 시설 종류" value={kind} onChange={e => {setKind(e.target.value); setLimit(30);}}><option value="all">먹거리·카페·시설</option><option value="food">먹거리</option><option value="cafe">카페·디저트</option><option value="facility">편의시설</option></select></label>
     </div>
     <p className={styles.warning}>{data.warning}</p>
     <p role="status">검색 결과 {rows.length}건</p>
     <ul className={styles.list}>{rows.slice(0,limit).map(row => <li key={row.id}>
       <strong>{row.name}</strong><span className={styles.badge}>{row.scopeLabel}</span>
-      <p>{row.floor} · {row.zone}</p>
-      {row.pins.length ? row.pins.map(pin => <button type="button" key={pin.id} aria-pressed={selectedId === pin.id} onClick={() => onSelect(row,pin)}>{pin.label} · 근사 위치 보기</button>) : <small>구역만 확인 · 매장 좌표 미확인</small>}
+      {row.kind === "food" && <span className={styles.badge}>{row.foodCategory === "CAFE" ? "카페·디저트" : "먹거리"}</span>}
+      <p>{row.locationLabel ?? `${row.floor} · ${row.zone}`}</p>
+      {row.pins.length ? row.pins.map(pin => <button type="button" key={pin.id} aria-pressed={selectedId === pin.id} onClick={() => onSelect(row,pin)}>{pin.quality === "display_reference" ? "구장 옆 핀 보기" : `${pin.label} · 근사 위치 보기`}</button>) : <small>구역만 확인 · 매장 좌표 미확인</small>}
       <small>원본 확인 {row.sourceCheckedAt} · 현재 영업 미확인</small>
-      <a href={row.sourceUrl} target="_blank" rel="noreferrer">자리어때 매장·구역 원문 ↗</a>
+      <a href={row.sourceUrl} target="_blank" rel="noreferrer">{row.kind === "food" ? "매장 상세 위치" : "시설 상세 위치"} ↗</a>
     </li>)}</ul>
     {rows.length > limit && <button type="button" onClick={() => setLimit(limit + 30)}>더 보기 ({Math.min(limit,rows.length)}/{rows.length})</button>}
   </section>;

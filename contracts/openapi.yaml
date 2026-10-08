@@ -12402,6 +12402,15 @@ components:
             $ref: '#/components/schemas/KakaoPlace'
         hasNextPage:
           type: boolean
+        totalCount:
+          type: integer
+          minimum: 0
+          description: 필터 적용 전 카카오 검색 결과 수
+        pageableCount:
+          type: integer
+          maximum: 45
+          minimum: 0
+          description: 해당 검색에서 카카오가 반환할 수 있는 결과 수
         syncedAt:
           type: string
           format: date-time

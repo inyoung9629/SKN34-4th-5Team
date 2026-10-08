@@ -34,11 +34,12 @@ test("live search includes lodging once in the shared bounded queue without auto
     const document = body.category === "AD5" ? { ...raw, id: "456", place_name: "가상 숙소", category_group_code: "AD5", category_name: "숙박 > 호텔" } : raw;
     return { ok: true, json: async () => ({ places: [document], hasNextPage: true }) };
   });
-  assert.equal(requests.length, 54);
+  assert.equal(requests.length, 126);
   assert.equal(peak, 2);
-  assert.ok(requests.every(q => q.page <= 3 && q.size === 15 && q.radius === 2500 && q.lat === stadium.lat));
-  assert.deepEqual(requests.filter(q => q.category === "AD5").map(q => q.page), [1, 2, 3]);
-  assert.deepEqual(result, { completed: 18, failures: 0 });
+  assert.ok(requests.every(q => q.page <= 3 && q.size === 15 && q.radius <= 2500));
+  assert.deepEqual(requests.filter(q => q.category === "AD5" && q.lat === stadium.lat).map(q => q.page), [1, 2, 3]);
+  assert.equal(new Set(requests.filter(q => q.category === "AD5").map(q => `${q.lat},${q.lng}`)).size, 5);
+  assert.deepEqual(result, { completed: 42, failures: 0 });
   assert.equal(places.length, 2);
   assert.equal(places[0].source, "KAKAO");
   assert.deepEqual(selectedPlacePins(places, null, []), []);
@@ -50,6 +51,75 @@ test("live search includes lodging once in the shared bounded queue without auto
   assert.deepEqual(selectedPlacePins(places, lodging, []), [lodging]);
   const { visiblePlaces } = requireModule("./nearby-places.js");
   assert.deepEqual(visiblePlaces(places, ["stay"]), [lodging]);
+});
+
+test("dense category searches recover stores beyond the nearest 45 within the original radius", async () => {
+  const { distanceMeters } = requireModule("./nearby-places.js");
+  // Fake provider honours Kakao's 45-result cap, not an unlimited test response.
+  const point = (north, east) => ({ lat: stadium.lat + north / 111195, lng: stadium.lng + east / (111195 * Math.cos(stadium.lat * Math.PI / 180)) });
+  const documents = [[0, 500], [-1250, -1250], [-1250, 1250], [1250, -1250], [1250, 1250]]
+    .flatMap(([north, east], zone) => Array.from({ length: 45 }, (_, i) => {
+      const p = point(north + i, east + i);
+      return { ...raw, id: String(zone * 45 + i + 1), x: String(p.lng), y: String(p.lat),
+        place_name: `카페 ${zone}-${i}`, category_group_code: "CE7", category_name: "음식점 > 카페" };
+    }));
+  const outside = point(2300, 1800);
+  documents.push({ ...documents[0], id: "999", x: String(outside.lng), y: String(outside.lat) });
+  documents.push({ ...documents[0], id: "998", x: String(stadium.lng), y: String(stadium.lat), road_address_name: stadium.address });
+  const calls = [];
+  let places = [];
+  await collectLiveNearbyPlaces({}, stadium, new AbortController().signal, () => "cafe", incoming => {
+    places = mergePlaces(places, incoming);
+  }, async (_, init) => {
+    const q = JSON.parse(init.body); calls.push(q);
+    const matches = q.category === "CE7" ? documents.filter(d => distanceMeters(q, { lat: +d.y, lng: +d.x }) <= q.radius)
+      .sort((a, b) => distanceMeters(q, { lat: +a.y, lng: +a.x }) - distanceMeters(q, { lat: +b.y, lng: +b.x })) : [];
+    const pageable = Math.min(45, matches.length);
+    return Response.json({ places: matches.slice((q.page - 1) * 15, Math.min(q.page * 15, pageable)),
+      hasNextPage: q.page * 15 < pageable, totalCount: matches.length, pageableCount: pageable });
+  });
+  assert.ok(places.length > 150, `expected wider coverage, got ${places.length}`);
+  assert.equal(new Set(places.map(p => p.placeId)).size, places.length);
+  assert.ok(places.every(p => distanceMeters(stadium, p) <= 2500));
+  assert.ok(!places.some(p => ["999", "998"].includes(p.placeId)));
+  assert.equal(calls.filter(q => q.category === "CE7").length, 15);
+  assert.ok(calls.filter(q => q.category !== "CE7").every(q => q.lat === stadium.lat && q.lng === stadium.lng));
+});
+
+test("exactly 45 complete results do not expand, while filtered dense results still do", async () => {
+  for (const totalCount of [45, 100]) {
+    const calls = [];
+    await collectLiveNearbyPlaces({}, stadium, new AbortController().signal, () => "cafe", () => {}, async (_, init) => {
+      const q = JSON.parse(init.body); calls.push(q);
+      // All documents may be filtered out by the server's stadium exclusion.
+      const category = q.category === "CE7";
+      return Response.json({ places: [], hasNextPage: false,
+        totalCount: category ? totalCount : 0, pageableCount: category ? 45 : 0 });
+    });
+    assert.equal(calls.filter(q => q.category === "CE7").length, totalCount > 45 ? 5 : 1);
+  }
+});
+
+test("failed expanded searches retain base results and abort cancels the remaining areas", async () => {
+  for (const cancel of [false, true]) {
+    const controller = new AbortController();
+    let places = [], calls = 0;
+    const running = collectLiveNearbyPlaces({}, stadium, controller.signal, () => "food", incoming => {
+      places = mergePlaces(places, incoming);
+    }, async (_, init) => {
+      const q = JSON.parse(init.body); calls++;
+      if (q.lat !== stadium.lat) {
+        if (cancel) controller.abort();
+        throw new Error("expanded search unavailable");
+      }
+      const category = q.method === "category" && q.category === "FD6";
+      return Response.json({ places: [raw], hasNextPage: false, totalCount: category ? 100 : 1, pageableCount: category ? 45 : 1 });
+    });
+    if (cancel) await assert.rejects(running);
+    else assert.equal((await running).failures, 4);
+    assert.equal(places.length, 1);
+    assert.ok(calls <= 22);
+  }
 });
 
 test("partial failures preserve results and never fall back to public catalogue", async () => {
