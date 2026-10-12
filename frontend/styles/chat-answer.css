@@ -12,3 +12,7 @@
 .chat-answer a.chat-detail-link { display: inline-block; box-sizing: border-box; min-height: 44px; max-width: 100%; padding: 10px 14px; border: 1px solid #b7c7dd; border-radius: 8px; background: #f0f4fa; line-height: 1.5; text-decoration: none; white-space: normal; overflow-wrap: anywhere; }
 .chat-answer a.chat-detail-link:hover { background: #e3ebf7; border-color: #315f9b; }
 .chat-answer .chat-detail-link > span[aria-hidden] { white-space: nowrap; }
+.chat-answer .chat-video { display: block; max-width: 560px; margin: 10px 0; }
+.chat-answer .chat-video-frame { position: relative; display: block; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 10px; background: #0f0f0f; }
+.chat-answer .chat-video > a { display: inline-block; margin-top: 6px; font-size: .9em; }
+.chat-answer .chat-videos { display: grid; gap: 12px; margin-top: 10px; }

@@ -61,7 +61,7 @@ jobs:
             git fetch origin main
             git merge --ff-only origin/main
             docker compose stop mailpit || true
-            docker compose -f docker-compose.prod.yml --profile web-research up -d --build backend frontend nginx minio jev-browser
+            docker compose -f docker-compose.prod.yml up -d --build backend frontend nginx minio jev-browser lodging-warmer
             docker compose -f docker-compose.prod.yml exec -T nginx nginx -t
             curl --fail --silent --show-error --insecure https://localhost/api/v1/healthz/
             curl --fail --silent --show-error --insecure https://localhost/

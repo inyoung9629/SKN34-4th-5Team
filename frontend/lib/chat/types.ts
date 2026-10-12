@@ -59,7 +59,10 @@ export type ChatMessage = {
   tools?: ChatToolCall[];
   timeline?: ChatTimelineItem[];
   planning?: ChatPlanning;
+  videos?: ChatVideo[];
 };
+/** 하이라이트 영상 카드. 서버가 DB 장면에서 만든 값만 온다(모델이 쓴 URL 이 아님). start 는 초. */
+export type ChatVideo = { videoId: string; start: number; label: string; gameDate?: string };
 export type ChatOrigin = { lat: number; lng: number; name?: string };
 export type ChatRoutePath = { points: ChatOrigin[]; breaks?: number[]; label: string; source: "drawn" | "directions" };
 // origin: 코스 작성 화면에서 지도에 찍은 출발지. 백엔드 코스 챗봇이 이 지점부터 이어서 코스를 짠다.
@@ -85,6 +88,7 @@ export type ChatReply = ChatStatus & {
   tools?: ChatToolCall[];
   timeline?: ChatTimelineItem[];
   planning?: ChatPlanning;
+  videos?: ChatVideo[];
 };
 
 export const MAX_MESSAGE_LENGTH = 2000;

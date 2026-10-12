@@ -23,6 +23,7 @@ export function safeMemberReturnPath(raw: string | null): string | null {
   try {
     const url = new URL(raw, LOCAL_ORIGIN);
     if (url.origin !== LOCAL_ORIGIN) return null;
+    if (url.pathname === "/fantasy/admin") return `${url.pathname}${url.search}`;
     const match = /^\/community\/members\/([1-9]\d*)\/?$/.exec(url.pathname);
     if (!match || !Number.isSafeInteger(Number(match[1]))) return null;
     const { tab, page } = parseMemberActivityQuery({

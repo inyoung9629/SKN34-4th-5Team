@@ -1,8 +1,8 @@
 import { parsePlanning, type ChatPlanning } from "./planning";
 import { parseChatCourse, parseCoursePreferences } from "./course";
 import { memberError, memberFetch } from "../member-auth-request";
-import { isRecord, parseChatRequest } from "./validation";
-import type { AnswerFeedback, ChatContext, ChatCourse, ChatReply, ChatStatus, CoursePreferences } from "./types";
+import { isRecord, parseChatRequest, parseVideos } from "./validation";
+import type { AnswerFeedback, ChatContext, ChatCourse, ChatReply, ChatStatus, ChatVideo, CoursePreferences } from "./types";
 import { MAX_REPLY_LENGTH, buildTimeline } from "./types";
 import { fromAttachmentDto, fromToolDto } from "./history";
 import type { ChatAttachment, ChatToolGroup } from "./types";
@@ -130,7 +130,7 @@ const isDetail = (value: unknown) => isRecord(value) && isRecord(value.args) && 
 const isStep = (value: unknown): value is ChatStepDto => isRecord(value) &&
   ((value.type === "text" && typeof value.text === "string" && isParent(value.parent_id)) || (value.type === "tool" && typeof value.id === "string" && Boolean(value.id)));
 const isSteps = (value: unknown) => value === undefined || (Array.isArray(value) && value.every(isStep));
-export const TOOL_GROUP_IDS = ["web_research", "schedule", "standings", "players", "baseball_stats", "rules", "stadium_info", "carry_in", "parking_transport", "community", "nearby_places", "tourism", "directions", "courses", "weather", "day_plan"];
+export const TOOL_GROUP_IDS = ["web_research", "schedule", "standings", "players", "highlight", "baseball_stats", "rules", "stadium_info", "carry_in", "parking_transport", "community", "nearby_places", "tourism", "directions", "courses", "weather", "day_plan"];
 const isGroups = (value: unknown): value is string[] => Array.isArray(value) && value.every(id => typeof id === "string" && TOOL_GROUP_IDS.includes(id)) && new Set(value).size === value.length;
 const isAttachment = (value: unknown): value is ChatAttachmentDto => isRecord(value) && typeof value.id === "string" && UUID.test(value.id) && ["image", "text", "url"].includes(String(value.kind)) && typeof value.name === "string" && typeof value.content_type === "string" && isCount(value.size) && (value.width === null || isCount(value.width)) && (value.height === null || isCount(value.height)) && typeof value.created_at === "string" && (value.kind === "url" ? typeof value.url === "string" && /^https?:\/\//.test(value.url) : value.url === null || typeof value.url === "string" && new RegExp(`^/api/v2/chat/sessions/[0-9a-f-]{36}/attachments/${value.id}/$`, "i").test(value.url));
 const isMessage = (value: unknown): value is ChatMessageDto => isRecord(value) && isMessageId(value.id) && isMessageId(value.sequence_no) &&
@@ -145,12 +145,12 @@ const readEmpty = async (response: Response) => { await response.text(); };
 // Frames are `event: <name>\ndata: <json>\n\n` (backend/llm/views/sse.py): delta{text}* / tool{id,
 // tool_name, status}* then exactly one terminal event: done{message_id, assistant_message, tools},
 // error{detail}, or stopped{}. A stream that closes with none is a dropped connection.
-async function readStream(response: Response, sessionId: string, callbacks: ChatStreamCallbacks): Promise<{ reply: string; assistantMessageId: number; tools: ChatToolCallDto[]; steps: ChatStepDto[]; planning?: ChatPlanning; course?: ChatCourse; coursePreferences?: CoursePreferences }> {
+async function readStream(response: Response, sessionId: string, callbacks: ChatStreamCallbacks): Promise<{ reply: string; assistantMessageId: number; tools: ChatToolCallDto[]; steps: ChatStepDto[]; planning?: ChatPlanning; course?: ChatCourse; coursePreferences?: CoursePreferences; videos?: ChatVideo[] }> {
   if (!response.body || !response.headers.get("Content-Type")?.toLowerCase().startsWith("text/event-stream")) {
     throw new ChatClientError("스트림 응답을 확인하지 못했어요.", 502, true, sessionId);
   }
   const reader = response.body.getReader(), decoder = new TextDecoder();
-  let buffer = "", streamed = 0, result: { reply: string; assistantMessageId: number; tools: ChatToolCallDto[]; steps: ChatStepDto[]; planning?: ChatPlanning; course?: ChatCourse; coursePreferences?: CoursePreferences } | null = null;
+  let buffer = "", streamed = 0, result: { reply: string; assistantMessageId: number; tools: ChatToolCallDto[]; steps: ChatStepDto[]; planning?: ChatPlanning; course?: ChatCourse; coursePreferences?: CoursePreferences; videos?: ChatVideo[] } | null = null;
   const consume = (frame: string) => {
     // SSE 주석은 연결 유지 신호다. 답변/도구/완료 이벤트로 취급하지 않는다.
     const fields = frame.split(/\r?\n/).filter(line => !line.startsWith(":"));
@@ -183,7 +183,7 @@ async function readStream(response: Response, sessionId: string, callbacks: Chat
         !Array.isArray(value.tools) || !value.tools.every(isTool) || !isSteps(value.steps)) {
         throw new ChatClientError("최종 답변을 확인하지 못했어요.", 502, true, sessionId);
       }
-      result = { reply: value.assistant_message, assistantMessageId: Number(value.message_id), tools: value.tools, steps: (value.steps as ChatStepDto[] | undefined) ?? [], planning: parsePlanning(value.planning), course: parseChatCourse(value.course), coursePreferences: parseCoursePreferences(value.coursePreferences) };
+      result = { reply: value.assistant_message, assistantMessageId: Number(value.message_id), tools: value.tools, steps: (value.steps as ChatStepDto[] | undefined) ?? [], planning: parsePlanning(value.planning), course: parseChatCourse(value.course), coursePreferences: parseCoursePreferences(value.coursePreferences), videos: parseVideos(value.videos) };
       return;
     }
     if (event === "error") {

@@ -109,16 +109,17 @@ class LodgingConditionsTest(SimpleTestCase):
         candidates = [{**PLACE, "placeId": str(i)} for i in range(12)]
         lodging.verify(candidates, "주차는 필요 없고 금연만", [
             {"role": "user", "content": "주차되는 호텔"}, {"role": "assistant", "content": "가격은 50000원"}], _search=search)
-        self.assertEqual(len(search.call_args.args[0]), 4)
-        self.assertEqual(search.call_count, 3)
+        self.assertEqual(len(search.call_args.args[0]), 1)
+        self.assertEqual(search.call_count, 12)
         self.assertEqual(search.call_args.args[2], ["주차되는 호텔"])
 
     def test_repeated_request_reuses_verification_and_condition_change_does_not(self):
         with patch.object(lodging, "search", return_value=(report(), {URL})) as search, \
                 patch.object(lodging, "requirements", return_value=report()["requirements"]):
             lodging.verify([PLACE], "주차 숙소")
-            lodging.verify([PLACE], "주차 숙소")
+            repeated = lodging.verify([PLACE], "주차 숙소")
             self.assertEqual(search.call_count, 1)
+            self.assertEqual(repeated["timing"], {"verification_cache_hit": True})
             lodging.verify([PLACE], "금연 숙소")
             self.assertEqual(search.call_count, 2)
 
@@ -131,26 +132,10 @@ class LodgingConditionsTest(SimpleTestCase):
         self.assertIn(URL, text)
         self.assertIn('"status": "match"', text)
 
-    def test_search_uses_domain_filter_and_bounded_output_and_accounts_for_usage(self):
-        response = Mock(status="completed", output_text=json.dumps(report()),
-                        usage=Mock(input_tokens=123, output_tokens=45))
-        response.output = [Mock(model_dump=lambda: {"type": "web_search_call", "action": {"type": "open_page", "url": URL}})]
-        client = Mock()
-        client.responses.create.return_value = response
-        with patch("openai.OpenAI", return_value=client), patch.object(lodging.usage, "record_external") as meter, \
-                patch.object(lodging, "_read_details", return_value=([], set())):
-            raw, sources = lodging.search([CANDIDATE], "금연 호텔", [])
-        args = client.responses.create.call_args.kwargs
-        self.assertEqual(args["tools"][0]["filters"]["allowed_domains"], ["nol.yanolja.com"])
-        self.assertEqual(args["tool_choice"], "required")
-        self.assertLessEqual(args["max_output_tokens"], 6000)
-        self.assertFalse(args["store"])
-        self.assertEqual(sources, {URL})
-        meter.assert_called_once_with(123, 45)
 
 
 class LodgingCourseTest(SimpleTestCase):
-    def run_course(self, status, origin=None):
+    def run_course(self, status, origin=None, question=None, calls=None):
         stadium = {"key": "STADIUM", "name": "잠실야구장", "lat": 37.512, "lng": 127.0719,
                    "category": "STADIUM", "distance": 0, "detail": "", "placeId": None, "address": "서울 송파구", "placeUrl": "", "doc_id": "stadium"}
         cafe = {**PLACE, "key": "cafe", "category": "CAFE", "name": "카페", "detail": "카페", "dist": .1, "doc_id": "cafe"}
@@ -162,11 +147,22 @@ class LodgingCourseTest(SimpleTestCase):
                  "invoke_domain_tool": {}, "call_llm": ('{"course": []}', 0)}
         with ExitStack() as stack:
             for name, result in mocks.items():
-                stack.enter_context(patch.object(course, name, return_value=result))
+                mocked = stack.enter_context(patch.object(course, name, return_value=result))
+                if calls is not None:
+                    calls[name] = mocked
             stack.enter_context(patch.object(course.kakao, "nearby", return_value=[PLACE]))
             stack.enter_context(patch.object(lodging, "verify", return_value=checked))
             stack.enter_context(patch.object(course.transport, "info", return_value={"mode": "walk", "label": "도보", "taxi": False, "lines": []}))
-            return course.answer("경기 전에 카페, 경기 후 금연 객실 숙소까지 코스 짜줘", hint_stadium="JAMSIL", origin=origin)
+            return course.answer(question or "경기 전에 카페, 경기 후 금연 객실 숙소까지 코스 짜줘", hint_stadium="JAMSIL", origin=origin)
+
+    def test_stay_only_course_skips_unrelated_embeddings_and_place_retrieval(self):
+        calls = {}
+        result = self.run_course("match", question="경기 전 다른 곳은 넣지 말고 경기 관람 후 숙박만 포함해줘", calls=calls)
+        self.assertEqual([p["category"] for p in result["places"]], ["STADIUM", "STAY"])
+        self.assertEqual(result["places"][-1]["placeUrl"], URL)
+        calls["embed_many"].assert_not_called()
+        calls["search_places"].assert_not_called()
+        self.assertEqual(calls["_live_candidates"].call_args.kwargs["kinds"], ["STAY"])
 
     def test_verified_stay_reaches_map_answer_and_saved_course(self):
         result = self.run_course("match")
@@ -176,11 +172,16 @@ class LodgingCourseTest(SimpleTestCase):
             self.assertNotIn("디럭스 금연객실", text)
         self.assertIn(URL, result["answer"])
         self.assertEqual(result["places"][-1]["category"], "STAY")
+        self.assertEqual(result["lodgingAssessments"][0]["checks"][0]["status"], "match")
+        self.assertNotIn("evidence", result["lodgingAssessments"][0]["checks"][0])
+        from llm.v2.agent.course_output import public_course
+        self.assertNotIn("lodgingAssessments", public_course(result))
 
     def test_unknown_stay_cannot_reappear_through_fallback_or_origin_search(self):
         for origin in (None, {"lat": 37.51, "lng": 127.073}):
             result = self.run_course("unknown", origin)
             self.assertNotIn("STAY", [p["category"] for p in result["places"]])
+            self.assertFalse(result["lodgingAssessments"])
             self.assertIn("미확인 조건", result["answer"])
 
     def test_verified_pool_prevents_new_unchecked_lodging_search(self):

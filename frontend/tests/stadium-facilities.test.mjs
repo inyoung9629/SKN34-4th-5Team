@@ -45,7 +45,7 @@ test('integration retains saved facility pins and leaves course policy untouched
   assert.match(component,/onFocus=\{selectPlace\}/);
   assert.match(component,/courseCompleted \? allowSave \?/);
   assert.match(component,/현재 코스는 저장되지 않습니다/);
-  assert.match(component,/useStadiumFacilities\(stadium.code, !drawOnly\)/);
+  assert.match(component,/useStadiumFacilities\(stadium.code\)/);
   assert.match(component,/stadiumAffiliation\.label/);
   const backend=readFileSync(new URL('../../backend/travel/stadium_facilities.py',import.meta.url),'utf8');
   assert.doesNotMatch(backend,/courseEligible|exclude_from_course|eligible_for_course/);

@@ -91,3 +91,17 @@ test("late GPS success or failure cannot change a newer course or reopen its ori
   h.gps[1].success({ lat: 37.6, lng: 127.1 });
   assert.deepEqual(h.changes, [{ start: { lat: 37.6, lng: 127.1 }, originSource: "current" }]);
 });
+
+test("removing the origin immediately cancels GPS so it cannot revive the deleted pin", () => {
+  const h = harness();
+  h.render().chooseCurrent();
+  h.render().chooseFirst();
+  h.gps[0].success({ lat: 38, lng: 128 });
+  h.gps[0].failure("위치 확인 실패");
+  assert.deepEqual(h.changes, [{ start: undefined, originSource: undefined }]);
+  h.update({ start: undefined, revision: 2 });
+  const travel = h.render();
+  assert.equal(travel.location, null);
+  assert.equal(travel.picking, false);
+  assert.equal(travel.locating, false);
+});

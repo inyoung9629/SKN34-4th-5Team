@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { loadYouTubeIframeApi } from "@/lib/youtube/iframe-api";
 import { createYouTubePlayback, type PlaybackStatus } from "@/lib/youtube/playback";
 
-export function YouTubeVideoPlayer({ videoId, title, active = true, preview = false }: {
-  videoId: string; title: string; active?: boolean; preview?: boolean;
+export function YouTubeVideoPlayer({ videoId, title, active = true, preview = false, start }: {
+  videoId: string; title: string; active?: boolean; preview?: boolean; start?: number;
 }) {
   const host = useRef<HTMLSpanElement>(null);
   const playback = useRef<ReturnType<typeof createYouTubePlayback> | null>(null);
@@ -25,7 +25,7 @@ export function YouTubeVideoPlayer({ videoId, title, active = true, preview = fa
     void loadYouTubeIframeApi().then(api => {
       if (disposed || !host.current) return;
       instance = createYouTubePlayback(host.current, api, {
-        videoId, title, preview,
+        videoId, title, preview, start,
         onStatus: (next, code) => { setStatus(next); setErrorCode(code); },
       });
       playback.current = instance;
@@ -36,7 +36,7 @@ export function YouTubeVideoPlayer({ videoId, title, active = true, preview = fa
       instance?.destroy();
       playback.current = null;
     };
-  }, [videoId, title, preview, revision]);
+  }, [videoId, title, preview, start, revision]);
 
   function retry() {
     setStatus("loading");

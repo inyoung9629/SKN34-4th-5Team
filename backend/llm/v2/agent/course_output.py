@@ -81,6 +81,8 @@ def public_course(value):
     if (isinstance(game, dict) and isinstance(game.get("date"), str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", game["date"])
             and isinstance(game.get("time"), str) and re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", game["time"])):
         result["game"] = {"date": game["date"], "time": game["time"]}
+        if game.get("isDemo") is True:
+            result["game"]["isDemo"] = True
     for key in ("origin", "entryPoint"):
         point = value.get(key)
         if isinstance(point, dict):

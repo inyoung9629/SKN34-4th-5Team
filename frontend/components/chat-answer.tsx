@@ -8,9 +8,10 @@ import remarkBreaks from "remark-breaks";
 import "@/styles/chat-answer.css";
 
 import { safeChatUrl } from "@/lib/media-url";
+import { YouTubeVideoPlayer } from "@/components/youtube-video-player";
 export { safeChatUrl } from "@/lib/media-url";
 
-import type { ChatCoursePlace } from "@/lib/chat/types";
+import type { ChatCoursePlace, ChatVideo as ChatVideoCard } from "@/lib/chat/types";
 import type { Element, Root } from "hast";
 
 export function ChatPlaceSource({ place }: { place: ChatCoursePlace }) {
@@ -30,7 +31,31 @@ function ChatImage({ src, alt, title }: ComponentProps<"img">) {
   return <img src={src} alt={label} title={title} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} />;
 }
 
-export function ChatAnswer({ text, places = [] }: { text: string; places?: ChatCoursePlace[] }) {
+// 하이라이트 도구 링크(https://www.youtube.com/watch?v=ID&t=184s)는 그 시각부터 재생되는 플레이어로 보여 준다.
+export function youtubeWatch(href: string | undefined) {
+  if (!href) return;
+  try {
+    const url = new URL(href);
+    const videoId = url.searchParams.get("v") ?? "";
+    if (url.origin !== "https://www.youtube.com" || url.pathname !== "/watch" || !/^[A-Za-z0-9_-]{11}$/.test(videoId)) return;
+    const start = /^(\d{1,5})s?$/.exec(url.searchParams.get("t") ?? "")?.[1];
+    return { videoId, start: start ? Number(start) : undefined };
+  } catch { return; }
+}
+
+// 하이라이트 장면은 수동 재생: 플레이어만 띄우고 사용자가 누를 때 장면 시각부터 재생한다.
+function ChatVideo({ href, label }: { href: string; label: string }) {
+  const video = youtubeWatch(href)!;
+  return <span className="chat-video">
+    <span className="chat-video-frame"><YouTubeVideoPlayer videoId={video.videoId} start={video.start} title={label || "KBO 하이라이트"} active={false} /></span>
+    <a href={href} target="_blank" rel="noopener noreferrer">{label || "영상 보기"} · YouTube에서 보기 ↗</a>
+  </span>;
+}
+
+// 하이라이트 영상 카드: ask_highlight 가 고른 장면을 서버가 DB 에서 만든 videoId·시작 시각으로 보여 준다(모델이 쓴 URL 이 아님).
+export const videoWatchUrl = (video: ChatVideoCard) => `https://www.youtube.com/watch?v=${video.videoId}&t=${video.start}s`;
+
+export function ChatAnswer({ text, places = [], videos = [] }: { text: string; places?: ChatCoursePlace[]; videos?: ChatVideoCard[] }) {
   const placeSources = () => (tree: Root) => {
     const cited = new Set<number>();
     const addSources = (block: Element) => {
@@ -109,6 +134,7 @@ export function ChatAnswer({ text, places = [] }: { text: string; places?: ChatC
         if (href && className === "chat-place-source") return <a href={href} className={className} title={title}
           target="_blank" rel="noopener noreferrer" aria-label={String(node?.properties.ariaLabel)}>{children}</a>;
         const label = Children.toArray(children).join("");
+        if (href && youtubeWatch(href)) return <ChatVideo href={href} label={label} />;
         if (["야놀자", "메뉴 근거", "후기 근거"].includes(label)) {
           if (!href || !href.startsWith("https://") || /[<>"\\]|%22|%3c|%3e|%5c/i.test(href) || (label === "야놀자" && !/^https:\/\/nol\.yanolja\.com\/stay\/domestic\/\d+$/.test(href))) return <span>{children}</span>;
           return <a href={href} className="chat-place-source" target="_blank" rel="noopener noreferrer" aria-label={`${label} 확인 (새 창)`}>{label} <span aria-hidden="true">↗</span></a>;
@@ -120,5 +146,7 @@ export function ChatAnswer({ text, places = [] }: { text: string; places?: ChatC
       img: ({ src, alt, title }) => <ChatImage key={typeof src === "string" ? src : "blocked"} src={src} alt={alt} title={title} />,
       table: ({ children }) => <div className="chat-table-scroll" role="region" aria-label="답변 표" tabIndex={0}><table>{children}</table></div>,
     }}
-  >{text}</Markdown></div>;
+  >{text}</Markdown>{videos.length > 0 && <div className="chat-videos">
+    {videos.map((video, index) => <ChatVideo key={`${video.videoId}-${video.start}-${index}`} href={videoWatchUrl(video)} label={video.label} />)}
+  </div>}</div>;
 }

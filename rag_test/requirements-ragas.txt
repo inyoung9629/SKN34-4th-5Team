@@ -1,0 +1,6 @@
+# Isolated evaluation environment; do not install in the backend runtime.
+ragas==0.4.3
+openai==3.3.0
+instructor==1.17.0
+jiter==0.14.0
+langchain-community==0.3.31

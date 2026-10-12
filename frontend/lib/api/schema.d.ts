@@ -1400,7 +1400,8 @@ export interface paths {
         delete: operations["v1_community_admin_posts_destroy"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** @description 신고 관리와 동일한 정책으로 게시글과 관련 신고를 숨김 처리합니다. 해제는 지원하지 않습니다. */
+        patch: operations["v1_community_admin_posts_partial_update"];
         trace?: never;
     };
     "/api/v1/community/admin/reports/": {
@@ -10048,6 +10049,63 @@ export interface operations {
             };
         };
     };
+    v1_community_admin_posts_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    action: "hide";
+                };
+            };
+        };
+        responses: {
+            /** @description 숨김 처리된 게시글 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPost"];
+                };
+            };
+            /** @description 잘못된 요청 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 로그인 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 운영 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 게시글 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     v1_community_admin_reports_list: {
         parameters: {
             query?: {
@@ -10766,6 +10824,8 @@ export interface operations {
                 /** @description 작성자 활동 목록. JWT 인증 필요, 본인 또는 공개 설정된 회원만 조회 가능. */
                 author_id?: number;
                 board?: "free" | "teams";
+                /** @description 글 분류 정확히 일치. 생략하면 전체 분류. */
+                category?: "경기토론" | "굿즈" | "사진·영상" | "소식·정보" | "응원" | "이적·신인" | "잡담" | "전력토론" | "좌석·예매" | "직관준비" | "직관후기" | "질문";
                 mine?: "1";
                 page?: number;
                 page_size?: number;

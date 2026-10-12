@@ -9,6 +9,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import CommunityComment, CommunityPost, CommunityReport, CommunityVote
+from accounts.point_policy import COMMENT, grant_definition
+from accounts.point_service import grant_points
 from .serializers import (
     CommunityCommentSerializer,
     CommunityCommentWriteSerializer,
@@ -63,6 +65,7 @@ class CommentListCreateView(APIView):
         comment = CommunityComment.objects.create(
             post=post, author=request.user, **serializer.validated_data
         )
+        grant_points(user=request.user, **grant_definition(COMMENT, f"{comment.pk}"))
         CommunityPost.objects.filter(pk=post.pk).update(comment_count=post.comments.count())
         return Response(CommunityCommentSerializer(comment).data, status=status.HTTP_201_CREATED)
 

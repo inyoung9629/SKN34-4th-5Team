@@ -41,10 +41,11 @@ def _metadata_dict(metadata) -> dict:
     return {}
 
 def vector_search(query: str, stadium: str | None, categories: list[str] | None,
-                  in_stadium_flag: str | None = None) -> list[dict]:
-    """구장·카테고리·안팎 조건을 적용한 벡터 검색."""
-    from ..v1.rag.club.retrieval import embed
-    qvec = embed(query)
+                  in_stadium_flag: str | None = None, qvec: list[float] | None = None) -> list[dict]:
+    """구장·카테고리·안팎 조건을 적용한 벡터 검색. qvec 을 주면 임베딩을 다시 하지 않는다(평가용)."""
+    if qvec is None:
+        from ..v1.rag.club.retrieval import embed
+        qvec = embed(query)
     from llm import vector_store
     rows = [(doc["content"], doc["metadata"], doc["dist"]) for doc in vector_store.search(
         qvec, k=TOP_K, stadium=stadium, categories=categories or VENUE_CATEGORIES, flag=in_stadium_flag)]
@@ -82,24 +83,52 @@ def keyword_fallback_search(query: str, stadium: str | None, categories: list[st
     return [{"content": c, "metadata": {**_metadata_dict(m), "distance": None, "match_type": "keyword_fallback"}}
             for c, m in rows]
 
-def search_documents(query: str, slots: dict) -> dict:
-    """검색어 변환 → 벡터 검색 → 소프트 필터 → 키워드 fallback (test.py search_documents)"""
-    transformed = transform_query(query)
-    slots = {**infer_slots(f"{query} {transformed}"), **{k: v for k, v in slots.items() if v}}
+def _venue_doc_id(doc):
+    meta = doc.get("metadata") or {}
+    return meta.get("doc_id") or doc.get("content")
+
+
+def hybrid_venue_search(query: str, docs: list[dict], stadium, categories, flag) -> list[dict] | None:
+    """구장 안팎 문서: 벡터 결과(거리 필터 통과분)와 키워드(BM25) 상위 TOP_K 를 RRF 로 합친다. 키워드 결과가 없으면 None."""
+    from llm import sparse_index
+    try:
+        sparse = sparse_index.search(query, k=TOP_K, stadium=stadium, categories=categories or VENUE_CATEGORIES, flag=flag)
+    except Exception:  # noqa: BLE001 - 키워드 색인 장애는 벡터 검색으로 대신한다
+        sparse = None
+    if not sparse:
+        return None
+    keyword_docs = [{"content": d.get("content") or "", "metadata": {**_metadata_dict(d.get("metadata")), "distance": None,
+                                                                   "match_type": "keyword"}} for d in sparse]
+    fused = sparse_index.rrf(docs, keyword_docs, key=_venue_doc_id)
+    return [{"content": d["content"], "metadata": {**d["metadata"], "rrf": d["rrf"]}} for d in fused]
+
+
+def retrieve_venue(query: str, slots: dict, mode: str | None = None, original: str | None = None,
+                   qvec: list[float] | None = None) -> tuple[list[dict], str]:
+    """검색어 변환 뒤 단계: 벡터(+키워드 RRF) → 결과가 3개 미만이면 키워드 부분일치 fallback. 반환 (문서, 방법)."""
     stadium, cats, flag = slots.get("stadium_code"), slots.get("categories"), slots.get("in_stadium_flag")
-
-    docs = vector_search(transformed, stadium, cats, flag)
+    docs = vector_search(query, stadium, cats, flag, qvec)
     method = "vector" if docs else "none"
-
+    if (mode or search_mode(venue=True)) != "vector":
+        fused = hybrid_venue_search(query, docs, stadium, cats, flag)
+        if fused:
+            docs, method = fused, "hybrid"
     fetch_k = max(TOP_K * 2, 10)
     if not docs or len(docs) < 3:
         # 내부/외부가 명시된 경우 fallback에서도 그 조건을 풀지 않는다.
-        fb = keyword_fallback_search(transformed, stadium, cats, flag, fetch_k)
-        if not fb and transformed != query:
-            fb = keyword_fallback_search(query, stadium, cats, flag, fetch_k)
+        fb = keyword_fallback_search(query, stadium, cats, flag, fetch_k)
+        if not fb and original and original != query:
+            fb = keyword_fallback_search(original, stadium, cats, flag, fetch_k)
         if fb:
             docs, method = fb, "keyword_fallback"
-    docs = docs[:fetch_k]
+    return docs[:fetch_k], method
+
+
+def search_documents(query: str, slots: dict) -> dict:
+    """검색어 변환 → 벡터 검색(+키워드 RRF) → 소프트 필터 → 키워드 fallback (test.py search_documents)"""
+    transformed = transform_query(query)
+    slots = {**infer_slots(f"{query} {transformed}"), **{k: v for k, v in slots.items() if v}}
+    docs, method = retrieve_venue(transformed, slots, original=query)
     return {"original_query": query, "transformed_query": transformed, "documents": docs, "search_method": method}
 
 def format_documents(docs: list[dict]) -> str:
@@ -113,13 +142,116 @@ def format_documents(docs: list[dict]) -> str:
 CATEGORIES = {'OPERATION', 'CAFE', 'FOOD_IN', 'FOOD_OUT', 'TRANSPORT', 'STADIUM', 'PRICE', 'SEAT', 'TICKET_POLICY', 'FACILITY', 'CONTENT', 'CARRY_IN', 'REENTRY', 'RULE', 'SPOT'}
 DOC_K = 5
 
-def search_kbo_rows(query, stadium=None, categories=None, k=DOC_K, _search=None, _embed=None) -> list[dict]:
-    """Qdrant 검색 + 키워드 재정렬. 카테고리로 0건이면 카테고리를 풀고 한 번 더."""
+SEARCH_MODES = ("vector", "hybrid", "hybrid_rerank", "hybrid_score", "rerank", "vector_rerank")
+
+
+def search_mode(venue=False):
+    """검색 방식. 기본값은 골든셋 측정(10/12)으로 정했다.
+    - RAG_SEARCH_MODE (규정·구장 문서, search_kbo_documents) 기본 rerank: 벡터+BM25 가중 RRF 후보 30개 → voyage rerank-2.5.
+      규정 31문항 Hit@1 0.710→0.903, Hit@5 0.968→1.000 / 구장 23문항 Hit@1 0.783→0.826 (RRF 만으로는 규정이 나빠졌다)
+    - RAG_VENUE_SEARCH_MODE (구장 안팎 장소, search_documents_tool) 기본 hybrid: venue 23문항 Hit@1 0.783→0.826, 42→27ms
+    값: vector(벡터 상위 50 + 키워드 재정렬) · hybrid(벡터·BM25 가중 RRF) · hybrid_rerank(RRF + 규칙 리랭크)
+        · hybrid_score(키워드로 후보 확장 + 벡터 유사도 + 키워드 재정렬 + 키워드 점수×RAG_SPARSE_WEIGHT)
+        · rerank(가중 RRF 상위 후보 → 모델 리랭커, llm.reranker) · vector_rerank(벡터 상위 후보 → 모델 리랭커)"""
+    name, default = ("RAG_VENUE_SEARCH_MODE", "hybrid") if venue else ("RAG_SEARCH_MODE", "rerank")
+    mode = os.getenv(name, default).strip().lower()
+    return mode if mode in SEARCH_MODES else default
+
+
+def hybrid_kbo_rows(query, vec, candidate_k, stadium, cats, k, mode=None) -> list[dict]:
+    """벡터 상위 candidate_k 와 키워드(BM25, llm.sparse_index) 상위 candidate_k 를 RRF 로 합친다.
+    sparse 색인이 없거나 키워드 결과가 비면 이전 방식(벡터 + 키워드 재정렬)으로 돌아간다."""
+    from ..v1.rag.club.retrieval import keyword_rerank, keywords, search
+    mode = mode or search_mode()
+    dense = search(vec, k=candidate_k, stadium=stadium, categories=cats)[0]
+    if mode == "vector":
+        return keyword_rerank(query, dense, k=k)
+    vector_order = keyword_rerank(query, dense, k=len(dense))  # 이전 방식 순서: 리랭커 실패 시 대체
+    if mode == "vector_rerank":
+        return model_rerank(query, vector_order, k, fallback=vector_order)
+    from llm import sparse_index, vector_store
+    try:
+        sparse = sparse_index.search(query, k=candidate_k, stadium=stadium, categories=cats)
+    except Exception:  # noqa: BLE001 - 키워드 색인 장애는 벡터 검색으로 대신한다
+        sparse = None
+    if not sparse:
+        return model_rerank(query, vector_order, k, fallback=vector_order) if mode == "rerank" else vector_order[:k]
+    if mode == "hybrid_score":
+        return score_fusion(query, vec, dense, sparse, k)
+    fused = sparse_index.rrf(dense, [vector_store.legacy_row(doc) for doc in sparse],
+                             weights=[1.0, sparse_index.SPARSE_RRF_WEIGHT])
+    if mode == "hybrid_rerank":
+        fused = rule_rerank(query, fused)
+    if mode == "rerank":
+        return model_rerank(query, fused, k, fallback=vector_order)
+    return fused[:k]
+
+
+def model_rerank(query, rows, k, fallback=None) -> list[dict]:
+    """후보 상위 RAG_RERANK_CANDIDATES 개를 모델 리랭커로 다시 줄 세운다.
+    리랭커가 실패하면 fallback(이전 방식 순서: 벡터 + 키워드 재정렬)을 쓴다. RRF 순서는 리랭커 없이는 규정에서 더 나빴다."""
+    from llm import reranker
+    pool = rows[:reranker.candidates()]
+    ranked = reranker.rerank(query, pool, k)
+    if not ranked:
+        return (fallback or pool)[:k]
+    ranked = ranked[:k]
+    anchor = (fallback or [None])[0]  # 안전장치: 이전 방식 1위 문서는 최종 k 개 안에 남긴다
+    if anchor and anchor.get("doc_id") not in {r.get("doc_id") for r in ranked} and len(ranked) == k:
+        ranked[-1] = anchor  # 리랭커가 단어 겹침(예: '주차 요금' → 티켓 요금 문서)에 쏠려도 원래 1위를 잃지 않는다
+    return ranked
+
+
+EXACT_BONUS, KEYWORD_BONUS, AUTHORITY_BONUS = 0.020, 0.010, 0.005
+
+
+def rule_rerank(query, rows):
+    """규칙 기반 리랭크(모델 없음): rrf + 0.020×제목 정확 일치 + 0.010×본문 키워드 비율 + 0.005×공식 문서.
+    제목은 청크 첫 줄('[KBO 리그규정 2026] 제5장 … > 제34조 준플레이오프')이라 쌍둥이 조항(준PO·PO)을 가른다."""
+    from ..v1.rag.club.retrieval import keywords
+    toks = [t.upper() for t in keywords(query)]
+
+    def score(row):
+        content = (row.get("content") or "").upper()
+        title = content.split("\n", 1)[0]
+        exact = any(re.search(rf"(?<![가-힣A-Z0-9]){re.escape(t)}(?![가-힣A-Z0-9])", title) for t in toks) if toks else False
+        keyword = sum(t in content for t in toks) / len(toks) if toks else 0.0
+        official = _kbo_grade(row) == "OFFICIAL"
+        return row["rrf"] + EXACT_BONUS * exact + KEYWORD_BONUS * keyword + AUTHORITY_BONUS * official
+
+    return sorted(rows, key=score, reverse=True)
+
+
+def score_fusion(query, vec, dense, sparse, k, weight=None) -> list[dict]:
+    """후보 = 벡터 상위 ∪ 키워드 상위. 키워드로만 들어온 후보도 벡터 거리를 구해, 이전 방식(벡터 유사도 + 키워드 재정렬)에
+    키워드(BM25) 점수를 최고점 대비 0~1 로 맞춰 weight 만큼 더한다. 벡터가 놓친 후보를 살리면서 벡터 순위는 크게 흔들지 않는다."""
+    from ..v1.rag.club.retrieval import keywords
+    from llm import sparse_index, vector_store
+    weight = sparse_index.SPARSE_WEIGHT if weight is None else weight
+    have = {row.get("doc_id") for row in dense}
+    extra = [doc for doc in sparse if vector_store.legacy_row(doc).get("doc_id") not in have]
+    distances = sparse_index.dense_distances(vec, [doc["point_id"] for doc in extra]) if extra else {}
+    rows = list(dense) + [{**vector_store.legacy_row(doc), "dist": distances[doc["point_id"]]}
+                          for doc in extra if doc["point_id"] in distances]
+    top = max((doc["sparse_score"] for doc in sparse), default=0.0) or 1.0
+    sparse_by_id = {vector_store.legacy_row(doc).get("doc_id"): doc["sparse_score"] / top for doc in sparse}
+    toks = [t.upper() for t in keywords(query)]
+
+    def score(row):
+        body = (row.get("content") or "").upper()
+        keyword = 0.3 * sum(t in body for t in toks) / len(toks) if toks else 0.0  # keyword_rerank 와 같은 가산
+        return (1 - row["dist"]) + keyword + weight * sparse_by_id.get(row.get("doc_id"), 0.0)
+
+    return sorted(rows, key=score, reverse=True)[:k]
+
+
+def search_kbo_rows(query, stadium=None, categories=None, k=DOC_K, _search=None, _embed=None, mode=None) -> list[dict]:
+    """Qdrant 하이브리드 검색(벡터+키워드 RRF, RAG_SEARCH_MODE). 카테고리로 0건이면 카테고리를 풀고 한 번 더."""
     cats = [c.upper() for c in (categories or []) if c and c.upper() in CATEGORIES] or None
     if _search is None:
-        from ..v1.rag.club.retrieval import embed, keyword_rerank, search
-        _embed = embed
-        _search = lambda v, kk, st, ct: keyword_rerank(query, search(v, k=kk, stadium=st, categories=ct)[0], k=k)  # noqa: E731
+        from ..v1.rag.club.retrieval import embed
+        _embed = _embed or embed
+        _search = lambda v, kk, st, ct: hybrid_kbo_rows(query, v, kk, st, ct, k, mode)  # noqa: E731
     vec = _embed(query)
     candidate_k = max(50, k)  # V1과 같은 후보 폭, 최종 반환은 k
     rows = _search(vec, candidate_k, stadium, cats)

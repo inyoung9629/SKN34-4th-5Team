@@ -58,7 +58,7 @@ def _provider_json(path, params, opener=None):
     if path not in {
         "/kbo/schedule", "/kbo/schedule/day", "/kbo/history/team",
         "/kbo/history/athlete/ranking", "/team", "/kbo/history/athlete/top5",
-        "/roaster/item", "/athlete",
+        "/roaster", "/roaster/item", "/athlete",
     }:
         raise TvingInputError("허용되지 않은 TVING 리소스입니다.")
     url = f"{BASE_URL}{path}?{urlencode(params)}"

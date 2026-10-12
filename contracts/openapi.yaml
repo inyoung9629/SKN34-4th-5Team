@@ -5155,6 +5155,46 @@ paths:
                 $ref: '#/components/schemas/PaginatedAdminPostList'
           description: ''
   /api/v1/community/admin/posts/{source_id}/:
+    patch:
+      operationId: v1_community_admin_posts_partial_update
+      description: 신고 관리와 동일한 정책으로 게시글과 관련 신고를 숨김 처리합니다. 해제는 지원하지 않습니다.
+      parameters:
+      - in: path
+        name: source_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [hide]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminPost'
+          description: 숨김 처리된 게시글
+        '400':
+          description: 잘못된 요청
+        '401':
+          description: 로그인 필요
+        '403':
+          description: 운영 관리자 권한 필요
+        '404':
+          description: 게시글 없음
     delete:
       operationId: v1_community_admin_posts_destroy
       description: 게시글 삭제 (댓글·추천·신고도 함께 삭제된다).
@@ -5802,6 +5842,24 @@ paths:
           enum:
           - free
           - teams
+      - in: query
+        name: category
+        schema:
+          type: string
+          enum:
+          - 경기토론
+          - 굿즈
+          - 사진·영상
+          - 소식·정보
+          - 응원
+          - 이적·신인
+          - 잡담
+          - 전력토론
+          - 좌석·예매
+          - 직관준비
+          - 직관후기
+          - 질문
+        description: 글 분류 정확히 일치. 생략하면 전체 분류.
       - in: query
         name: mine
         schema:

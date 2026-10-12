@@ -58,6 +58,9 @@ export type CourseTarget = {
   selectionKey?: string;
   getContext?: () => ChatContext;
   getVersion?: () => string;
+  /** 같은 작성 화면에서는 지도 편집과 무관하게 요청 당시의 코스를 완성한다. */
+  requestScope?: object;
+  captureApply?: () => CourseTarget["apply"];
   apply: (course: ChatCourse, how: "replace" | "append") => (() => boolean | void) | null;
 };
 export type AppliedCourse = { undo: (() => boolean | void) | null; message: string };
@@ -789,11 +792,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const message = historyRef.current.find(item => item.course === course && item.role === "assistant" && item.status === "completed");
     return restoreWriterCourse(course, identityRef.current, backendSessions.current.get(activeConversationRef.current), message?.id, undefined, restoreSaved);
   }, []);
-  const applyChatCourse = useCallback((course: ChatCourse, how: "replace" | "append") => {
+  const applyChatCourse = useCallback((course: ChatCourse, how: "replace" | "append", applyRequest?: CourseTarget["apply"]) => {
     const target = courseTargetRef.current;
     if (!target) return;
     const had = target.stopCount, otherStadium = Boolean(course.stadiumCode && course.stadiumCode !== target.stadiumCode);
-    const undo = target.apply(prepareWriterCourse(course, false), how);
+    const undo = (applyRequest ?? target.apply)(prepareWriterCourse(course, false), how);
     const message = !undo ? "이 코스를 지도에 담지 못했어요. 구장을 확인해 주세요."
       : otherStadium ? "구장을 바꾸고 추천 코스를 옆 지도에 그렸어요."
       : how === "append" ? "내 코스 뒤에 이어 담았어요."
@@ -846,11 +849,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const requestedTarget = courseTargetRef.current;
     const requestedTargetVersion = courseTargetVersionRef.current;
     const requestedCourseVersion = requestedTarget?.getVersion?.();
+    const applyRequestedCourse = requestedTarget?.captureApply?.();
     const suppliedContext = options ? options.context : context;
     // 재시도·대화 전환 직후에도 현재 지도 구장을 사용한다.
-    const selectedContext = requestedTarget
+    const currentContext = requestedTarget
       ? requestedTarget.getContext?.() ?? { ...context, stadium: requestedTarget.stadiumCode, intent: "route" as const }
       : suppliedContext;
+    // 첨부 업로드를 기다리는 동안에도 지도 변경이 전송할 조건을 바꾸지 않는다.
+    const selectedContext = currentContext ? structuredClone(currentContext) : undefined;
     const editId = options ? options.editId ?? null : editingMessageId;
     const fromComposer = text === undefined;
     if (fromComposer && !composing.current && !preparingSend.current && !requestRef.current && mode) {
@@ -976,7 +982,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setQueuePaused(false);
       knownSession = reply.sessionId;
       if (reply.sessionId) backendSessions.current.set(conversationId, reply.sessionId);
-      const assistant: ChatMessage = { role: "assistant", content: reply.reply, planning: reply.planning, course: reply.course, coursePreferences: reply.coursePreferences, status: "completed", ...(reply.assistantMessageId ? { id: reply.assistantMessageId } : {}), ...(reply.tools?.length ? { tools: reply.tools } : {}), ...(reply.timeline?.length ? { timeline: reply.timeline } : {}) };
+      const assistant: ChatMessage = { role: "assistant", content: reply.reply, planning: reply.planning, course: reply.course, coursePreferences: reply.coursePreferences, ...(reply.videos ? { videos: reply.videos } : {}), status: "completed", ...(reply.assistantMessageId ? { id: reply.assistantMessageId } : {}), ...(reply.tools?.length ? { tools: reply.tools } : {}), ...(reply.timeline?.length ? { timeline: reply.timeline } : {}) };
       const next: ChatMessage[] = [...previous, { ...userMessage, status: "completed" }, assistant];
       historyRef.current = next;
       setMessages(next);
@@ -984,11 +990,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const target = courseTargetRef.current;
       if (reply.course && requestedTarget && target) {
         // 이번 질문에서 다른 팀·구장을 지정했다면 코스가 정한 구장으로 지도도 옮긴다.
-        // 요청 이후 직접 구장을 바꿨다면 (바꿨다가 돌아온 경우도) 최신 선택을 지킨다.
-        if (requestedCourseVersion !== undefined
-          ? target.getContext === requestedTarget.getContext && target.getVersion?.() === requestedCourseVersion
-          : courseTargetVersionRef.current === requestedTargetVersion) {
-          applyChatCourse(reply.course, "replace");
+        // 작성 화면을 떠났다가 다시 연 경우만 구분하고, 진행 중 지도 편집은 요청과 분리한다.
+        if (requestedTarget.requestScope
+          ? target.requestScope === requestedTarget.requestScope
+          : requestedCourseVersion !== undefined
+            ? target.getContext === requestedTarget.getContext && target.getVersion?.() === requestedCourseVersion
+            : courseTargetVersionRef.current === requestedTargetVersion) {
+          applyChatCourse(reply.course, "replace", applyRequestedCourse);
         } else {
           setAppliedCourses(current => new Map(current).set(reply.course!, { undo: null, message: "답변을 기다리는 중 구장이나 경로를 바꿔 새 선택을 유지했어요. 이 코스는 확인한 뒤 직접 담을 수 있어요." }));
         }

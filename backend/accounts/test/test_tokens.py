@@ -272,7 +272,11 @@ class JWTPasswordRegressionTest(APITestCase):
                 user = get_user_model().objects.create_user(
                     username=f"{state}-user", password=self.password
                 )
-                pair = self.login(user)
+                if state == "deleted":
+                    refresh = RefreshToken.for_user(user)
+                    pair = {"access": str(refresh.access_token), "refresh": str(refresh)}
+                else:
+                    pair = self.login(user)
                 if state == "inactive":
                     user.is_active = False
                     user.save(update_fields=["is_active"])

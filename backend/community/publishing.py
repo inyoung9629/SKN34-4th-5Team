@@ -12,6 +12,8 @@ from .drafts import validated
 from .models import CommunityDraft, CommunityImage, CommunityPost
 from .serializers import CommunityPostSerializer
 from .views import post_queryset, same_submission
+from accounts.point_policy import POST, grant_definition
+from accounts.point_service import grant_points
 
 
 def draft_post_data(draft):
@@ -101,6 +103,7 @@ class CommunityDraftPublishView(APIView):
                     idempotency_key=key,
                     is_sample=False,
                 )
+                grant_points(user=request.user, **grant_definition(POST, f"{post.source_id}"))
                 if images:
                     CommunityImage.objects.filter(pk__in=(image.pk for image in images)).update(draft=None, post=post)
                 draft.published_post = post

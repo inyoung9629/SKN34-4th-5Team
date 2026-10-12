@@ -13,6 +13,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 
 from .serializers import CommunityPostSerializer
+from .models import TEAM_CATEGORIES
 
 
 class CommunityPostQuery(BaseModel):
@@ -22,6 +23,14 @@ class CommunityPostQuery(BaseModel):
     page_size: int | None = Field(default=None, le=100)
     q: str | None = Field(default=None, max_length=200)
     search_field: Literal["all", "title", "author"] = "all"
+    category: str | None = None
+
+    @field_validator("category")
+    @classmethod
+    def validate_category(cls, value):
+        if value not in TEAM_CATEGORIES:
+            raise ValueError("올바른 글 분류를 입력해 주세요.")
+        return value
 
     @field_validator("page", "page_size", mode="before")
     @classmethod
@@ -45,6 +54,7 @@ class CommunityPostQuery(BaseModel):
                 "page": "page는 1 이상 2147483647 이하의 정수여야 합니다.",
                 "page_size": "page_size는 1 이상 100 이하의 정수여야 합니다.",
                 "q": "q는 공백을 제외하고 200자 이하여야 합니다.",
+                "category": "올바른 글 분류를 입력해 주세요.",
                 "search_field": "search_field는 all, title, author 중 하나여야 합니다.",
             }
             errors = {str(error["loc"][0]): messages[str(error["loc"][0])] for error in exc.errors()}

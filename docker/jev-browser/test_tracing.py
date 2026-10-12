@@ -45,7 +45,8 @@ class TracingTests(unittest.IsolatedAsyncioTestCase):
                 for outcome in ("ok", "blocked", "timeout", "overflow", "cancelled", "error"):
                     process = AsyncMock(pid=99999999, returncode=0)
                     process.stdout.read.return_value = b""
-                    body = {"status": "ok", "body": "BODY_SENTINEL", "source_url": url}
+                    body = {"status": "ok", "body": "BODY_SENTINEL", "source_url": url,
+                            "source_kind": "rendered_dom_snapshot"}
                     data = {"status": "done", "goal": "GOAL_SENTINEL"} if tool is server.jev_browse else body
                     if outcome == "blocked": data["status"] = "blocked"
                     failure = {"timeout": TimeoutError(), "overflow": OverflowError(),

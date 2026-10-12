@@ -88,6 +88,22 @@ class AdminPostList(generics.ListAPIView):
         return posts
 
 
+def hide_post(post, actor, now):
+    """Both admin entry points use the same policy; caller holds the post lock."""
+    post.is_hidden = True
+    post.save(update_fields=["is_hidden"])
+    post.reports.exclude(status="hidden").update(status="hidden", handled_at=now, handled_by=actor)
+
+
+class AdminPostHideSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(choices=("hide",))
+
+    def validate(self, attrs):
+        if set(self.initial_data) != {"action"}:
+            raise serializers.ValidationError("action 필드만 전달해 주세요.")
+        return attrs
+
+
 class AdminPostDetail(generics.DestroyAPIView):
     """게시글 삭제 (댓글·추천·신고도 함께 삭제된다)."""
     permission_classes = (StaffOnly,)
@@ -95,6 +111,17 @@ class AdminPostDetail(generics.DestroyAPIView):
     queryset = CommunityPost.objects.all()
     lookup_field = "source_id"
     lookup_url_kwarg = "source_id"
+
+    @extend_schema(request=AdminPostHideSerializer, responses=AdminPostSerializer)
+    def patch(self, request, *args, **kwargs):
+        serializer = AdminPostHideSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            post = get_object_or_404(CommunityPost.objects.select_for_update(), source_id=kwargs["source_id"])
+            self.check_object_permissions(request, post)
+            hide_post(post, request.user, timezone.now())
+            result = CommunityPost.objects.annotate(report_count=Count("reports", distinct=True)).get(pk=post.pk)
+        return Response(AdminPostSerializer(result).data)
 
 
 @extend_schema(parameters=[PAGE])
@@ -129,8 +156,10 @@ class AdminReportAction(APIView):
         now = timezone.now()
         with transaction.atomic():
             # 작성자가 없을 수 있는 글과의 외부 조인에는 FOR UPDATE를 걸 수 없어서, 신고와 글을 각각 잠근다
-            report = get_object_or_404(CommunityReport.objects.select_for_update(), pk=report_id)
-            post = CommunityPost.objects.select_for_update().get(pk=report.post_id)
+            post_id = get_object_or_404(CommunityReport, pk=report_id).post_id
+            # Lock the post before reports in both entry points to avoid lock inversion.
+            post = get_object_or_404(CommunityPost.objects.select_for_update(), pk=post_id)
+            report = get_object_or_404(CommunityReport.objects.select_for_update(), pk=report_id, post_id=post_id)
             status = None
             if action in ("hold", "unhold") and (report.status == "hidden" or post.is_hidden):
                 raise ValidationError({"action": "숨김 처리된 게시글의 신고는 보류 상태를 변경할 수 없습니다."})
@@ -143,9 +172,7 @@ class AdminReportAction(APIView):
                 report.save(update_fields=["status", "handled_at", "handled_by"])
                 status = "pending"
             elif action == "hide":
-                post.is_hidden = True
-                post.save(update_fields=["is_hidden"])
-                post.reports.exclude(status="hidden").update(status="hidden", handled_at=now, handled_by=request.user)
+                hide_post(post, request.user, now)
                 status = "hidden"
             else:
                 post.delete()

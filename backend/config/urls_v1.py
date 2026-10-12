@@ -8,4 +8,5 @@ urlpatterns = [
     path("auth/", include("accounts.urls")),
     path("baseball/", include("baseball.urls")),
     path("tving/", include("tving.urls")),
+    path("fantasy/", include("fantasy.urls")),
 ]

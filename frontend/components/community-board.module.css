@@ -29,6 +29,14 @@ main.page { max-width: 1280px; padding-top: 56px; padding-bottom: 80px; min-heig
 .titleCell a { display: block; padding: 4px 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .titleCell a:hover { text-decoration: underline; }
 .titleCell a:focus-visible { outline: 2px solid #2868dc; outline-offset: 2px; }
+.titleLinks { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.titleLinks > a:last-child { min-width: 0; }
+.titleLinks > .categoryLink { flex-shrink: 0; overflow: visible; }
+.categoryLink { display: inline-flex; align-items: center; min-height: 32px; text-decoration: none; }
+.categoryLink:hover { text-decoration: underline; }
+.categoryLink:focus-visible { outline: 2px solid #2868dc; outline-offset: 3px; border-radius: 3px; }
+.categoryFilter { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px 14px; background: #edf4ff; color: #405575; border-radius: 8px; font-size: 13px; }
+.categoryFilter a { display: inline-flex; align-items: center; min-height: 40px; color: #1455eb; text-decoration: underline; }
 .boardTable tbody tr:hover, .selectedRow { background: #f4f7fc; }
 .boardTable .emptyCell { height: 150px; }
 .postDetail { margin: 20px 0 28px; background: white; border: 1px solid #dce5f1; border-top: 2px solid #405575; }

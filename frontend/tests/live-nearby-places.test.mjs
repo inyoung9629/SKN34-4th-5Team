@@ -133,6 +133,49 @@ test("partial failures preserve results and never fall back to public catalogue"
   assert.equal(places.length, 1);
 });
 
+test("rate limits pause the shared queue and retry without dropping category results", async () => {
+  const started = [], counts = new Map();
+  let places = [];
+  const result = await collectLiveNearbyPlaces({}, stadium, new AbortController().signal, () => "all", incoming => {
+    places = mergePlaces(places, incoming);
+  }, async (_, init) => {
+    const q = JSON.parse(init.body), key = q.keyword ?? q.category;
+    started.push(Date.now());
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+    if (key === "FD6" && counts.get(key) === 1) return Response.json({ error: "retry later" }, { status: 429, headers: { "Retry-After": "0.1" } });
+    const group = q.category === "CS2" || q.category === "AD5" ? q.category : "FD6";
+    return Response.json({ places: [{ ...raw, id: { FD6: "101", CS2: "102", AD5: "103" }[group], category_group_code: group }], hasNextPage: false });
+  });
+  assert.equal(result.failures, 0);
+  assert.equal(counts.get("FD6"), 2);
+  assert.ok(started[2] - started[0] >= 450, "both workers respect the cooldown");
+  assert.deepEqual(new Set(places.map(p => p.kind)), new Set(["food", "store", "stay"]));
+});
+
+test("cancelling during rate-limit backoff stops queued requests immediately", async () => {
+  const controller = new AbortController();
+  let calls = 0;
+  const request = collectLiveNearbyPlaces({}, stadium, controller.signal, () => "all", () => {}, async () => {
+    if (++calls === 1) setTimeout(() => controller.abort(), 20);
+    return Response.json({ error: "retry later" }, { status: 429, headers: { "Retry-After": "60" } });
+  });
+  await assert.rejects(request, { name: "AbortError" });
+  assert.equal(calls, 2);
+});
+
+test("persistent rate limits have bounded retries and remain reported as incomplete", async () => {
+  let calls = 0;
+  const result = await collectLiveNearbyPlaces({}, stadium, new AbortController().signal, () => "all", () => {}, async (_, init) => {
+    if (JSON.parse(init.body).category === "AD5") {
+      calls++;
+      return Response.json({ error: "retry later" }, { status: 429, headers: { "Retry-After": "0" } });
+    }
+    return Response.json({ places: [raw], hasNextPage: false });
+  });
+  assert.equal(calls, 3);
+  assert.equal(result.failures, 1);
+});
+
 test("lodging failure preserves other categories and reports partial failure", async () => {
   let places = [];
   const result = await collectLiveNearbyPlaces({}, stadium, new AbortController().signal, () => "stay", incoming => { places = mergePlaces(places, incoming); }, async url => {

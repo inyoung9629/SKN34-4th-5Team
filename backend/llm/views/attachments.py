@@ -3,6 +3,7 @@ import uuid
 from collections.abc import Mapping
 
 from django.db import transaction
+from django.db.models import Q
 from django.http import Http404, HttpResponse
 from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import JSONParser, MultiPartParser
@@ -23,6 +24,7 @@ TOOL_GROUP_LABELS = {
     "schedule": "경기 일정",
     "standings": "순위",
     "players": "선수 정보",
+    "highlight": "하이라이트",
     "baseball_stats": "야구 기록",
     "rules": "규정",
     "stadium_info": "구장 정보",
@@ -80,7 +82,8 @@ class ChatAttachmentView(APIView):
                 if not ChatSession.objects.select_for_update().filter(pk=session.id).exists():
                     raise Http404
                 if not is_file:
-                    existing = session.attachments.filter(kind="url", source_url=url).first()
+                    existing = session.attachments.filter(kind="url", source_url=url).filter(
+                        Q(url_read_result={}) | ~Q(extracted_text="")).first()
                     if existing:
                         return Response(metadata(existing), status=201)
                 if is_file:

@@ -4,6 +4,19 @@ import { NEARBY_RADIUS, NEARBY_SEARCHES, normalizePlace, type CategoryFilter, ty
 type SearchPage = { places: KakaoPlace[]; hasNextPage: boolean; syncedAt?: string; totalCount?: number; pageableCount?: number };
 type SearchArea = { lat: number; lng: number; radius: number };
 
+class PlaceSearchRateLimit extends Error {
+  constructor(readonly retryAfterMs: number, message: string) { super(message); }
+}
+
+function waitForSearch(ms: number, signal: AbortSignal): Promise<void> {
+  signal.throwIfAborted();
+  return new Promise((resolve, reject) => {
+    const cancelled = () => { clearTimeout(timer); reject(signal.reason); };
+    const timer = setTimeout(() => { signal.removeEventListener("abort", cancelled); resolve(); }, ms);
+    signal.addEventListener("abort", cancelled, { once: true });
+  });
+}
+
 function quadrantAreas(stadium: NearbyStadium): SearchArea[] {
   const offset = NEARBY_RADIUS / 2;
   const latStep = offset / 111195;
@@ -26,7 +39,16 @@ async function requestPlaces(endpoint: string, query: PlaceRequest, signal: Abor
   const response = await fetcher(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(query), cache: "no-store", signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]) });
   let body: unknown;
   try { body = await response.json(); } catch { throw new Error("장소 검색 응답을 확인하지 못했어요."); }
-  if (!response.ok) throw new Error(body && typeof body === "object" && typeof (body as { error?: unknown }).error === "string" ? (body as { error: string }).error : "일부 장소를 불러오지 못했어요.");
+  if (!response.ok) {
+    const message = body && typeof body === "object" && typeof (body as { error?: unknown }).error === "string" ? (body as { error: string }).error : "일부 장소를 불러오지 못했어요.";
+    if (response.status === 429) {
+      const retry = response.headers.get("Retry-After");
+      const ms = retry === null ? 1000 : /^\d+(?:\.\d+)?$/.test(retry) ? Number(retry) * 1000 : Date.parse(retry) - Date.now();
+      // Honor the server's cooldown; unusually long limits remain visible errors.
+      if (!Number.isFinite(ms) || ms <= 120000) throw new PlaceSearchRateLimit(Number.isFinite(ms) ? Math.max(500, ms) : 1000, message);
+    }
+    throw new Error(message);
+  }
   if (!body || typeof body !== "object" || !Array.isArray((body as SearchPage).places) || typeof (body as SearchPage).hasNextPage !== "boolean") throw new Error("장소 검색 응답을 확인하지 못했어요.");
   return body as SearchPage;
 }
@@ -50,14 +72,19 @@ export async function collectNearbyPlaces(maps: KakaoMaps, stadium: NearbyStadiu
   signal.throwIfAborted();
   // All categories share one bounded queue, including read-only AD5 lodging.
   const area = { lat: stadium.lat, lng: stadium.lng, radius: NEARBY_RADIUS };
-  const queue = NEARBY_SEARCHES.map((spec, order) => ({ spec, order, page: 1, area, depth: 0 }));
+  const queue = NEARBY_SEARCHES.map((spec, order) => ({ spec, order, page: 1, area, depth: 0, retries: 0 }));
   const expanded = new Set<number>();
   let completed = 0, failures = 0;
+  let resumeAt = 0;
   async function worker() {
     while (queue.length && !signal.aborted) {
+      while (resumeAt > Date.now()) await waitForSearch(resumeAt - Date.now(), signal);
+      signal.throwIfAborted();
+      if (!queue.length) break;
       const category = preferred();
       queue.sort((a, b) => {
-        const priority = (job: typeof a) => category === job.spec.kind ? -1 : job.spec.kind === "stay" ? 2 : job.spec.kind === "store" ? 1 : 0;
+        const priority = (job: typeof a) => category === job.spec.kind ? -1 : 0;
+        // Cover every category's first page before pagination or quadrant expansion.
         return priority(a) - priority(b) || a.depth - b.depth || a.page - b.page || a.order - b.order;
       });
       const job = queue.shift()!;
@@ -70,13 +97,18 @@ export async function collectNearbyPlaces(maps: KakaoMaps, stadium: NearbyStadiu
           : job.page === 3 && (result.hasNextPage || result.places.length === 15);
         if (live && job.depth === 0 && job.spec.method === "category" && truncated && !expanded.has(job.order)) {
           expanded.add(job.order);
-          for (const area of quadrantAreas(stadium)) queue.push({ ...job, area, page: 1, depth: 1 });
+          for (const area of quadrantAreas(stadium)) queue.push({ ...job, area, page: 1, depth: 1, retries: 0 });
         }
-        if (result.hasNextPage && job.page < 3) queue.push({ ...job, page: job.page + 1 });
+        if (result.hasNextPage && job.page < 3) queue.push({ ...job, page: job.page + 1, retries: 0 });
         else completed++;
         onUpdate(normalized, completed, failures);
       } catch (error) {
         if (signal.aborted) throw error;
+        if (error instanceof PlaceSearchRateLimit) {
+          // Pause both workers, not just this request, to avoid exhausting the rest.
+          resumeAt = Math.max(resumeAt, Date.now() + error.retryAfterMs);
+          if (job.retries < 2) { queue.push({ ...job, retries: job.retries + 1 }); continue; }
+        }
         failures++; completed++; onUpdate([], completed, failures);
       }
     }

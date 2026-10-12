@@ -194,12 +194,20 @@ _PHASE_MARKER = re.compile(
 )
 _COUNT = re.compile(r"\s*(?:를|을)?\s*(한|두|세|네|다섯|[1-5])\s*(?:곳|군데)")
 _COUNT_VALUE = {"한": 1, "두": 2, "세": 3, "네": 4, "다섯": 5}
+_EXCLUDED_PHASE_VISITS = re.compile(
+    r"(?:" + _PHASE_MARKER.pattern + r")\s*(?:에는|에|은|는|만)?\s*"
+    r"(?:(?:다른|추가)\s*)?(?:장소|방문지|활동|일정)\s*(?:은|는|을|를|도)?\s*"
+    r"(?:넣|추가하|포함하|추천하)지\s*(?:말|마|않)"
+)
 
 
 def requested_itinerary(question):
     """사용자가 명시한 활동의 구간·순서·개수를 고정한다. None일 때만 기본 코스를 허용한다."""
     q = question or ""
     clean, excluded = _EXCLUDED_ACTIVITIES.subn(lambda m: " " * len(m.group()), q)
+    # A negated phase is not a new time marker for a following summary:
+    # '경기 후 호텔 숙박. 경기 전 다른 장소는 넣지 말고, 숙박만 포함'.
+    clean, excluded_phases = _EXCLUDED_PHASE_VISITS.subn(lambda m: " " * len(m.group()), clean)
     markers = list(_PHASE_MARKER.finditer(clean))
     result = {"BEFORE": [], "AFTER": []}
     hits = sorted((m.start(), -m.end(), kind, m.group()) for kind, pattern in AFTER_ACTIVITY.items()
@@ -233,7 +241,7 @@ def requested_itinerary(question):
             if kind != last_kind or phases != last_phases or repeat:
                 result[phase].extend([kind] * count)
         last_end, last_kind, last_phases = end, kind, phases
-    specified = any(result.values()) or excluded or re.search(r"귀가|집(?:에|으로)|바로\s*돌아", clean)
+    specified = any(result.values()) or excluded or excluded_phases or re.search(r"귀가|집(?:에|으로)|바로\s*돌아", clean)
     return result if specified else None
 
 

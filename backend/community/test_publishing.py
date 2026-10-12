@@ -8,6 +8,7 @@ from django.test import TransactionTestCase
 from rest_framework.test import APIClient, APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from accounts.models import PointTransaction, PointWallet
 from .models import CommunityDraft, CommunityImage, CommunityPost
 
 
@@ -79,6 +80,11 @@ class CommunityDraftPublishTests(APITestCase):
         self.assertEqual((draft.published_post_id, image.post_id, image.draft_id), (created.data["id"], created.data["id"], None))
         self.assertEqual((draft.title, draft.content), ("게시할 글", "게시할 본문"))
         self.assertEqual(CommunityPost.objects.filter(owner=self.owner).count(), 1)
+        self.assertEqual(PointWallet.objects.get(user=self.owner).balance, 1)
+        self.assertEqual(
+            PointTransaction.objects.filter(user=self.owner, source_type="post").count(),
+            1,
+        )
         self.assertEqual(self.client.get(f"/api/v1/community/drafts/{draft.pk}/").status_code, 404)
         self.assertNotIn(str(draft.pk), [item["id"] for item in self.client.get("/api/v1/community/drafts/").data["results"]])
 

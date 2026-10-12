@@ -6,8 +6,42 @@ x-logging: &default-logging
 
 services:
 
+  course-place-warmer:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      COURSE_PLACE_WARM_ENABLED: "true"
+      COURSE_WEB_VERIFICATION_ENABLED: ${COURSE_WEB_VERIFICATION_ENABLED:-false}
+    volumes:
+      - ./backend:/app
+      - ./data:/data:ro
+    command: ["python", "manage.py", "warm_course_places", "--loop"]
+    stop_grace_period: 40s
+    logging: *default-logging
+
+  lodging-warmer:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      LODGING_CHROME_TRANSPORT: mcp
+      JEV_MCP_URL: http://jev-browser:8080/mcp
+      JEV_MCP_TOKEN: ${JEV_MCP_TOKEN:-}
+      LODGING_WARM_STADIUMS: ${LODGING_WARM_STADIUMS:-}
+    volumes:
+      - ./backend:/app
+      - ./data:/data:ro
+    command: ["python", "manage.py", "warm_lodging_cache", "--loop"]
+    stop_grace_period: 55s
+    depends_on:
+      jev-browser:
+        condition: service_started
+    logging: *default-logging
+
   jev-browser:
-    profiles: [web-research]
     build: ./docker/jev-browser
     restart: unless-stopped
     cap_add: [NET_ADMIN]
@@ -73,11 +107,16 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       JEV_MCP_TOKEN: ${JEV_MCP_TOKEN:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      # 숙박 수집은 서버 브라우저의 결정적 Chrome 도구를 사용한다(모델 검색 없음).
+      LODGING_CHROME_TRANSPORT: mcp
+      JEV_MCP_URL: http://jev-browser:8080/mcp
       # 로컬 프로필일 때만 API 요청 기반 크롤링을 활성화한다.
       COMPOSE_PROFILES: ${COMPOSE_PROFILES:-}
       CHAT_CHECKPOINT_SIGNING_KEY: ${CHAT_CHECKPOINT_SIGNING_KEY:?Set CHAT_CHECKPOINT_SIGNING_KEY}
       CHAT_TRUST_PROXY_HEADERS: "true"
+      COURSE_PLACE_WARM_ENABLED: "true"
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      COURSE_RECOMMENDATION_MODE: ${COURSE_RECOMMENDATION_MODE:-balanced}
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
       QDRANT_API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY}
       QDRANT_DOCUMENT_COLLECTION: ${QDRANT_DOCUMENT_COLLECTION:-kbo_documents_openai}

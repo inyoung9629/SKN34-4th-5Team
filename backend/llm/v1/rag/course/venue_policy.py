@@ -9,6 +9,22 @@ from travel import stadium_signatures
 from . import place_quality
 from .signature_intent import generic_term, use_default
 
+_DISCOVERY = ContextVar("course_prepared_discovery", default={})
+
+
+def discovery_key(args, category):
+    return (_CATEGORY.get(category, category), tuple((key, args.get(key)) for key in
+        ("method", "category", "query", "latitude", "longitude", "radius", "sort", "limit")))
+
+
+@contextmanager
+def prepared_discovery(snapshot):
+    token = _DISCOVERY.set(snapshot or {})
+    try:
+        yield
+    finally:
+        _DISCOVERY.reset(token)
+
 _PERMISSION = ContextVar("course_internal_venues", default=(None, frozenset()))
 _EXTERNAL = ContextVar("course_external_visits", default=frozenset())
 _MENU_REQUESTS = ContextVar("course_internal_menu_requests", default=())
@@ -186,6 +202,13 @@ def discover_candidates(invoke, args, category, *, diagnostics=None):
         if diagnostics is not None:
             diagnostics.update(source="MYSEATCHECK", warning="자리어때 수집 목록만 사용합니다. 핀은 구장 옆 표시 위치이며 상세 위치는 매장별 링크를 확인하세요. 현재 영업·메뉴는 미확인입니다.")
         return [provider_shape(p) for p in places]
+    prepared = _DISCOVERY.get().get(discovery_key(args, category))
+    if prepared is not None:
+        # Source permission is checked above, and boundaries are checked again
+        # under the final interpreted request. Raw discovery is never approval.
+        if diagnostics is not None:
+            diagnostics.update(prepared.get("diagnostics", {}))
+        return filter_candidates(prepared["places"], category, check_quality=False)
     found = {}
     for page in range(1, 4):
         payload = invoke("course", "search_places", {**args, "page": page})
@@ -226,6 +249,8 @@ def search_candidates(invoke, args, category, *, diagnostics=None, candidate_fil
         center=quality_center or (center if located else None), search_center=center if located else None,
         radius=args.get("radius", 2500), reuse=quality_reuse)
     if diagnostics is not None and place_quality.active(category):
+        from . import recommendation_policy
         diagnostics.update(source="KAKAO_WITH_QUALITY_CHECK", rawCandidateCount=raw_count,
-                           verifiedCandidateCount=len(result), warning=place_quality.NOTICE)
+                           verifiedCandidateCount=sum(not p.get("qualityUnverified") for p in result),
+                           warning=recommendation_policy.NOTICE if recommendation_policy.balanced() else place_quality.NOTICE)
     return result

@@ -33,6 +33,27 @@ def finding(**values):
 
 @override_settings(COURSE_WEB_VERIFICATION_ENABLED=True, PLACE_EVIDENCE_STORAGE_POLICIES=POLICY)
 class CourseEvidenceTests(TestCase):
+    def test_failed_local_probe_does_not_suppress_normal_menu_research(self):
+        from llm.v1.rag.course import place_quality
+        with evidence.request_budget(), patch.object(evidence, "search", side_effect=[
+                ([], set(), 0), ([finding()], {"https://example.com/menu"}, 1)]) as lookup:
+            with place_quality.local_probe():
+                self.assertEqual(evidence.enrich([PLACE], ["돈까스"]), [])
+            self.assertEqual(PlaceEnrichmentAttempt.objects.count(), 0)
+            self.assertEqual(evidence._BUDGET.get()["searches"], 0)
+            self.assertEqual(evidence._BUDGET.get()["tried"], set())
+            result = evidence.enrich([PLACE], ["돈까스"])
+            self.assertEqual([p["placeId"] for p in result], [PLACE["placeId"]])
+            self.assertEqual(lookup.call_count, 2)
+
+    def test_local_probe_menu_unknown_never_invokes_web_search_or_becomes_match(self):
+        from llm.v1.rag.course import place_quality, grounding
+        with place_quality.request_scope("JAMSIL"), place_quality.local_probe(), \
+                patch.object(place_quality, "resolve", return_value={"reviewUrl": "https://example.com/menu"}), \
+                patch.object(grounding, "verify", return_value=[]), patch.object(evidence, "_search_once") as search:
+            self.assertEqual(evidence.search([PLACE], [requirement()]), ([], {"https://example.com/menu"}, 0))
+            search.assert_not_called()
+
     def test_closing_time_fallback_reuses_verified_menu_within_turn_without_storage_permission(self):
         second = {**PLACE, 'placeId':'fixture:second'}
         proof = [finding(), finding(place_id=second['placeId'])]
@@ -55,6 +76,37 @@ class CourseEvidenceTests(TestCase):
 
     def rows(self, findings=None):
         return evidence.checked_rows(PLACE, [self.requirement], findings or [finding()], self.opened, self.now)
+
+    def test_local_verified_menu_avoids_researching_unneeded_shops_but_not_distant_or_expired_evidence(self):
+        evidence.store(PLACE, self.rows(), self.now)
+        unknown = {**PLACE, "placeId": "fixture:unknown", "lat": PLACE["lat"] + .001}
+        with evidence.local_candidates(PLACE), patch.object(evidence, "search", return_value=([], set(), 0)) as search:
+            result = evidence.enrich([unknown, PLACE], ["돈까스"])
+        self.assertEqual([p["placeId"] for p in result], [PLACE["placeId"]])
+        self.assertEqual(result[0]["conditionChecks"][0]["status"], "match")
+        search.assert_not_called()
+        self.assertIsNone(evidence._LOCAL_CENTER.get())
+        far_center = {**PLACE, "lat": PLACE["lat"] + .02}
+        close_unknown = {**unknown, "placeId": "fixture:close-unknown", "lat": far_center["lat"]}
+        with evidence.local_candidates(far_center), patch.object(evidence, "search", return_value=([], set(), 0)) as search:
+            evidence.enrich([close_unknown, PLACE], ["돈까스"])
+        search.assert_called()
+        self.assertLessEqual(search.call_count, evidence.MAX_PASSES)
+        PlaceKnowledgeObservation.objects.filter(place_id=PLACE["placeId"]).update(
+            checked_at=self.now-timedelta(days=2), valid_until=self.now-timedelta(days=1))
+        with evidence.local_candidates(PLACE), patch.object(evidence, "search", return_value=([], set(), 0)) as search:
+            self.assertEqual(evidence.enrich([PLACE], ["돈까스"]), [])
+        search.assert_called()
+        self.assertLessEqual(search.call_count, evidence.MAX_PASSES)
+
+    def test_local_reuse_does_not_skip_semantic_constraints(self):
+        evidence.store(PLACE, self.rows(), self.now)
+        unknown = {**PLACE, "placeId": "fixture:ambiguous-unknown"}
+        with evidence.local_candidates(PLACE), patch.object(evidence, "requirements", return_value=[self.requirement]), \
+                patch.object(evidence, "search", return_value=([], set(), 0)) as search:
+            evidence.enrich([unknown, PLACE], ["수제 돈까스 메뉴가 있는 식당"])
+        search.assert_called()
+        self.assertLessEqual(search.call_count, evidence.MAX_PASSES)
 
     def test_cuisine_category_does_not_require_duplicate_web_proof_but_menu_still_does(self):
         from llm.v1.rag.course import agent
@@ -178,21 +230,36 @@ class CourseEvidenceTests(TestCase):
         self.assertEqual(PlaceKnowledgeObservation.objects.count(), 0)
         self.assertEqual(PlaceEnrichmentAttempt.objects.get().reason_code, "provider_error")
 
+    def test_policy_blocked_search_records_zero_provider_model_calls(self):
+        from llm.v2.agent.browser_research import allow_new_source_search
+        token = allow_new_source_search.set(False)
+        try:
+            with patch.object(evidence, "requirements", return_value=[self.requirement]), patch("openai.OpenAI") as provider:
+                self.assertEqual(evidence.enrich([PLACE], ["돈까스 메뉴"]), [])
+            provider.assert_not_called()
+        finally:
+            allow_new_source_search.reset(token)
+        attempt = PlaceEnrichmentAttempt.objects.get()
+        self.assertEqual((attempt.search_calls, attempt.model_calls), (0, 0))
+        self.assertEqual((attempt.status, attempt.reason_code), ("no_evidence", "not_found"))
+        self.assertEqual(PlaceKnowledgeObservation.objects.count(), 0)
+
     def test_turn_budget_spans_nested_lookups_and_resets_for_next_turn(self):
         places = [{**PLACE, "placeId": f"fixture:budget-{i}"} for i in range(3)]
+        conditions = ["돈까스 메뉴가 있는 식당"]  # Exercise the semantic parser's turn cache.
         with patch("llm.v1.rag.course.agent.llm") as model, \
                 patch.object(evidence, "search", return_value=([], set(), 1)) as search:
             parse = model.return_value.with_structured_output.return_value.invoke
             parse.return_value = evidence.Requirements(items=[self.requirement])
             with evidence.request_budget():
-                evidence.enrich([places[0]], ["돈까스 메뉴"])
+                evidence.enrich([places[0]], conditions)
                 with evidence.request_budget():
-                    evidence.enrich([places[1]], ["돈까스 메뉴"])
-                evidence.enrich([places[2]], ["돈까스 메뉴"])
+                    evidence.enrich([places[1]], conditions)
+                evidence.enrich([places[2]], conditions)
                 self.assertEqual(search.call_count, evidence.MAX_PASSES)
                 self.assertEqual(parse.call_count, 1)
             with evidence.request_budget():
-                evidence.enrich([places[2]], ["돈까스 메뉴"])
+                evidence.enrich([places[2]], conditions)
             self.assertEqual(search.call_count, evidence.MAX_PASSES * 2)
             self.assertEqual(parse.call_count, 2)
         self.assertIsNone(evidence._BUDGET.get())

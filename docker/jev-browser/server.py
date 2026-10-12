@@ -85,6 +85,23 @@ mcp = FastMCP("jev-browser", host="0.0.0.0", port=8080, stateless_http=True,
               ))
 # ponytail: no queue; callers retry busy rather than accumulate browser work.
 lock = asyncio.Lock()
+warm_task = None
+
+
+async def preempt_warm():
+    """Foreground work may interrupt only the optional warmer, then await cleanup."""
+    task = warm_task
+    if task is None or task.done():
+        return
+    if not task.cancelling():
+        task.cancel()
+    try:
+        await asyncio.wait_for(asyncio.shield(task), 3)
+    except asyncio.CancelledError:
+        if asyncio.current_task().cancelling():
+            raise
+    except TimeoutError:
+        pass  # Keep the lock held until cleanup really finishes.
 
 
 class BearerAuth:
@@ -129,6 +146,7 @@ async def jev_browse(url: str, goal: str, max_steps: int = 20) -> dict:
         raise ValueError("Public HTTP(S) URL required")
     if not goal.strip() or len(goal) > 8000 or not 1 <= max_steps <= 40:
         raise ValueError("Goal required (<=8000 characters), max_steps 1..40")
+    await preempt_warm()
     if lock.locked():
         return {"status": "busy", "retryable": True}
     async with lock:
@@ -173,6 +191,7 @@ async def jev_read_body(url: str) -> dict:
     parsed = urlsplit(url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password or parsed.port not in (None, 80, 443):
         return {"status": "blocked", "source_url": url}
+    await preempt_warm()
     if lock.locked():
         return {"status": "busy", "source_url": url}
     async with lock:
@@ -206,6 +225,64 @@ async def jev_read_body(url: str) -> dict:
                 try: os.killpg(process.pid, signal.SIGKILL)
                 except ProcessLookupError: pass
                 while await process.stdout.read(65536): pass
+                await process.wait()
+
+
+@mcp.tool()
+async def chrome_lodging(name: str, timeout_seconds: float = 45, background: bool = False, region: str = "") -> dict:
+    """Find one NOL property with deterministic Chrome, without JEV/model calls."""
+    if not name.strip() or len(name) > 255 or len(region) > 100 or not 1 <= timeout_seconds <= 45:
+        return {"status": "error"}
+    if not background:
+        await preempt_warm()
+        return await _chrome_lodging(name, timeout_seconds, region)
+    global warm_task
+    if lock.locked() or warm_task is not None:
+        return {"status": "busy"}
+    task = warm_task = asyncio.create_task(_chrome_lodging(name, timeout_seconds, region))
+    try:
+        return await task
+    except asyncio.CancelledError:
+        if asyncio.current_task().cancelling():
+            raise
+        return {"status": "busy"}
+    finally:
+        if warm_task is task:
+            warm_task = None
+
+
+async def _chrome_lodging(name, timeout_seconds, region=""):
+    if lock.locked():
+        return {"status": "busy"}
+    async with lock:
+        with tempfile.TemporaryDirectory(prefix="lodging-chrome-") as profile:
+            allowed = {"PATH", "HOME", "DISPLAY", "XAUTHORITY", "LODGING_CHROME_PATH", "LODGING_CHROME_ARGS"}
+            env = {k: v for k, v in os.environ.items() if k in allowed}
+            env.update(TMPDIR=profile, TMP=profile, TEMP=profile)
+            process = await asyncio.create_subprocess_exec(
+                "node", "/opt/service/chrome-lodging.mjs", profile, name, str(timeout_seconds), region,
+                env=env, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+                start_new_session=True,
+            )
+            try:
+                raw = await asyncio.wait_for(bounded_stdout(process, 2 * 1024 * 1024), timeout_seconds)
+                if process.returncode != 0:
+                    return {"status": "error"}
+                result = json.loads(raw)
+                return result if isinstance(result, dict) else {"status": "error"}
+            except OverflowError:
+                return {"status": "overflow"}
+            except TimeoutError:
+                return {"status": "timeout"}
+            except (ValueError, TypeError):
+                return {"status": "error"}
+            finally:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                while await process.stdout.read(65536):
+                    pass
                 await process.wait()
 
 

@@ -63,7 +63,7 @@ jobs:
             cd ~/dev
             git fetch origin
             git reset --hard origin/develop
-            docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile web-research up -d --build --renew-anon-volumes backend frontend jev-browser
+            docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build --renew-anon-volumes backend frontend jev-browser lodging-warmer
             docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --no-deps --force-recreate nginx
             docker compose -f docker-compose.yml -f docker-compose.dev.yml exec -T nginx nginx -t
 

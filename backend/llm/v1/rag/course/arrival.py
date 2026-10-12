@@ -7,7 +7,7 @@ from .default_origins import station_origin
 from ...progress import ProgressCancelled, ProgressStorageError
 
 RADIUS_M = 2500
-RELATIVE_ORIGINS = {"여기", "내 위치", "현재 위치", "현위치", "지도", "집", "회사"}
+RELATIVE_ORIGINS = {"여기", "내 위치", "현재 위치", "현위치", "지도", "집", "회사", "출발지"}
 STADIUM_ORIGINS = {"구장", "경기장", "야구장"}
 NO_ORIGIN = re.compile(r"^(?:아직\s*)?(?:없|없이|미정|미지정|안\s*(?:정|골|찍|지정)|정하지\s*않|지정하지\s*않)")
 
@@ -33,7 +33,7 @@ def _origin_reference(question):
     for clause in reversed(re.split(r"[.!?\n,]", text)):
         if re.search(r"경기\s*(?:후|끝)|관람\s*후", clause):
             continue
-        explicit = re.search(r"출발(?:지|장소|위치)\s*(?:는|은|:|를|을)?\s*(.+?)(?=\s*(?:에서|으로|로|이고|이야|입니다|이거든)|$)", clause)
+        explicit = re.search(r"출발(?:지|장소|위치)(?!\s*(?:에서|부터))\s*(?:는|은|:|를|을)?\s*(.+?)(?=\s*(?:에서|으로|로|이고|이야|입니다|이거든)|$)", clause)
         match = re.search(r"(.+?)(?:에서|부터)\s*(?:(?:도보로?|걸어서|자차로?|자동차로?|차로|택시로|대중교통으로|지하철로|버스로)\s*)?(?:출발|시작|갈\s*거|가려고|갈게)", clause)
         value = explicit[1] if explicit else match[1] if match else None
         if not value:
@@ -41,6 +41,8 @@ def _origin_reference(question):
         value = re.sub(r"^(?:(?:나는|저는|난|전|우리(?:는)?|오늘|내일|이번엔|지금)\s*)+", "", value.strip())
         value = re.sub(r"^(?:(?:오전|오후)?\s*\d{1,2}(?::\d{2}|시(?:\s*\d{1,2}분)?)\s*(?:에|쯤)?\s*)", "", value)
         value = value.strip(" '“”\"")
+        if re.fullmatch(r"(?:지도(?:에|에서)?\s*)?(?:(?:찍(?:어\s*놓)?은|지정한|선택한|설정한)\s*)?출발(?:지|장소|위치)", value):
+            value = "출발지"
         if value in RELATIVE_ORIGINS | STADIUM_ORIGINS or 1 < len(value) <= 100:
             return value
     return None

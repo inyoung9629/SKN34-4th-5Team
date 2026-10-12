@@ -11,7 +11,7 @@ from django.core.cache import cache
 KST = ZoneInfo("Asia/Seoul")
 LAST_RUN_KEY = "crawling:last_run_date"
 LOCK_KEY = "crawling:daily_lock"
-CRAWLERS = ("kbo_schedule.py", "kbo_standing.py", "kbo_ticket_db.py")
+CRAWLERS = ("kbo_schedule.py", "kbo_standing.py", "kbo_ticket_db.py", "kbo_player.py", "kbo_highlights.py")  # 하이라이트는 HIGHLIGHT_AUTO_COLLECT=1 일 때만
 
 
 def run_if_needed_today():

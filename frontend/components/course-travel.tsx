@@ -214,8 +214,19 @@ export function useTravelOverlay(map: KakaoMap | null, maps: KakaoMaps | null, t
     }
     if (data) overlays.push(new maps.CustomOverlay({ map, position: anchorCoordinate, content: surface, xAnchor: .5, yAnchor: .5, zIndex: 2 }));
     if (location) {
-      const label = document.createElement("span"); label.className = "course-current-marker"; label.textContent = origin === "custom" ? "출발" : "내 위치";
-      overlays.push(new maps.CustomOverlay({ map, position: new maps.LatLng(location.lat, location.lng), content: label, yAnchor: 1, zIndex: 14 }));
+      const marker = document.createElement("div"); marker.className = "course-current-marker";
+      marker.setAttribute("role", "img"); marker.setAttribute("aria-label", origin === "custom" ? "출발지" : "내 위치");
+      if (origin !== "custom") {
+        const label = document.createElement("span"); label.textContent = "내 위치"; marker.append(label);
+      }
+      const pin = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      pin.setAttribute("viewBox", "0 0 36 44"); pin.setAttribute("aria-hidden", "true");
+      const shape = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      shape.setAttribute("d", "M18 43S3 26 3 17a15 15 0 1 1 30 0c0 9-15 26-15 26Z");
+      const center = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      center.setAttribute("cx", "18"); center.setAttribute("cy", "17"); center.setAttribute("r", "5");
+      pin.append(shape, center); marker.append(pin);
+      overlays.push(new maps.CustomOverlay({ map, position: new maps.LatLng(location.lat, location.lng), content: marker, xAnchor: .5, yAnchor: 1, zIndex: 14 }));
     }
     return () => overlays.forEach((overlay) => overlay.setMap(null));
   }, [map, maps, data, location, origin, selectedLeg, viewport, travel.points, routeBands, lineColor]);

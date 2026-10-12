@@ -19,6 +19,8 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 from .auth_service import AuthService
 from .models import EmailChangeChallenge
+from .point_policy import SIGNUP, SIGNUP_SOURCE_KEY, grant_definition
+from .point_service import grant_points
 from .serializers import (
     EmailChangeRequestResponseSerializer,
     EmailVerificationRequestSerializer,
@@ -30,6 +32,7 @@ from .serializers import (
     ResetPasswordSerializer,
     SendEmailSerializer,
     SignInRequestSerializer,
+    SignInSerializer,
     SignupSerializer,
     TokenPairSerializer,
     TokenRefreshRequestSerializer,
@@ -42,7 +45,7 @@ User = get_user_model()
 
 @extend_schema(request=SignInRequestSerializer, responses=TokenPairSerializer, auth=[])
 class SignInView(TokenObtainPairView):
-    pass
+    serializer_class = SignInSerializer
 
 
 @extend_schema(request=TokenRefreshRequestSerializer, responses=TokenRefreshResponseSerializer, auth=[])
@@ -73,7 +76,8 @@ def signup(request):
     serializer.is_valid(raise_exception=True)
     try:
         with transaction.atomic():
-            serializer.save()
+            user = serializer.save()
+            grant_points(user=user, **grant_definition(SIGNUP, SIGNUP_SOURCE_KEY))
     except IntegrityError:
         raise ValidationError({'username': '이미 사용 중인 아이디입니다.'})
 

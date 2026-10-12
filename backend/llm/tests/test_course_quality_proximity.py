@@ -9,6 +9,28 @@ from llm.v1.rag.course import agent, availability, editing, evidence_memory, pla
 
 
 class QualityProximityTests(SimpleTestCase):
+    def test_local_probe_checks_one_reviewed_branch_without_approving_unknown_places(self):
+        known = self.place(100, 150, cached=True)
+        unknown = self.place(200, 100)
+        far = self.place(300, 750, cached=True)
+        with quality.local_probe():
+            self.assertEqual([p["id"] for p in self.search([unknown, far, known])], [known["id"]])
+        self.assertFalse(quality.probing())
+        self.discover.assert_not_called()
+        self.assertEqual(quality._RESEARCH.get()["tried"], set())
+        self.assertIsNone(self.cache.get(quality.cache_key(unknown)))
+        self.search([unknown, far, known])
+        self.discover.assert_called_once()
+
+    def test_local_probe_rejects_closed_or_distant_evidence(self):
+        known = self.place(100, 700, cached=True)
+        close = self.place(200, 100)
+        with quality.local_probe():
+            self.assertEqual(self.search([known, close]), [])
+            with patch.object(availability, "check", return_value="휴무"):
+                self.assertEqual(self.search([known]), [])
+        self.discover.assert_not_called()
+
     def setUp(self):
         self.center = {"lat": 35.178, "lng": 126.892}
         self.cache = LocMemCache(self.id(), {})

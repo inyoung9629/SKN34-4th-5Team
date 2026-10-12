@@ -37,10 +37,25 @@ class QualityResearchTests(SimpleTestCase):
 
     def test_city_and_exact_branch_precede_unscoped_results_without_forcing_neighbourhood(self):
         reader = Mock(read=Mock(return_value={"metadata": {"profiles": [self.url]}}))
-        result = research.discover({**self.place, "stadium": "JAMSIL", "name": "미카도스시 잠실새내점"}, reader)
+        result = list(research.discover({**self.place, "stadium": "JAMSIL", "name": "미카도스시 잠실새내점"}, reader))
         queries = [unquote(call.args[0]).split("query=")[1] for call in reader.read.call_args_list]
         self.assertEqual(queries, ["서울 미카도스시 잠실새내점", "미카도스시 잠실새내점"])
         self.assertEqual(result, [self.url])
+
+    def test_verified_regional_profile_skips_fallback_but_wrong_branch_continues(self):
+        wrong = self.url + "wrong"
+        for first, expected_searches in ((self.url, 1), (wrong, 2)):
+            reader = Mock()
+            def read(url, *args, **kwargs):
+                if "list.dc" in url:
+                    urls = [first] if "query=%EA%B4%91%EC%A3%BC%20" in url else [self.url]
+                    return {"metadata": {"profiles": urls}}
+                return self.page if url == self.url else {**self.page, "title": "다른 지점"}
+            reader.read.side_effect = read
+            result = next((proof for url in research.discover(self.place, reader)
+                           if (proof := research.profile(self.place, url, reader))), None)
+            self.assertEqual(result["url"], self.url)
+            self.assertEqual(sum("list.dc" in call.args[0] for call in reader.read.call_args_list), expected_searches)
 
     def test_zero_or_single_rating_stays_unverified(self):
         for count in (0, 1):

@@ -62,7 +62,8 @@ test("account menu retains feedback for superusers but removes community adminis
   for (const identity of roles) {
     const hooks = harness();
     const { MemberHeaderActions } = load("components/member-header-actions.tsx", {
-      ...hooks, Link: noop, useMemberAuth: () => identity, useRouter: () => ({}), logoutMember: noop, memberError: noop,
+      ...hooks, useCallback: callback => callback, AbortController, memberFetch: async () => Response.json({ balance: 0 }),
+      Link: noop, useMemberAuth: () => identity, useRouter: () => ({}), logoutMember: noop, memberError: noop,
     });
     let tree = hooks.render(MemberHeaderActions);
     find(tree, node => node.props?.["aria-controls"] === "member-menu-panel")?.props.onClick();
@@ -85,6 +86,7 @@ test("mypage validates feedback deep links and mounts the shared panel only for 
     const dependencies = {
       ...hooks, Link: noop, Image: noop, Suspense: noop, useMemberAuth: () => identity,
       useRouter: () => ({ push: (...args) => pushes.push(args) }), useSearchParams: () => new URLSearchParams("tab=feedback"),
+      memberFetch: async () => Response.json({ balance: 0, transactions: [] }),
       useRoutesReady: () => true, useRoutes: () => [], useRoutesError: () => null, useLikedRoutes: () => [],
       teamBoards: [], memberRoleLabel: () => "회원", nextNicknameChangeAt: () => null, styles,
       AdminFeedbackPanel: noop, AdminMembersPanel: noop, AdminPostsPanel: noop, AdminReportsPanel: noop,
@@ -107,6 +109,55 @@ test("mypage validates feedback deep links and mounts the shared panel only for 
       assert.equal(labels[labels.indexOf("챗봇 답변 평가") + 1], "회원 정보");
     } else assert.doesNotMatch(text(tree), /평가 상세|질문 스냅샷/);
   }
+});
+
+test("mypage loads point balance and transactions and exposes retry on API failure", async () => {
+  const hooks = harness();
+  const requests = [];
+  let attempt = 0;
+  const dependencies = {
+    ...hooks, Link: noop, Image: noop, Suspense: noop,
+    useMemberAuth: () => ({ status: "authenticated", user: { id: 1, is_staff: false, is_superuser: false } }),
+    useRouter: () => ({ push: noop }), useSearchParams: () => new URLSearchParams("tab=points"),
+    memberFetch: async (path, options) => {
+      requests.push([path, options.cache]);
+      attempt += 1;
+      return attempt === 1
+        ? Response.json({ detail: "포인트 서버 오류" }, { status: 503 })
+        : Response.json({ balance: 125, transactions: [{ amount: 25, transaction_type: "ACTIVITY_EARNED", description: "게시글 작성 보상", created_at: "2026-10-10T12:00:00Z" }] });
+    },
+    useRoutesReady: () => true, useRoutes: () => [], useRoutesError: () => null, useLikedRoutes: () => [],
+    teamBoards: [], memberRoleLabel: () => "회원", nextNicknameChangeAt: () => null, styles,
+    AdminFeedbackPanel: noop, AdminMembersPanel: noop, AdminPostsPanel: noop, AdminReportsPanel: noop,
+    MemberPosts: noop, MemberAccountSettings: noop, NicknameChangeButton: noop, PasswordChangeButton: noop,
+    ProfilePhotoEditor: noop, RouteCard: noop, logoutMember: noop, memberError: value => value.detail,
+  };
+  const { default: MyPage } = load("app/mypage/page.tsx", dependencies);
+  const Content = MyPage().props.children.type;
+
+  let tree = hooks.render(Content);
+  assert.equal(find(tree, node => node.props?.role === "status")?.props.children, "포인트 정보를 불러오고 있어요.");
+  hooks.flush();
+  await Promise.resolve();
+  await Promise.resolve();
+  await tick();
+  tree = hooks.render(Content);
+  assert.match(text(tree), /포인트 서버 오류/);
+
+  find(tree, node => node.type === "button" && node.props.children === "다시 불러오기").props.onClick();
+  tree = hooks.render(Content);
+  hooks.flush();
+  await Promise.resolve();
+  await Promise.resolve();
+  await tick();
+  tree = hooks.render(Content);
+  assert.equal(find(tree, node => node.props?.className === "pointBalance").props.children.join(""), "125P");
+  assert.match(text(tree), /게시글 작성 보상/);
+  assert.deepEqual(requests, [
+    ["/api/v1/fantasy/points/", "no-store"],
+    ["/api/v1/fantasy/points/", "no-store"],
+  ]);
+  hooks.unmount();
 });
 
 function panel(identity, fetchList, fetchDetail = async () => ({}), mobile = false) {

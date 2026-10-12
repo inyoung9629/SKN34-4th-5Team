@@ -261,6 +261,60 @@ test("send reads the authoritative course immediately and late replies check its
   }
 });
 
+test("snapshot requests keep their context and apply after pins, selection or stadium change", async () => {
+  for (const change of ["move", "delete", "selection", "stadium"]) {
+    global.__memberAuth = { status: "anonymous", user: null };
+    const pending = deferred(); let body, applied = 0, revision = 1, undone = false;
+    const origin = { lat: 35.1, lng: 126.9, name: "광주역" };
+    const latest = { stadium: "GWANGJU", origin: { ...origin }, currentCourse: { places: [], writerState: { origin: { ...origin } } } };
+    const requestScope = {};
+    global.__chatApi = { ...baseApi, listChatSessions: async () => [], sendChatMessage: (_, value) => { body = value; return pending.promise; } };
+    const runner = hookRunner(); let chat = runner.render(); runner.flushEffects(); await tick(); chat = runner.render();
+    const target = { stadiumCode: "GWANGJU", stopCount: 0, requestScope, getContext: () => latest, getVersion: () => String(revision),
+      captureApply: () => { const captured = structuredClone(latest); return () => { applied++; assert.deepEqual(captured.origin, origin); return () => { undone = true; }; }; },
+      apply: () => { assert.fail("automatic application must use the captured course"); } };
+    chat.registerCourseTarget(target);
+    chat.onDraftChange("코스 짜줘"); chat = runner.render(); chat.onSend();
+    if (change === "move") { latest.origin.lat = 36; latest.currentCourse.writerState.origin.lat = 36; }
+    if (change === "delete") { delete latest.origin; latest.currentCourse.writerState.origin = null; }
+    if (change === "selection") latest.currentCourse.selectedPlace = { name: "다른 카페" };
+    if (change === "stadium") latest.stadium = "JAMSIL";
+    revision++;
+    chat.onContextChange(latest);
+    chat.registerCourseTarget({ ...target, stadiumCode: latest.stadium, selectionKey: "changed" });
+    assert.deepEqual(body.context.origin, origin);
+    assert.deepEqual(body.context.currentCourse.writerState.origin, origin);
+    assert.equal(body.context.currentCourse.selectedPlace, undefined);
+    const course = { stadiumCode: "GWANGJU", places: [], notes: [] };
+    pending.resolve({ reply: "코스", provider: "guest", model: "test", ready: true, course });
+    await tick(); chat = runner.render(); runner.flushEffects();
+    assert.equal(applied, 1);
+    assert.ok(chat.appliedCourses.get(course)?.undo);
+    chat.undoChatCourse(course);
+    assert.equal(undone, true);
+    runner.unmount();
+  }
+});
+
+test("snapshot replies cannot overwrite a different or unmounted writer", async () => {
+  for (const remount of [false, true]) {
+    global.__memberAuth = { status: "anonymous", user: null };
+    const pending = deferred(); let applied = 0;
+    global.__chatApi = { ...baseApi, listChatSessions: async () => [], sendChatMessage: () => pending.promise };
+    const runner = hookRunner(); let chat = runner.render(); runner.flushEffects(); await tick(); chat = runner.render();
+    const target = { stadiumCode: "JAMSIL", stopCount: 0, requestScope: {},
+      captureApply: () => () => { applied++; return () => {}; }, apply: () => { applied++; return () => {}; } };
+    chat.registerCourseTarget(target);
+    chat.onDraftChange("코스 짜줘"); chat = runner.render(); chat.onSend();
+    chat.registerCourseTarget(null);
+    if (remount) chat.registerCourseTarget({ ...target, requestScope: {} });
+    pending.resolve({ reply: "코스", provider: "guest", model: "test", ready: true, course: { stadiumCode: "JAMSIL", places: [], notes: [] } });
+    await tick();
+    assert.equal(applied, 0);
+    runner.unmount();
+  }
+});
+
 test("a rejected stale undo is reported as preserving the newer course", async () => {
   global.__memberAuth = { status: "anonymous", user: null };
   global.__chatApi = { ...baseApi, listChatSessions: async () => [] };

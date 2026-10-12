@@ -30,8 +30,8 @@ test("review continuation does not depend on same-URL navigation remounting the 
   assert.match(review, /setTab\("write"\)/);
 });
 
-test("planner modes and tailored chat preserve server save and completion locks", () => {
-  assert.match(source, /plannerMode=\{plannerMode\}/);
+test("unified planner and tailored chat preserve server save and completion locks", () => {
+  assert.doesNotMatch(source, /planner-mode-tabs|동선으로 코스 짜기|직접 코스 만들기/);
   assert.match(source, /startWithAllPlaces=\{copying\}/);
   assert.match(source, /onCompletionChange=\{changeCompletion\}/);
   assert.match(source, /initialCompleted=\{plannerCompleted\}/);
@@ -44,8 +44,8 @@ test("planner modes and tailored chat preserve server save and completion locks"
   assert.match(popup, /onClick=\{chat\.onRetry\}/);
 });
 
-test("planner draft reentry distinguishes draw-only points and map pickers cannot race", () => {
-  assert.match(courseState, /stops\.some\(stop => stop\.isMapPoint && stop\.category === "동선 지점"\) \? "draw" : "places"/);
+test("planner draft reentry uses the unified mode and map pickers cannot race", () => {
+  assert.match(courseState, /const plannerMode = "places"/);
   assert.doesNotMatch(source, /stops\.some\(stop => stop\.isDrawnPoint\) \? "draw" : "places"/);
   assert.match(planner, /onTravelModeChange, \(\) => \{[\s\S]*?mapLocationRequest\.current \+= 1;[\s\S]*?setMapLocationPicking\(false\);[\s\S]*?setMapLocationStatus\("idle"\);/);
 });

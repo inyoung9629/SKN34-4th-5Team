@@ -9,7 +9,7 @@ import { useStadiumFacilities } from "@/components/stadium-facility-list";
 import { facilityPlace } from "@/lib/stadium-facilities";
 import { distanceMeters, MAX_ROUTE_STOPS, mergePlaces, moveStop, NEARBY_RADIUS, PLACE_CATEGORIES, sameStop, visiblePlaces, type CategoryFilter, type NearbyPlace, type NearbyStadium, type PlaceCategory } from "@/lib/nearby-places";
 import type { RouteStop, TripRoute } from "@/lib/routes";
-import { coursePointLabel, renumberMapPoints, undoDrawnPoint, withUntrackedPoints } from "@/lib/drawn-course";
+import { coursePointLabel, renumberMapPoints } from "@/lib/drawn-course";
 import { createStopHistory, observeStops, redoStops, undoStops } from "@/lib/stop-history";
 import { GUIDE_ORIGIN_SET, GUIDE_ORIGIN_TARGET, type GuidePoint } from "@/lib/route-guide-events";
 import { CourseTravelPanel, useCourseDirections, useTravelOverlay } from "./course-travel";
@@ -17,6 +17,7 @@ import { StadiumParkingMapDialog } from "./stadium-parking-map-dialog";
 import { createClientId } from "@/lib/client-id";
 import { requestCurrentLocation } from "@/lib/geolocation";
 import { chatRoutePath } from "@/lib/chat/route-path";
+import { createCourseMapFocus } from "@/lib/course-map-focus";
 import type { ChatRoutePath } from "@/lib/chat/types";
 import type { RouteDraftData } from "@/lib/route-draft";
 import type { LegModes, TravelMode } from "@/lib/course-directions";
@@ -25,7 +26,6 @@ import { GoogleLodgingPanel } from "./google-lodging-panel";
 import { lodgingDetailUrl, refreshKakaoLodgingStops, searchKakaoLodging } from "@/lib/kakao-lodging";
 
 type PlannerProps = {
-  plannerMode?: "places" | "draw";
   stadium: NearbyStadium; stops: RouteStop[]; onChange: (stops: RouteStop[]) => void;
   initialStart?: TripRoute["start"]; onStartChange: (start: TripRoute["start"], source?: "custom" | "current") => void;
   onCourseChange: (patch: Partial<RouteDraftData>) => void;
@@ -65,7 +65,7 @@ function RouteStops({ stops, onChange, onFocus, separateStart = false, readOnly 
       <button type="button" disabled={readOnly || !steps.canUndo} onClick={steps.onUndo} aria-label="되돌리기" title="되돌리기 (Ctrl+Z)">↶</button>
       <button type="button" disabled={readOnly || !steps.canRedo} onClick={steps.onRedo} aria-label="앞으로 돌리기" title="앞으로 돌리기 (Ctrl+Shift+Z)">↷</button>
     </span>}<span>{stops.length} / {MAX_ROUTE_STOPS}</span></span></div>
-    {stops.length === 0 ? <div className="planner-empty"><span aria-hidden="true">출발 → 1 → 2</span><strong>첫 번째 지점을 골라보세요</strong><p>빈 지도에 직접 지점을 찍거나<br />장소 정보를 보고 ‘코스에 담기’를 누르세요.</p></div> : <ol>{stops.map((stop, index) => <li key={stop.visitId ?? `${stop.placeId ?? stop.name}:${index}`}>
+    {stops.length === 0 ? <div className="planner-empty"><strong>방문할 장소를 골라보세요</strong><p>지도에서 출발지를 정한 뒤 챗봇에 요청하거나<br />장소 정보를 보고 ‘코스에 담기’를 누르세요.</p></div> : <ol>{stops.map((stop, index) => <li key={stop.visitId ?? `${stop.placeId ?? stop.name}:${index}`}>
       <span className="planner-stop-number">{coursePointLabel(stops, index, separateStart)}</span>
       <button type="button" className="planner-stop-name" onClick={() => onFocus?.(stop)}><strong>{stop.name}</strong><small>{stop.category}</small></button>
       <div className="planner-stop-actions">
@@ -98,8 +98,7 @@ export function NearbyRoutePlanner(props: PlannerProps) {
   </div>;
 }
 
-function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange: onStopsChange, initialStart, onStartChange, onCourseChange, courseRevision, originSource, onRoutePathChange, onSelectedPlaceChange, initialTravelMode, onTravelModeChange, travelMode, legModes, onLegModesChange, courseApplied, courseName, onCourseNameChange, allowSave = false, onSaveCourse, saving, saveError, startWithAllPlaces = false, onCompletionChange, initialCompleted = false, autoComplete = false, onAutoCompleted, guide = false }: PlannerProps & { maps: KakaoMaps }) {
-  const drawOnly = plannerMode === "draw";
+function LoadedPlanner({ maps, stadium, stops, onChange: onStopsChange, initialStart, onStartChange, onCourseChange, courseRevision, originSource, onRoutePathChange, onSelectedPlaceChange, initialTravelMode, onTravelModeChange, travelMode, legModes, onLegModesChange, courseApplied, courseName, onCourseNameChange, allowSave = false, onSaveCourse, saving, saveError, startWithAllPlaces = false, onCompletionChange, initialCompleted = false, autoComplete = false, onAutoCompleted, guide = false }: PlannerProps & { maps: KakaoMaps }) {
   const courseCompleted = initialCompleted;
   const setCourseCompleted = onCompletionChange;
   const lodgingRestore = useRef<AbortController | null>(null);
@@ -150,7 +149,6 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-  const [drawHistory, setDrawHistory] = useState<string[]>(() => stops.filter((stop) => (stop.isMapPoint || stop.isDrawnPoint) && stop.placeId).map((stop) => stop.visitId ?? stop.placeId!));
   const [mapLocationPicking, setMapLocationPicking] = useState(false);
   const [mapLocation, setMapLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [mapLocationStatus, setMapLocationStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -167,26 +165,26 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
   const completedRef = useRef(courseCompleted);
   const courseRevisionRef = useRef(courseRevision);
   useLayoutEffect(() => { completedRef.current = courseCompleted; courseRevisionRef.current = courseRevision; });
-  const routePath = useMemo(() => chatRoutePath(travel.points, travel.data, travel.selectedLeg, drawOnly || stops.some(stop => stop.isMapPoint)), [travel.points, travel.data, travel.selectedLeg, drawOnly, stops]);
+  const routePath = useMemo(() => chatRoutePath(travel.points, travel.data, travel.selectedLeg, stops.some(stop => stop.isMapPoint)), [travel.points, travel.data, travel.selectedLeg, stops]);
   useEffect(() => { onRoutePathChange?.(routePath); }, [routePath, onRoutePathChange]);
   const canComplete = stops.length > 0 && !travel.picking && !travel.locating && (travel.origin === "first" || Boolean(travel.location));
   const canSaveCourse = allowSave && canComplete && Boolean(courseName.trim()) && !saving;
   const separateStart = travel.origin !== "first";
-  const drawing = !courseCompleted && !travel.picking && !mapLocationPicking && !guideOrigin;
+  const pickingOrigin = !courseCompleted && !travel.picking && !mapLocationPicking && !guideOrigin;
   const mapNode = useRef<HTMLDivElement>(null);
   useEffect(() => { if (travel.picking) mapNode.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }, [travel.picking]);
   const [map, setMap] = useState<KakaoMap | null>(null);
-  useTravelOverlay(map, maps, travel, { lineColor: drawOnly ? "#2868dc" : undefined });
+  useTravelOverlay(map, maps, travel);
   const [viewport, setViewport] = useState(0);
   const [listArea, setListArea] = useState<{ stadium: string; south: number; north: number; west: number; east: number } | null>(null);
   const activeListArea = listArea?.stadium === stadium.code ? listArea : null;
   const [nearPoint, setNearPoint] = useState<{ stadium: string; lat: number; lng: number; pointId?: string } | null>(null);
   const activeNearPoint = nearPoint?.stadium === stadium.code ? nearPoint : null;
   const [places, setPlaces] = useState<NearbyPlace[]>([]);
-  const facilities = useStadiumFacilities(stadium.code, !drawOnly);
+  const facilities = useStadiumFacilities(stadium.code);
   const facilityPlaces = useMemo(() => facilities.data?.records.flatMap(row => row.pins.map(pin => facilityPlace(row, pin, stadium))) ?? [], [facilities.data, stadium]);
   const pinPlaces = useMemo(() => [...places, ...facilityPlaces], [places, facilityPlaces]);
-  const [categories, setCategories] = useState<PlaceCategory[]>(() => drawOnly ? [] : PLACE_CATEGORIES.map((category) => category.id));
+  const [categories, setCategories] = useState<PlaceCategory[]>(() => PLACE_CATEGORIES.map((category) => category.id));
   const allSelected = categories.length === PLACE_CATEGORIES.length;
   const [subcategories, setSubcategories] = useState<Partial<Record<PlaceCategory, string[]>>>({});
   const [openCategory, setOpenCategory] = useState<PlaceCategory | null>(null);
@@ -200,7 +198,11 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
     return () => document.removeEventListener("pointerdown", closeOutside);
   }, [openCategory]);
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<RouteStop | NearbyPlace | null>(null);
+  const [selected, setSelectedState] = useState<RouteStop | NearbyPlace | null>(null);
+  const setSelected = useCallback((place: RouteStop | NearbyPlace | null) => {
+    onSelectedPlaceChange?.(place);
+    setSelectedState(place);
+  }, [onSelectedPlaceChange]);
   useLayoutEffect(() => { onSelectedPlaceChange?.(selected); }, [selected, onSelectedPlaceChange]);
   useLayoutEffect(() => () => { onSelectedPlaceChange?.(null); }, [onSelectedPlaceChange]);
   const [hovered, setHovered] = useState<RouteStop | NearbyPlace | null>(null);
@@ -222,69 +224,59 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
   const [notice, setNotice] = useState("");
 
   // ── 챗봇 코스 담기 연동 ──
-  const travelRef = useRef(travel);
   const fitRef = useRef(fitCourse);
-  useLayoutEffect(() => { travelRef.current = travel; fitRef.current = fitCourse; });
-  const appliedSeen = useRef(0);
+  useLayoutEffect(() => { fitRef.current = fitCourse; });
+  const courseFocusRef = useRef<ReturnType<typeof createCourseMapFocus> | null>(null);
+  const appliedSeen = useRef<number | null>(null);
+  useEffect(() => {
+    if (!map) return;
+    const focus = createCourseMapFocus(map, maps, () => fitRef.current());
+    courseFocusRef.current = focus;
+    return () => { focus.dispose(); courseFocusRef.current = null; appliedSeen.current = null; };
+  }, [map, maps]);
   useEffect(() => {
     if (!map || !courseApplied || courseApplied.stadiumCode !== stadium.code || appliedSeen.current === courseApplied.version) return;
     appliedSeen.current = courseApplied.version;
+    // 완료 후 이전 위치 조회나 장소 선택이 다시 지도를 이동시키지 않게 정리한다.
+    mapLocationRequest.current += 1;
+    lodgingRestore.current?.abort();
+    setMapLocationPicking(false); setMapLocationStatus("idle"); setMapLocationMessage("");
     clearTimeout(hoverTimer.current);
-    setSelected(null); setHovered(null); setNearPoint(null);
+    setSelected(null); setHovered(null); setNearPoint(null); setListArea(null);
     setSideTab("route");
-    // 새 지점이 그려진 다음 프레임에 맞춘다 (한 번만 처리하므로 취소하지 않는다)
-    requestAnimationFrame(() => fitRef.current());
-  }, [map, courseApplied, stadium]);
-
-  const undoPoint = useCallback(() => {
-    if (courseCompleted) return;
-    const result = undoDrawnPoint(stopSnapshot.current, withUntrackedPoints(stopSnapshot.current, drawHistory), travelRef.current.location ?? undefined);
-    setDrawHistory(result.history);
-    if (!result.removed) return;
-    if (result.clearStart) { onCourseChange({ stops: result.stops, start: undefined }); setNearPoint(null); }
-    else onChange(result.stops);
-    setSelected(null); setHovered(null); clearTimeout(hoverTimer.current);
-    setNotice(`${result.removed.name} 한 곳을 되돌렸어요.`);
-  }, [courseCompleted, drawHistory, onChange, onCourseChange]);
+    setNotice("코스 전체가 보이도록 지도를 맞췄어요.");
+    courseFocusRef.current?.show();
+  }, [map, courseApplied, stadium, setSelected]);
 
   function resetCourse() {
     if (courseCompleted) return;
     onCourseChange({ stops: [], start: undefined, travelMode: "walk", legModes: {}, plannerCompleted: false });
-    setDrawHistory([]);
     clearTimeout(hoverTimer.current); setSelected(null); setHovered(null);
     setNearPoint(null); setListLimit(30); setSideTab("route");
     setNotice("코스의 모든 지점과 경로를 초기화했어요.");
   }
 
+  function removeOrigin() {
+    if (courseCompleted || guideOrigin) return;
+    mapLocationRequest.current += 1;
+    setMapLocationPicking(false); setMapLocationStatus("idle");
+    travel.chooseFirst();
+    setNotice("출발지 핀을 지웠어요. 진행 중인 코스 생성은 요청 당시 출발지를 사용해요.");
+  }
+
   useEffect(() => {
-    if (!map || !drawing) return;
-    const addPoint = (event: { latLng: { getLat(): number; getLng(): number } }) => {
-      const current = stopSnapshot.current;
+    if (!map || !pickingOrigin) return;
+    const pickOrigin = (event: { latLng: { getLat(): number; getLng(): number } }) => {
       const lat = event.latLng.getLat(), lng = event.latLng.getLng();
-      if (!drawOnly) setNearPoint({ stadium: stadium.code, lat, lng });
+      originPickerRef.current({ lat, lng });
+      setNearPoint(null);
       setListArea(null); setListLimit(30); setSideTab("places");
-      if (current.length >= MAX_ROUTE_STOPS) { setNotice("출발지를 포함해 최대 12개 지점까지 담을 수 있어요."); return; }
-      const previous = current.at(-1);
-      if (previous && Math.abs(previous.lat - lat) < .000001 && Math.abs(previous.lng - lng) < .000001) return;
-      const placeId = `map:${createClientId()}`;
-      if (!drawOnly) setNearPoint({ stadium: stadium.code, lat, lng, pointId: placeId });
-      const name = drawOnly ? (current.length === 0 ? "출발 지점" : `동선 지점 ${current.length}`) : "";
-      onChange([...current, { name, category: drawOnly ? "동선 지점" : "직접 지정", lat, lng, placeId, isMapPoint: true }]);
-      setDrawHistory((history) => [...history, placeId]);
       setSelected(null); setHovered(null); clearTimeout(hoverTimer.current);
-      setNotice(current.length ? "지점을 추가했어요. 우클릭하면 방금 찍은 지점만 되돌려요." : "출발지를 정했어요. 다음 지점을 좌클릭하세요.");
+      setNotice("출발지를 지정했어요. 다른 곳을 누르면 출발지가 이동해요.");
     };
-    const canvas = mapNode.current;
-    const suppressMenu = (event: MouseEvent) => event.preventDefault();
-    maps.event.addListener(map, "click", addPoint);
-    maps.event.addListener(map, "rightclick", undoPoint);
-    canvas?.addEventListener("contextmenu", suppressMenu);
-    return () => {
-      maps.event.removeListener(map, "click", addPoint);
-      maps.event.removeListener(map, "rightclick", undoPoint);
-      canvas?.removeEventListener("contextmenu", suppressMenu);
-    };
-  }, [map, maps, drawing, onChange, undoPoint, stadium.code, drawOnly]);
+    maps.event.addListener(map, "click", pickOrigin);
+    return () => maps.event.removeListener(map, "click", pickOrigin);
+  }, [map, maps, pickingOrigin, setSelected]);
 
   useEffect(() => {
     if (!map || !guideOrigin) return;
@@ -300,12 +292,7 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
     button.appendChild(label);
     button.onclick = (event) => {
       event.stopPropagation(); maps.event.preventMap();
-      const placeId = `map:${createClientId()}`;
-      const next = renumberMapPoints([{ name: "", category: "직접 지정", lat: guideOrigin.lat, lng: guideOrigin.lng, placeId, isMapPoint: true }]);
-      setCourseCompleted(false);
-      stopSnapshot.current = next;
-      onStopsChange(next);
-      setDrawHistory([placeId]);
+      onCourseChange({ start: { ...guideOrigin, name: "출발지" }, plannerCompleted: false });
       setSelected(null); setHovered(null); clearTimeout(hoverTimer.current);
       setGuideOrigin(null);
       setNotice("출발지를 정했어요.");
@@ -313,7 +300,7 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
     };
     const overlay = new maps.CustomOverlay({ map, position, content: button, yAnchor: .5, zIndex: 30, clickable: true });
     return () => overlay.setMap(null);
-  }, [map, maps, guideOrigin, onStopsChange, setCourseCompleted]);
+  }, [map, maps, guideOrigin, onCourseChange, setSelected]);
 
   useEffect(() => {
     if (!map || !mapLocationPicking) return;
@@ -331,7 +318,7 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
 
   useEffect(() => {
     if (!map) return;
-    const idleCursor = mapLocationPicking ? "crosshair" : drawing || travel.picking ? "default" : "grab";
+    const idleCursor = mapLocationPicking ? "crosshair" : pickingOrigin || travel.picking ? "default" : "grab";
     const dragStart = () => map.setCursor("grabbing");
     const dragEnd = () => map.setCursor(idleCursor);
     map.setCursor(idleCursor);
@@ -341,7 +328,7 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
       maps.event.removeListener(map, "dragstart", dragStart);
       maps.event.removeListener(map, "dragend", dragEnd);
     };
-  }, [map, maps, drawing, travel.picking, mapLocationPicking]);
+  }, [map, maps, pickingOrigin, travel.picking, mapLocationPicking]);
 
   function completeCourse() {
     setCourseCompleted(true); setSideTab("route"); setNearPoint(null);
@@ -459,7 +446,6 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
   }
 
   useEffect(() => {
-    if (drawOnly) return;
     const controller = new AbortController();
     // Defer one microtask so StrictMode's discarded effect does not start API calls.
     void Promise.resolve().then(async () => {
@@ -479,7 +465,7 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
       }
     });
     return () => controller.abort();
-  }, [maps, stadium, attempt, drawOnly]);
+  }, [maps, stadium, attempt]);
 
   const subcategoryLabel = (place: NearbyPlace) => place.kind === "food" ? place.cuisine : place.subcategory ?? place.category;
   const visible = useMemo(() => {
@@ -487,8 +473,8 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
       const choices = subcategories[place.kind];
       return (!choices?.length || choices.includes(subcategoryLabel(place))) && `${place.name} ${place.detail}`.toLowerCase().includes(query.trim().toLowerCase());
     });
-    return drawOnly ? [] : visiblePlaces(matching, categories);
-  }, [places, categories, subcategories, query, drawOnly]);
+    return visiblePlaces(matching, categories);
+  }, [places, categories, subcategories, query]);
   // Keep the last requested area until the user applies a new area or resets it.
   // Map pins remain available when panning outside that area.
   const listedPlaces = activeNearPoint ? visible.filter((place) => distanceMeters(activeNearPoint, place) <= 70) : activeListArea ? visible.filter((place) =>
@@ -517,15 +503,13 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
     if (replacing >= 0 && [current[replacing - 1], current[replacing + 1]].some(item => item && sameStop(item, place))) { setNotice("바로 앞뒤 지점과 같은 장소예요."); return; }
     if (replacing < 0 && current.length && sameStop(current[current.length - 1], place)) { setNotice("바로 직전 지점과 같은 장소예요. 다른 장소를 들른 뒤 다시 담을 수 있어요."); return; }
     if (replacing < 0 && current.length >= MAX_ROUTE_STOPS) { setNotice("코스에는 최대 12개 지점까지 담을 수 있어요."); return; }
-    const stop: RouteStop = { visitId: createClientId(), name: place.name, lat: place.lat, lng: place.lng, category: place.category, placeId: place.placeId ?? `place:${createClientId()}`, tourContentId: place.tourContentId, address: place.address, ...(drawing && !isLodgingReference(place) ? { isDrawnPoint: true } : {}) };
+    const stop: RouteStop = { visitId: createClientId(), name: place.name, lat: place.lat, lng: place.lng, category: place.category, placeId: place.placeId ?? `place:${createClientId()}`, tourContentId: place.tourContentId, address: place.address };
     if (replacing >= 0) {
       const previous = current[replacing];
       onChange(current.map((item, index) => index === replacing ? { ...stop, isDrawnPoint: Boolean(previous.isMapPoint || previous.isDrawnPoint) } : item));
-      setDrawHistory(history => history.map(id => id === (previous.visitId ?? previous.placeId) ? stop.visitId! : id));
       setNearPoint(null);
     } else {
       onChange([...current, stop]);
-      if (drawing) setDrawHistory((history) => [...history, stop.visitId!]);
     }
     clearTimeout(hoverTimer.current); setHovered(null); setSelected(stop); setSideTab("route");
     setNotice(replacing >= 0 ? `찍은 지점을 ${place.name}(으)로 변경했어요.` : `${place.name}을(를) 코스에 담았어요.`);
@@ -564,15 +548,15 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
     }).catch(error => {
       if (!controller.signal.aborted) setNotice(error instanceof Error ? error.message : "숙소 위치를 확인하지 못했어요.");
     });
-  }, [map, maps, onStopsChange, stadium]);
+  }, [map, maps, onStopsChange, stadium, setSelected]);
 
   useEffect(() => {
     if (!map) return;
     const overlays: KakaoOverlay[] = [];
-    const overlay = (content: HTMLElement, lat: number, lng: number, zIndex: number, yAnchor = .5, clickable = drawing && !drawOnly) => {
+    const overlay = (content: HTMLElement, lat: number, lng: number, zIndex: number, yAnchor = .5, clickable = true) => {
       overlays.push(new maps.CustomOverlay({ map, position: new maps.LatLng(lat, lng), content, yAnchor, zIndex, clickable }));
     };
-    const unselected = drawOnly ? [] : selectedPlacePins(pinPlaces, selected, stops);
+    const unselected = selectedPlacePins(pinPlaces, selected, stops);
     const stadiumPlace: RouteStop = { name: stadium.name, lat: stadium.lat, lng: stadium.lng, address: stadium.address, category: "야구장", placeId: `stadium:${stadium.code}` };
     if (!stops.some((stop) => sameStop(stop, stadiumPlace))) {
       const button = document.createElement("button");
@@ -585,7 +569,6 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
       button.onfocus = () => showPreview(stadiumPlace);
       button.onblur = hidePreview;
       button.onclick = (event) => { event.stopPropagation(); maps.event.preventMap(); selectPlace(stadiumPlace); };
-      button.oncontextmenu = (event) => { if (drawing) { event.preventDefault(); event.stopPropagation(); maps.event.preventMap(); undoPoint(); } };
       overlay(button, stadium.lat, stadium.lng, 8, 1, true);
     }
     const makePin = (place: NearbyPlace) => {
@@ -595,13 +578,11 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
       button.type = "button"; button.className = `planner-pin planner-pin-dot${focused ? " is-focused" : ""}`;
       button.style.setProperty("--pin-color", category.color);
       button.setAttribute("aria-label", `${category.label}: ${place.name}`);
-      if (drawOnly) { button.tabIndex = -1; button.setAttribute("aria-hidden", "true"); button.style.pointerEvents = "none"; }
       button.onmouseenter = () => showPreview(place);
       button.onmouseleave = hidePreview;
       button.onfocus = () => showPreview(place);
       button.onblur = hidePreview;
       button.onclick = (event) => { event.stopPropagation(); maps.event.preventMap(); selectPlace(place); };
-      button.oncontextmenu = (event) => { if (drawing) { event.preventDefault(); event.stopPropagation(); maps.event.preventMap(); undoPoint(); } };
       overlay(button, place.lat, place.lng, selected && sameStop(place, selected) ? 10 : 3);
     };
     unselected.forEach(makePin);
@@ -619,7 +600,6 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
       const label = document.createElement("span"); label.textContent = coursePointLabel(stops, index, separateStart); button.appendChild(label);
       button.setAttribute("aria-label", `코스 ${coursePointLabel(stops, index, separateStart)}: ${stop.name}`);
       const isStadiumStop = stop.placeId === `stadium:${stadium.code}`;
-      if (drawOnly && !isStadiumStop) { button.tabIndex = -1; button.setAttribute("aria-hidden", "true"); button.style.pointerEvents = "none"; }
       // The point/number stays on the exact coordinate. Only course stops get
       // a category badge, positioned above it without changing overlay bounds.
       if (category && !stop.isMapPoint) {
@@ -645,11 +625,10 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
         setListArea(null); setListLimit(30); setSideTab("places");
         setNotice(`주변 장소를 선택하면 ${coursePointLabel(stops, index, separateStart)}번 지점을 변경해요.`);
       };
-      button.oncontextmenu = (event) => { if (drawing) { event.preventDefault(); event.stopPropagation(); maps.event.preventMap(); undoPoint(); } };
-      overlay(button, stop.lat, stop.lng, 12, drawnPin ? 1 : .5, isStadiumStop || (drawing && !drawOnly));
+      overlay(button, stop.lat, stop.lng, 12, drawnPin ? 1 : .5, true);
     }
     return () => overlays.forEach((item) => item.setMap(null));
-  }, [map, maps, stops, selected, selectPlace, viewport, pinPlaces, drawing, drawOnly, undoPoint, showPreview, hidePreview, stadium, separateStart]);
+  }, [map, maps, stops, selected, selectPlace, viewport, pinPlaces, showPreview, hidePreview, stadium, separateStart, setSelected]);
 
   function chooseCategory(next: CategoryFilter) {
     lodgingRestore.current?.abort();
@@ -666,8 +645,8 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
   const alreadyAdded = currentSelection && stops.length > 0 && sameStop(stops[stops.length - 1], currentSelection);
   const stadiumSelected = currentSelection?.placeId === `stadium:${stadium.code}`;
 
-  return <div className={`nearby-planner${drawOnly ? " is-route-draw-only" : ""}${courseCompleted ? " is-course-completed" : ""}`}>
-    {!drawOnly && <div ref={filtersNode} className="planner-filters" aria-label="장소 카테고리" onKeyDown={(event) => { if (event.key === "Escape") { setOpenCategory(null); filtersNode.current?.querySelector<HTMLButtonElement>(`[data-category-arrow="${openCategory}"]`)?.focus(); } }}>
+  return <div className={`nearby-planner${courseCompleted ? " is-course-completed" : ""}`}>
+    {<div ref={filtersNode} className="planner-filters" aria-label="장소 카테고리" onKeyDown={(event) => { if (event.key === "Escape") { setOpenCategory(null); filtersNode.current?.querySelector<HTMLButtonElement>(`[data-category-arrow="${openCategory}"]`)?.focus(); } }}>
       <button type="button" className="planner-filter" aria-pressed={allSelected} onClick={() => chooseCategory("all")}>전체</button>
       {PLACE_CATEGORIES.map((category) => {
         const categoryPlaces = places.filter((place) => place.kind === category.id);
@@ -695,15 +674,16 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
         </div>;
       })}
     </div>}
-    <div className="planner-drawing-toolbar">
-      <span id="drawing-help">{courseCompleted ? "코스가 완성되어 편집이 잠겼어요. 수정하려면 코스 수정을 눌러 주세요." : drawOnly ? "지도 빈 곳 클릭: 동선 지점 추가 · 우클릭: 마지막 지점 되돌리기" : "빈 곳 클릭: 지점 추가 · 장소 핀 클릭: 정보 확인 후 코스에 담기 · 우클릭: 마지막 지점 되돌리기"}</span><button type="button" className={`planner-draw-undo planner-course-toggle${courseCompleted ? " is-completed" : ""}`} aria-pressed={courseCompleted} disabled={!courseCompleted && !canComplete} onClick={() => { if (courseCompleted) { setCourseCompleted(false); setNotice("코스를 다시 수정할 수 있어요."); return; } completeCourse(); }}>{courseCompleted ? "코스 수정" : "코스 완성"}</button><button type="button" className="planner-draw-undo" disabled={courseCompleted || (stops.length === 0 && !travel.location && !travel.picking && !travel.locating)} onClick={resetCourse}><span aria-hidden="true">↶ </span>초기화</button>
+    {loading && <p className="planner-status" role="status">주변 장소를 불러오는 중이에요. 숫자는 현재까지 확인한 장소 수예요.</p>}
+    <div className="planner-origin-toolbar">
+      <span id="origin-help">{courseCompleted ? "코스가 완성되어 편집이 잠겼어요. 수정하려면 코스 수정을 눌러 주세요." : "빈 곳 클릭: 출발지 지정·이동 · 우클릭: 출발지 삭제 · 장소 핀 클릭: 정보 확인 후 코스에 담기"}</span><button type="button" className={`planner-draw-undo planner-course-toggle${courseCompleted ? " is-completed" : ""}`} aria-pressed={courseCompleted} disabled={!courseCompleted && !canComplete} onClick={() => { if (courseCompleted) { setCourseCompleted(false); setNotice("코스를 다시 수정할 수 있어요."); return; } completeCourse(); }}>{courseCompleted ? "코스 수정" : "코스 완성"}</button><button type="button" className="planner-draw-undo" disabled={courseCompleted || (stops.length === 0 && !travel.location && !travel.picking && !travel.locating)} onClick={resetCourse}><span aria-hidden="true">↶ </span>초기화</button>
     </div>
-    <div className={`planner-workspace${drawOnly ? " planner-workspace-map-only" : ""}`}>
-      <div className={`planner-map-stage${travel.picking ? " is-picking-start" : ""}${drawing ? " is-drawing-course" : ""}${drawOnly ? " is-route-draw-only" : ""}`}>
+    <div className="planner-workspace">
+      <div className={`planner-map-stage${travel.picking ? " is-picking-start" : ""}${pickingOrigin ? " is-setting-origin" : ""}`}>
         {travel.picking && <div className="course-pick-hint">지도를 눌러 출발 위치를 지정하세요 <button type="button" onClick={travel.cancelPicking}>취소</button></div>}
-        <div ref={mapNode} className="planner-map-canvas" aria-label={`${stadium.name} 주변 장소 지도`} aria-describedby={drawing ? "drawing-help" : undefined} />
+        <div ref={mapNode} className="planner-map-canvas" aria-label={`${stadium.name} 주변 장소 지도`} aria-describedby={pickingOrigin ? "origin-help" : undefined} onContextMenuCapture={event => { event.preventDefault(); removeOrigin(); }} />
         <div className="planner-map-view-actions">
-          {!drawOnly && <button type="button" className="planner-current-area" disabled={!map} onClick={showCurrentArea}>지금 지도에서 보기</button>}
+          {<button type="button" className="planner-current-area" disabled={!map} onClick={showCurrentArea}>지금 지도에서 보기</button>}
           <button type="button" className="planner-fit-course" aria-label="코스 전체 보기" title="코스 전체 보기" disabled={!map || !travel.points.length} onClick={fitCourse}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 4H4v5m11-5h5v5M4 15v5h5m11-5v5h-5" /><path d="m9 15 3-6 3 6" /></svg></button>
         </div>
         <div className="planner-map-controls"><button type="button" title={mapLocationPicking ? "내 위치 핀 지정 취소" : "내 위치 표시"} aria-label={mapLocationPicking ? "내 위치 핀 지정 취소" : "내 위치 표시"} aria-pressed={mapLocationPicking} disabled={!map || mapLocationStatus === "loading" || travel.picking} onClick={showMyLocation}>⌖</button><button type="button" aria-label="지도 확대" onClick={() => map && map.setLevel(Math.max(1, map.getLevel() - 1))}>+</button><button type="button" aria-label="지도 축소" onClick={() => map && map.setLevel(Math.min(10, map.getLevel() + 1))}>−</button></div>
@@ -730,7 +710,7 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
           {kakaoLodgingReference(currentSelection) && <small className="planner-place-attribution">카카오맵</small>}
         </section>}
       </div>
-      {!drawOnly && <aside className="planner-side">
+      {<aside className="planner-side">
         {stops.some(stop => googleLodgingId(stop)) && <GoogleLodgingPanel stops={stops} onSelect={place => {
           onStopsChange(stopSnapshot.current.map(stop => stop.placeId === place.placeId ? { ...stop, lat: place.lat, lng: place.lng } : stop));
           selectPlace(place);
@@ -756,6 +736,6 @@ function LoadedPlanner({ maps, plannerMode = "places", stadium, stops, onChange:
       </aside>}
     </div>
     {notice && <p className="planner-status" role="status">{notice}</p>}
-    {!drawOnly && !loading && (catalogueStatus === "error" || searchFailures > 0) && <div className="planner-status" role="alert"><span>일부 장소를 불러오지 못했어요.</span><button type="button" onClick={() => { setCatalogueStatus("loading"); setAttempt(a => a + 1); }}>다시 불러오기</button></div>}
+    {!loading && (catalogueStatus === "error" || searchFailures > 0) && <div className="planner-status" role="alert"><span>일부 장소 조회가 완료되지 않아 표시된 개수가 실제보다 적을 수 있어요.</span><button type="button" onClick={() => { setCatalogueStatus("loading"); setAttempt(a => a + 1); }}>다시 불러오기</button></div>}
   </div>;
 }

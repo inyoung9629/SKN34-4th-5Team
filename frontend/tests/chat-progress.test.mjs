@@ -30,7 +30,9 @@ for (const name of ["chat-pending", "icons"]) {
   writeFileSync(join(scratch, `components/${name}.js`), outputText);
 }
 {
-  const source = readFileSync(join(frontend, "components/chat-answer.tsx"), "utf8").replace(/^import "@\/styles\/chat-answer\.css";$/m, "").replaceAll("@/lib/media-url", "../lib/media-url.js");
+  writeFileSync(join(scratch, "components/youtube-video-player.js"), `exports.YouTubeVideoPlayer = ({ videoId, start }) => require("react").createElement("span", { "data-youtube": videoId, "data-start": start ?? "" });\n`);
+  const source = readFileSync(join(frontend, "components/chat-answer.tsx"), "utf8").replace(/^import "@\/styles\/chat-answer\.css";$/m, "").replaceAll("@/lib/media-url", "../lib/media-url.js")
+    .replaceAll("@/components/youtube-video-player", "./youtube-video-player.js");
   const { outputText } = ts.transpileModule(source, {
     fileName: "chat-answer.tsx", compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
   });

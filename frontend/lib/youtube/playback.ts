@@ -7,7 +7,7 @@ export type PlaybackStatus = "loading" | "ready" | "playing" | "paused" | "block
 export function createYouTubePlayback(
   host: HTMLElement,
   api: YouTubePlayerApi,
-  options: { videoId: string; title: string; preview: boolean; onStatus: (status: PlaybackStatus, code?: number) => void },
+  options: { videoId: string; title: string; preview: boolean; start?: number; onStatus: (status: PlaybackStatus, code?: number) => void },
 ) {
   let disposed = false;
   let ready = false;
@@ -23,6 +23,7 @@ export function createYouTubePlayback(
     enablejsapi: "1", origin: window.location.origin, playsinline: "1", mute: "1",
     controls: options.preview ? "0" : "1", disablekb: options.preview ? "1" : "0", rel: "0",
   });
+  if (options.start) params.set("start", String(options.start));
   iframe.src = `https://www.youtube.com/embed/${options.videoId}?${params}`;
   host.appendChild(iframe);
   const report = (status: PlaybackStatus, code?: number) => {

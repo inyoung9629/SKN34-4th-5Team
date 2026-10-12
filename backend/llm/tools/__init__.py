@@ -8,7 +8,8 @@ DOMAIN_TOOL_NAMES = (
     "get_ticket_prices", "get_ticket_policies", "get_transport", "get_food_stores",
     "get_facilities", "get_stadium_contents", "get_seat_maps", "search_places",
     "search_courses", "get_course", "search_community_posts", "get_prediction_games",
-    "search_players", "get_directions", "search_tourism", "get_weather",
+    "search_players", "get_directions", "search_tourism", "get_weather", "search_highlight_scenes",
+    "search_highlight_rag", "select_highlight_scenes",
 )
 
 
@@ -19,10 +20,11 @@ def create_domain_tools():
     from .travel import create_travel_tools
     from .community import create_community_tools
     from .weather import create_weather_tools
+    from .highlight import create_highlight_tools
 
     tools = (
         *create_baseball_domain_tools(), *create_stadium_tools(),
-        *create_travel_tools(), *create_community_tools(), *create_weather_tools(),
+        *create_travel_tools(), *create_community_tools(), *create_weather_tools(), *create_highlight_tools(),
     )
     by_name = {tool.name: tool for tool in tools}
     return tuple(by_name[name] for name in DOMAIN_TOOL_NAMES)

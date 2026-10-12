@@ -31,7 +31,7 @@ const groups = [
     items: [
       { title: "자유 게시판", href: "/community" },
       { title: "팀 게시판", href: "/community/teams" },
-      { title: "승부 예측", href: "/community/predictions" },
+      { title: "환상게임", href: "/fantasy" },
     ],
   },
 ] as const;

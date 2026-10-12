@@ -147,7 +147,9 @@ test("search options always use the stadium, radius, distance ordering and bound
   assert.equal(result.failures, 0);
   assert.equal(finalPlaces.length, 1);
   assert.ok(calls.every((call) => call.radius === 2500 && call.size === 15 && call.page <= 3 && call.sort === "distance" && call.lat === stadium.lat));
-  assert.ok(calls.findIndex((c) => c.category === "AD5") > calls.findLastIndex((c) => c.category === "FD6"));
+  for (const category of ["CS2", "AD5"]) {
+    assert.ok(calls.findIndex(c => c.category === category) < calls.findIndex(c => c.page === 2));
+  }
 });
 test("explicit lodging filter moves lodging to front of the queue", async () => {
   const calls = [];

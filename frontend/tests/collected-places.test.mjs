@@ -76,7 +76,7 @@ test("planner loads live Kakao places without public catalogue fallback or backg
   assert.match(planner, /planner-drawn-pin/);
   assert.match(planner, /planner-number-pin/);
   assert.match(planner, /coursePointLabel\(stops, index, separateStart\)/);
-  assert.match(planner, /if \(drawOnly\) return;/);
+  assert.doesNotMatch(planner, /drawOnly|plannerMode/);
   assert.doesNotMatch(readFileSync(join(root, "lib/kakao-maps.ts"), "utf8"), /libraries=services/);
 });
 

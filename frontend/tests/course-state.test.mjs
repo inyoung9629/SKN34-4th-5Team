@@ -101,10 +101,10 @@ test("creation -> manual order/mode -> chat cafe edit -> full deletion -> explic
   assert.deepEqual(state.data, original.data);
 });
 
-test("legacy map origins migrate once and subsequent map points stay editable visits in chat", () => {
+test("legacy drawing drafts migrate into the unified planner without losing their visits", () => {
   const pin = { ...origin, category: "동선 지점", placeId: "map:a", isMapPoint: true };
-  let state = createCourseState({ ...base, stops: [pin] });
-  assert.equal(state.data.plannerMode, "draw");
+  let state = createCourseState({ ...base, plannerMode: "draw", stops: [pin] });
+  assert.equal(state.data.plannerMode, "places");
   assert.equal(state.data.stops.length, 0);
   state = reduceCourse(state, { type: "patch", patch: { stops: [{ ...pin, lat: 37.512, placeId: "map:b" }] } });
   assert.deepEqual(state.data.start, origin);

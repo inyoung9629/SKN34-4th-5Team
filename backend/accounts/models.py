@@ -42,3 +42,28 @@ class EmailChangeChallenge(models.Model):
     expires_at = models.DateTimeField()
     attempts = models.PositiveSmallIntegerField(default=0)
     used_at = models.DateTimeField(blank=True, null=True)
+
+
+class PointWallet(models.Model):
+    """서비스 공통 포인트 잔액. 모든 증감은 PointTransaction을 함께 남긴다."""
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="point_wallet")
+    balance = models.BigIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class PointTransaction(models.Model):
+    """포인트 증감 원장. source_key가 같은 지급은 한 번만 처리한다."""
+    FANTASY_SETTLEMENT = "FANTASY_SETTLEMENT"
+    ACTIVITY_EARNED = "ACTIVITY_EARNED"
+    user = models.ForeignKey(CustomUser, on_delete=models.PROTECT, related_name="point_transactions")
+    wallet = models.ForeignKey(PointWallet, on_delete=models.PROTECT, related_name="transactions")
+    amount = models.BigIntegerField()
+    transaction_type = models.CharField(max_length=40)
+    source_type = models.CharField(max_length=80)
+    source_key = models.CharField(max_length=160)
+    description = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("user", "source_type", "source_key"), name="uq_point_transaction_source")]
+        ordering = ("-created_at", "-id")

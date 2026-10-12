@@ -22,6 +22,9 @@ test("member return paths reject external destinations and normalize pagination"
     assert.equal(safeMemberReturnPath(path), null, String(path));
   }
   assert.equal(safeMemberReturnPath("/community/members/21?tab=comments&page=2"), "/community/members/21?tab=comments&page=2");
+  assert.equal(safeMemberReturnPath("/fantasy/admin"), "/fantasy/admin");
+  assert.equal(safeMemberReturnPath("/fantasy/admin?date=2026-10-09"), "/fantasy/admin?date=2026-10-09");
+  assert.equal(safeMemberReturnPath("/fantasy/admin/other"), null);
   assert.equal(safeMemberReturnPath("/community/members/21?tab=invalid&page=-1"), "/community/members/21?tab=posts&page=1");
 });
 

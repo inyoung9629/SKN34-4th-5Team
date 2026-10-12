@@ -23,6 +23,17 @@ def requirements(conditions):
 
 
 class VisitConditionsTests(SimpleTestCase):
+    def test_internal_snack_defaults_before_game_but_explicit_after_is_preserved(self):
+        for question, expression, expected in (
+            ("자장면 먹고 구장에서 간식 먹은 다음 술 먹고 산책", "구장에서 간식 먹은", "BEFORE"),
+            ("경기 끝나고 구장에서 간식 먹고 산책", "구장에서 간식 먹고", "AFTER"),
+            ("경기 전 구장에서 간식 먹고 경기 후 술집", "구장에서 간식 먹고", "BEFORE"),
+        ):
+            with self.subTest(question=question):
+                rows = visit_requests.normalize(question, [visit("FOOD", expression, phase="AFTER")])
+                self.assertEqual(rows[0]["phase"], expected)
+                self.assertEqual(rows[0]["id"], expected + ":0")
+
     def setUp(self):
         self.sources = food_candidates("GWANGJU")
         self.churros = next(p for p in self.sources if p["name"] == "스트릿츄러스")
@@ -122,7 +133,16 @@ class VisitConditionsTests(SimpleTestCase):
             stack.enter_context(patch.object(evidence_memory, "enrich", side_effect=enrich))
             model = stack.enter_context(patch.object(agent, "llm"))
             model.return_value.with_structured_output.return_value.invoke.side_effect = choice
-            result = agent.answer(question, hint_stadium="GWANGJU", course_memory=memory.empty(), course_request="NEW")
+            with patch.object(visit_requests.Selector, "__call__",
+                              side_effect=AssertionError("Mixed routes must validate visits at their actual preceding stop")):
+                result = agent.answer(question, hint_stadium="GWANGJU", course_memory=memory.empty(), course_request="NEW")
+            # A failed origin route must still filter the seed before any
+            # fallback model sees it. Unverified candidates cannot escape.
+            with patch.object(agent, "build_origin_course", return_value=None), \
+                    patch.object(visit_requests.Selector, "__call__", return_value=[]) as fallback_filter:
+                fallback = agent.answer(question, hint_stadium="GWANGJU", course_memory=memory.empty(), course_request="NEW")
+            fallback_filter.assert_called_once()
+            self.assertEqual(fallback["places"], [])
         self.assertEqual(events[0], "자장면")
         self.assertLess(events.index("자장면"), events.index("broad"))
         self.assertEqual([p["phase"] for p in result["places"]], ["BEFORE", "BEFORE", "GAME", "AFTER"])
@@ -252,7 +272,13 @@ class VisitConditionsTests(SimpleTestCase):
         self.assertEqual([p["name"] for p in result["places"]], ["밖국밥집", "스트릿츄러스", "광주-KIA 챔피언스 필드", "밖술집"])
         self.assertEqual([p["phase"] for p in result["places"]], ["BEFORE", "BEFORE", "GAME", "AFTER"])
         self.assertEqual(result["origin"]["name"], "광주역")
-        self.assertIn(self.churros["placeUrl"], result["answer"])
+        # Routing may select another collected branch of the same store. Its
+        # exact location URL must match the branch actually put in the course.
+        dessert = result["places"][1]
+        branch = next(p for p in self.sources if p["placeId"] == dessert["placeId"])
+        self.assertEqual(dessert["placeUrl"], branch["placeUrl"])
+        self.assertTrue(matching_menu_items(branch, "츄러스"))
+        self.assertIn(branch["placeUrl"], result["answer"])
         self.assertEqual([p["name"] for p in result["coursePayload"]["stops"]], [p["name"] for p in result["places"]])
         self.assertEqual(len(result["courseMemory"]["current"]["places"]), 4)
         self.assertTrue(checked)
@@ -314,6 +340,9 @@ class DaejeonEnglishMenuCourseTests(SimpleTestCase):
         self.assertTrue(matched)
         self.assertEqual([p["phase"] for p in result["places"]], ["BEFORE", "BEFORE", "GAME", "AFTER"])
         self.assertEqual(result["origin"]["name"], "대전역")
+        from llm.v2.agent.course_output import public_course
+        self.assertEqual(result["courseMemory"]["current"]["places"][-1]["detail"], bar["detail"])
+        self.assertNotIn("detail", public_course(result)["places"][-1])
         self.assertIn(source["placeUrl"], result["answer"])
         self.assertTrue(any(o["imageUrl"] in result["answer"] for item in matched for o in item["observations"]))
         self.assertIn("메뉴판 사진", result["answer"])

@@ -141,8 +141,11 @@ test("structured answer formatting preserves semantic values and ordinary colon 
   assert.deepEqual(planningAnswers("상세?: 18:30 도착\n경기 후 식사\n이동?: 버스: 2번", multiline), ["18:30 도착\n경기 후 식사", "버스: 2번"]);
 }));
 
-test("vertical full-width choices precede one initially empty accessible input", () => harness(2, h => {
+test("responsive ten-button choices precede one initially empty accessible input", () => harness(2, h => {
+  h.props.message.planning.questions[0].choices = Array.from({ length: 10 }, (_, i) => `구장 ${i}`); h.render();
   const fieldset = nodes(h.tree).find(n => n.type === "fieldset");
+  assert.equal(nodes(fieldset).filter(n => n.type === "button").length, 10);
+  assert.ok(nodes(fieldset).filter(n => n.type === "button").every(n => n.props.type === "button" && typeof n.props["aria-pressed"] === "boolean"));
   assert.ok(nodes(fieldset).some(n => n.props?.className === "chat-question-choices"));
   const input = nodes(fieldset).find(n => n.type === "input");
   assert.equal(input.props.value, "");
@@ -150,7 +153,10 @@ test("vertical full-width choices precede one initially empty accessible input",
   assert.equal(nodes(h.tree).filter(n => n.type === "input").length, 1);
   assert.equal(h.button("직접 입력하기"), undefined);
   const css = readFileSync(join(frontend, "styles/chat-planning.css"), "utf8");
-  assert.match(css, /\.chat-question-choices\s*\{[^}]*flex-direction:\s*column/);
+  assert.match(css, /container-type:\s*inline-size/);
+  for (const columns of [2, 3, 5]) assert.ok(css.includes(`repeat(${columns}, minmax(0, 1fr))`));
+  assert.match(css, /@container \(min-width: 680px\)/);
+  assert.match(css, /:focus-visible/);
   assert.match(css, /\.chat-question-choices button\s*\{[^}]*width:\s*100%[^}]*text-align:\s*left/);
   assert.match(css, /\.chat-planning button\s*\{[^}]*min-height:\s*44px/);
 }));
@@ -186,6 +192,18 @@ test("LLM direct-input wording remains an ordinary immediate-send choice", () =>
   assert.deepEqual(h.sends, [[2, "질문 1: 다른 구장 직접 입력"]]);
 }));
 
+test("free-text question has no fabricated choices and sends without writer offer", () => harness(1, h => {
+  h.props.message.planning = { offer_writer: false, questions: [{ question: "어느 날짜인가요?", choices: [] }] }; h.render();
+  const { parsePlanning } = h.require("./helper.cjs");
+  assert.deepEqual(parsePlanning(h.props.message.planning), h.props.message.planning);
+  assert.equal(nodes(h.tree).filter(n => n.type === "button").length, 1);
+  assert.equal(h.button("답변 보내기").props.disabled, true);
+  assert.equal(nodes(h.tree).some(n => n.props?.children === "선택하면 바로 보내요"), false);
+  nodes(h.tree).find(n => n.type === "input").props.onChange({ target: { value: "  10월 11일  " } }); h.render();
+  h.click(h.button("답변 보내기"));
+  assert.deepEqual(h.sends, [[2, "어느 날짜인가요?: 10월 11일"]]);
+}));
+
 test("single choice auto-sends once even with a stale double click", () => harness(1, h => {
   assert.equal(nodes(h.tree).some(n => n.type === "nav"), false);
   assert.equal(nodes(h.tree).find(n => n.type === "input").props.value, "");
@@ -196,6 +214,47 @@ test("single choice auto-sends once even with a stale double click", () => harne
   assert.deepEqual(h.sends, [[2, "질문 1: 친구"]]);
   assert.equal(h.tree.props["aria-busy"], true);
   assert.ok(h.stays > 0);
+}));
+
+test("place source badges open separately and never select or submit a choice", () => harness(1, h => {
+  const { parsePlanning } = h.require("./helper.cjs");
+  h.props.message.planning = parsePlanning({ offer_writer: false, questions: [{ question: "바꿀 곳은?", choices: ["1번 STATION", "3번 카페", "공원"], choice_links: [
+    { choice: "1번 STATION", url: "https://myseatcheck.com/station/" },
+    { choice: "3번 카페", url: "http://place.map.kakao.com/123" },
+  ] }] });
+  h.render();
+  const anchors = nodes(h.tree).filter(n => n.type === "a");
+  assert.equal(anchors.length, 2);
+  assert.equal(anchors[0].props.href, "https://myseatcheck.com/station/");
+  assert.equal(anchors[0].props["aria-label"], "1번 STATION 매장 상세 위치 (새 창)");
+  assert.equal(anchors[1].props.href, "https://place.map.kakao.com/123");
+  assert.equal(anchors[1].props["aria-label"], "3번 카페 장소 정보 (새 창)");
+  let stopped = 0;
+  for (const a of anchors) {
+    assert.equal(a.props.target, "_blank");
+    assert.equal(a.props.rel, "noopener noreferrer");
+    a.props.onClick({ stopPropagation() { stopped++; }, preventDefault() { assert.fail("navigation must remain available"); } });
+  }
+  h.render();
+  assert.equal(stopped, 2);
+  assert.equal(h.sends.length, 0);
+  assert.equal(h.button("1번 STATION").props["aria-pressed"], false);
+  assert.ok(nodes(h.tree).filter(n => n.type === "button").every(b => !nodes(b.props.children).some(n => n.type === "a")));
+  h.click(h.button("1번 STATION"));
+  assert.deepEqual(h.sends, [[2, "바꿀 곳은?: 1번 STATION"]]);
+}));
+
+test("planning links discard unsafe, unknown and duplicate entries without losing legacy choices", () => harness(1, h => {
+  const { parsePlanning, planningChoiceLink } = h.require("./helper.cjs");
+  const legacy = { offer_writer: false, questions: [{ question: "어디?", choices: ["A", "B"] }] };
+  assert.deepEqual(parsePlanning(legacy), legacy);
+  for (const url of ["javascript:alert(1)", "//example.com", "https://user:password@example.com/", "https://example.com/\npath", "https://example.com\\path"])
+    assert.equal(planningChoiceLink({ choice: "A", url }), undefined);
+  const payload = parsePlanning({ ...legacy, questions: [{ ...legacy.questions[0], choice_links: [
+    null, { choice: "X", url: "https://example.com/" }, { choice: "A", url: "https://example.com/a", label: "model label" },
+    { choice: "A", url: "https://example.com/duplicate" }, { choice: "B", url: "javascript:alert(1)" },
+  ] }] });
+  assert.deepEqual(payload.questions[0].choice_links, [{ choice: "A", url: "https://example.com/a", label: "장소 정보" }]);
 }));
 
 test("single always-visible custom input requires explicit send; Enter cannot submit writer", () => harness(1, h => {

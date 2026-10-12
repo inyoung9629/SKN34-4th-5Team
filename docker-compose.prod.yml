@@ -6,7 +6,6 @@ x-logging: &default-logging
 
 services:
   jev-browser:
-    profiles: [web-research]
     build: ./docker/jev-browser
     restart: unless-stopped
     cap_add: [NET_ADMIN]
@@ -39,14 +38,26 @@ services:
     logging: *default-logging
 
   backend:
-    build:
+    build: &backend-build
       context: ./backend
       dockerfile: Dockerfile.prod
     restart: unless-stopped
     volumes:
       - ./data/staging/stadium_places:/data/staging/stadium_places:ro
-    environment:
+      - lodging_pages:/app/.cache/lodging-pages
+    environment: &backend-environment
+      LODGING_CHROME_TRANSPORT: mcp
+      LODGING_WARM_STADIUMS: ${LODGING_WARM_STADIUMS:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      RAG_SEARCH_MODE: ${RAG_SEARCH_MODE:-rerank}
+      RAG_VENUE_SEARCH_MODE: ${RAG_VENUE_SEARCH_MODE:-hybrid}
+      RAG_RERANK_MODEL: ${RAG_RERANK_MODEL:-voyageai/rerank-2.5}
+      RAG_RERANK_CANDIDATES: ${RAG_RERANK_CANDIDATES:-30}
+      RAG_RRF_K: ${RAG_RRF_K:-60}
+      RAG_SPARSE_WEIGHT: ${RAG_SPARSE_WEIGHT:-0.1}
+      RAG_SPARSE_RRF_WEIGHT: ${RAG_SPARSE_RRF_WEIGHT:-1.0}
+      QDRANT_SPARSE_COLLECTION: ${QDRANT_SPARSE_COLLECTION:-kbo_documents_sparse}
       JEV_MCP_URL: ${JEV_MCP_URL:-http://jev-browser:8080/mcp}
       JEV_MCP_TOKEN: ${JEV_MCP_TOKEN:?Set JEV_MCP_TOKEN}
       WEB_RESEARCH_ENABLED: ${WEB_RESEARCH_ENABLED:-false}
@@ -54,6 +65,7 @@ services:
       RESEARCH_BASE_URL: ${RESEARCH_BASE_URL:-https://api.openai.com/v1}
       RESEARCH_API_KEY: ${RESEARCH_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY}
+      FANTASY_LOCAL_REQUEST_JOBS_ENABLED: "false"
       CHAT_CHECKPOINT_SIGNING_KEY: ${CHAT_CHECKPOINT_SIGNING_KEY:?Set CHAT_CHECKPOINT_SIGNING_KEY}
       CHAT_TRUST_PROXY_HEADERS: "true"
       CHAT_STREAM_IDLE_TIMEOUT_SECONDS: ${CHAT_STREAM_IDLE_TIMEOUT_SECONDS:-300}
@@ -61,6 +73,7 @@ services:
       USAGE_GUEST_TOKENS: ${USAGE_GUEST_TOKENS:-500000}
       USAGE_MEMBER_MONTHLY_TOKENS: ${USAGE_MEMBER_MONTHLY_TOKENS:-999999000}
       DEBUG: ${DEBUG:-false}
+      FANTASY_POINT_PAYOUT_RATE: ${FANTASY_POINT_PAYOUT_RATE:-0.10}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
       QDRANT_API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY}
@@ -122,6 +135,20 @@ services:
       timeout: 5s
       retries: 12
       start_period: 30s
+    logging: *default-logging
+
+  lodging-warmer:
+    build: *backend-build
+    restart: unless-stopped
+    environment: *backend-environment
+    volumes:
+      - ./data/staging/stadium_places:/data/staging/stadium_places:ro
+      - lodging_pages:/app/.cache/lodging-pages
+    command: ["python", "manage.py", "warm_lodging_cache", "--loop"]
+    stop_grace_period: 55s
+    depends_on:
+      jev-browser:
+        condition: service_started
     logging: *default-logging
 
   frontend:
@@ -186,5 +213,6 @@ services:
     logging: *default-logging
 
 volumes:
+  lodging_pages:
   minio_data:
   qdrant_data:

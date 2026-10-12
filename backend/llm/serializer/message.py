@@ -107,7 +107,7 @@ class ChatMessageInputSerializer(serializers.Serializer):
     """POST /messages/ 요청 바디 검증 (content + 선택 사항 context)."""
     content = serializers.CharField(max_length=2200, allow_blank=False)
     context = serializers.DictField(required=False, allow_null=True)
-    tool_group_ids = serializers.ListField(child=serializers.CharField(), required=False, max_length=16)
+    tool_group_ids = serializers.ListField(child=serializers.CharField(), required=False, max_length=17)
     attachment_ids = serializers.ListField(child=serializers.UUIDField(), required=False)
 
     def validate_tool_group_ids(self, value):
@@ -182,7 +182,7 @@ _TOOL_RESULT_STATUS = {"success": PublicToolStatus.COMPLETED.value, "error": Pub
 
 
 # 하위 Agent 도구 이름 (llm.v2.agent.sub_agents.SPECIALISTS 와 같다. 무거운 agent import 를 피하려고 여기 둔다).
-SUB_AGENT_TOOLS = ("ask_baseball", "ask_travel_research", "ask_place_data", "ask_course", "ask_web_research")
+SUB_AGENT_TOOLS = ("ask_baseball", "ask_travel_research", "ask_place_data", "ask_course", "ask_web_research", "ask_highlight")
 TITLE_LIMIT = 80
 SUMMARY_LIMIT = 40
 
@@ -325,6 +325,10 @@ def project_history(messages, turns, detail=False):
                     payload = public_course(artifact.get("course"))
                     if payload:
                         item["course"] = payload
+            if status == TurnStatus.COMPLETED:
+                from llm.v2.agent.chat_ui import highlight_videos
+                if videos := highlight_videos(turn_messages):
+                    item["videos"] = videos
             items.append(item)
     return items
 
@@ -465,7 +469,8 @@ def done_payload(messages, turns):
     return {"message_id": last["id"], "assistant_message": last["content"], "tools": last["tools"], "steps": last["steps"],
             **({"planning": last["planning"]} if "planning" in last else {}),
             **({"coursePreferences": last["coursePreferences"]} if "coursePreferences" in last else {}),
-            **({"course": last["course"]} if "course" in last else {})}
+            **({"course": last["course"]} if "course" in last else {}),
+            **({"videos": last["videos"]} if "videos" in last else {})}
 
 
 def hide_private_tools(item):
