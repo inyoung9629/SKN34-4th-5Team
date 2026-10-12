@@ -15,7 +15,10 @@ after(() => rmSync(scratch, { recursive: true, force: true }));
 symlinkSync(join(frontend, "node_modules"), join(scratch, "node_modules"), "dir");
 const media = readFileSync(join(frontend, "lib/media-url.ts"), "utf8");
 writeFileSync(join(scratch, "media.cjs"), ts.transpileModule(media, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText);
-const source = readFileSync(join(frontend, "components/chat-answer.tsx"), "utf8").replace(/^import "@\/styles\/chat-answer\.css";$/m, "").replaceAll("@/lib/media-url", "./media.cjs");
+// 유튜브 플레이어는 브라우저 iframe API 를 쓰므로 테스트에서는 videoId·start 만 드러내는 stub 으로 바꾼다.
+writeFileSync(join(scratch, "player.cjs"), `exports.YouTubeVideoPlayer = ({ videoId, start, title }) => require("react").createElement("span", { "data-youtube": videoId, "data-start": start ?? "", title });\n`);
+const source = readFileSync(join(frontend, "components/chat-answer.tsx"), "utf8").replace(/^import "@\/styles\/chat-answer\.css";$/m, "").replaceAll("@/lib/media-url", "./media.cjs")
+  .replaceAll("@/components/youtube-video-player", "./player.cjs");
 writeFileSync(join(scratch, "answer.cjs"), ts.transpileModule(source, {
   fileName: "chat-answer.tsx", compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
 }).outputText);
@@ -236,4 +239,16 @@ test("live progress and restored conversation surfaces share ChatAnswer and boun
   assert.match(css, /\.chat-answer img[^}]*max-width: 100%/);
   assert.match(css, /\.chat-table-scroll[^}]*overflow-x: auto/);
   assert.match(source, /onError=\{\(\) => setFailed\(true\)\}/);
+});
+
+test("highlight video cards come from server videos, start at the given second and keep a YouTube link", () => {
+  const html = renderToStaticMarkup(React.createElement(ChatAnswer, {
+    text: "10월 5일 KIA 6회말 김도영 3점 홈런이에요.",
+    videos: [{ videoId: "vid1AAAAAAA", start: 184, label: "2026-10-05 KIA 6회말 김도영 홈런 3타점" }],
+  }));
+  assert.match(html, /class="chat-videos"/);
+  assert.match(html, /data-youtube="vid1AAAAAAA"/);
+  assert.match(html, /data-start="184"/);
+  assert.match(html, /href="https:\/\/www\.youtube\.com\/watch\?v=vid1AAAAAAA&amp;t=184s"/);
+  assert.doesNotMatch(render("영상 카드 없음"), /chat-videos/);
 });

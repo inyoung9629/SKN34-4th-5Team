@@ -23,6 +23,13 @@ def place(key, category, name, detail=""):
 
 
 class RequestedAfterActivitiesTest(SimpleTestCase):
+    def test_excluded_phase_does_not_move_or_duplicate_lodging_in_summary(self):
+        question = ("경기 관람 후 주차 가능한 호텔 한 곳에서 숙박하는 코스를 만들어줘. "
+                    "경기 전 다른 장소는 넣지 말고, 경기 관람과 숙박만 포함해줘.")
+        self.assertEqual(agent.plan_steps(slots.parse(question), True), ([], ["STAY"]))
+        self.assertEqual(agent.plan_steps(slots.parse("경기 전 호텔에 들르고 경기 후 숙소로 돌아가"), True),
+                         (["STAY"], ["STAY"]))
+
     def test_food_exclusions_are_not_positive_preferences(self):
         for text, excluded, included in (
             ("한식 말고 일식으로 추천해줘", "한식", "일식"),

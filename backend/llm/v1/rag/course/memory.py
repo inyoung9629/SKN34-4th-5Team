@@ -84,9 +84,40 @@ def snapshot(result):
             **({"progress": deepcopy(result["progress"])} if result.get("progress") else {})}
 
 
+def restore_place_details(current, saved):
+    """The public map omits provider subcategories. Keep known branch details.
+
+    Preserve the current map's list, coordinates, order, category and timings;
+    only recover missing metadata for the same unchanged branch/category.
+    """
+    previous = (saved or {}).get("current") or {}
+    if current.get("stadiumCode") != previous.get("stadiumCode"):
+        return current
+    value = deepcopy(current)
+    # The browser sends only date/time. Recover provenance solely from server
+    # memory for this same stadium and game; never accept a client demo flag.
+    game, known_game = value.get("game"), previous.get("game")
+    if game and known_game and all(game.get(k) == known_game.get(k) for k in ("date", "time")):
+        from .game_metadata import summary
+        value["game"] = summary(known_game)
+    def category(place):
+        return "FOOD" if place.get("category") == "FOOD_OUT" else place.get("category")
+    for place in value.get("places", []):
+        if place.get("detail"):
+            continue
+        match = next((p for p in previous.get("places", []) if same(p, place)
+                      and not (p.get("placeId") and place.get("placeId") and p["placeId"] != place["placeId"])
+                      and category(p) == category(place)
+                      and all(abs(p.get(k, 0) - place.get(k, 1)) < .0005 for k in ("lat", "lng"))), None)
+        if match and match.get("detail"):
+            place["detail"] = match["detail"]
+    return value
+
+
 def attach(result, value, current=None, origin=None, before=None, undo=True):
     state = deepcopy(value)
     if result.get("places"):
+        state.pop("pending_selection", None)
         from .writer_state import for_result
         result["writerState"] = for_result(result, current, origin)
         state["current"] = snapshot(result)

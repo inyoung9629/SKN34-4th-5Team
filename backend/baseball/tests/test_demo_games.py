@@ -69,6 +69,16 @@ class DemoGamesTests(TestCase):
         self.assertEqual(Game.objects.count(), 1)
         self.assertEqual(Game.objects.values().get(pk=official.pk), before)
 
+    def test_reapply_rejects_official_schedule_inserted_after_demo(self):
+        self.run_command("apply")
+        official = self.official_game(stadium=Stadium.objects.get(stadium_code="JAMSIL"),
+                                      home_team=Team.objects.get(team_code="DOOSAN"), away_team=Team.objects.get(team_code="LOTTE"))
+        before = list(Game.objects.order_by("pk").values())
+        with self.assertRaises(CommandError):
+            self.run_command("apply")
+        self.assertEqual(before, list(Game.objects.order_by("pk").values()))
+        self.assertTrue(Game.objects.filter(pk=official.pk, source="tving").exists())
+
     def test_missing_team_rolls_back_the_first_fixture(self):
         Team.objects.filter(team_code="LOTTE").update(team_code="MISSING_LOTTE")
         with self.assertRaises(CommandError):

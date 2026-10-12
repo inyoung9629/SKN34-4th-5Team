@@ -1,5 +1,5 @@
 import { MAX_HISTORY_MESSAGES, MAX_MESSAGE_LENGTH, MAX_REPLY_LENGTH } from "./types";
-import type { ChatContext, ChatCurrentCourse, ChatMessage, ChatRequest } from "./types";
+import type { ChatContext, ChatCurrentCourse, ChatMessage, ChatRequest, ChatVideo } from "./types";
 import { isCourseProgress, parseChatCourse } from "./course";
 import { isLegModes } from "../course-directions";
 
@@ -94,4 +94,24 @@ export function parseChatRequest(value: unknown): ChatRequest {
   if (value.sessionId !== undefined && (typeof value.sessionId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.sessionId))) throw new ChatError("채팅방 번호를 확인해 주세요.");
   // Only the documented fields reach a provider; client-supplied model/system settings are discarded.
   return { messages, ...(value.sessionId !== undefined ? { sessionId: value.sessionId as string } : {}), ...(context ? { context } : {}) };
+}
+
+const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
+const MAX_VIDEOS = 5;
+
+/** 서버 done/기록의 videos → 하이라이트 영상 카드. 형식이 틀린 항목은 버린다(유효한 카드가 없으면 undefined). */
+export function parseVideos(value: unknown): ChatVideo[] | undefined {
+  if (!Array.isArray(value)) return;
+  const videos: ChatVideo[] = [];
+  for (const raw of value.slice(0, MAX_VIDEOS)) {
+    if (!isRecord(raw)) continue;
+    if (typeof raw.videoId !== "string" || !VIDEO_ID.test(raw.videoId)) continue;
+    if (typeof raw.start !== "number" || !Number.isInteger(raw.start) || raw.start < 0 || raw.start > 6 * 3600) continue;
+    videos.push({
+      videoId: raw.videoId, start: raw.start,
+      label: typeof raw.label === "string" ? raw.label.slice(0, 120) : "",
+      ...(typeof raw.gameDate === "string" ? { gameDate: raw.gameDate.slice(0, 10) } : {}),
+    });
+  }
+  return videos.length ? videos : undefined;
 }

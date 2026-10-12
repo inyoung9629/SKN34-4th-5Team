@@ -27,6 +27,7 @@ class V2AgentState(AgentState):
     attachment_web_call_id: NotRequired[str | None]
     attachment_web_done: NotRequired[bool]
     attachment_source_incomplete: NotRequired[bool]
+    attachment_read_results: NotRequired[dict]  # Transient retained server-owned URL observations.
     attachment_sources: NotRequired[list[dict]]  # Accepted originals included in this invocation's main input.
     context: NotRequired[dict | None]  # 선택: {"stadium", "intent", "origin": {"lat", "lng"}}
 
@@ -75,22 +76,26 @@ class FinalAnswerMiddleware(AgentMiddleware):
         return response
 
 
-def build_agent(model, tools, rules, capability_tools=None, budget=MODEL_CALL_BUDGET, run_jev=False, extra_middleware=()):
+def build_agent(model, tools, rules, capability_tools=None, budget=MODEL_CALL_BUDGET, run_jev=False, extra_middleware=(), fixed_tools=()):
     """create_agent 를 JEV 가이드라인 + 동적 도구 노출 + 종료 보장 미들웨어와 함께 조립한다.
 
     capability_tools 가 None 이면 role_tools(주어진 tools) 그대로 노출한다(구성 시점에 고정된
-    하위 Agent). capability_tools 를 주면 decision.capabilities 와의 교집합만 노출한다(메인).
+    하위 Agent). capability_tools 를 주면 PASS 후 fixed_tools 와 capability별 역할 도구를 합쳐 노출한다(메인).
     run_jev: 메인 Agent 만 True. invocation 시작에 JEV 를 한 번 부른다.
     budget: invocation 당 model 호출 수(포함). 1..N-1 은 도구 사용 가능, N 은 도구 없이 답, N+1 은 provider 호출 없이 오류.
     get_directions 는 요청당 2회까지만 실행하고(외부 429 반복 방지), 넘으면 오류 ToolMessage 로 모델이 다음으로 간다."""
     from langchain.agents import create_agent
     from ..middleware.attachment_context import AttachmentContextMiddleware
+    from ..middleware.course_answer import CourseAnswerMiddleware
+    if not run_jev:
+        rules += "\n한 목표만 처리하며 내부 순차 조회는 허용하되 다른 전문 에이전트에 중첩 위임하지 않는다. 사용자에게 직접 질문하거나 사용자 UI를 만들지 않는다. 필수 정보가 부족하면 미확인 조건과 필요한 질문/실제 선택 후보를 메인 에이전트에게 반환한다. 최신성 확인 실패에도 저장된 행이 있으면 경고와 함께 반환하고, 실패+빈 결과는 미확인이지 경기 없음이 아니다."
     agent = create_agent(
         model=model, tools=tools, state_schema=V2AgentState,
         middleware=[
             JevGuidelineMiddleware(rules, run_jev),
             *([AttachmentContextMiddleware()] if run_jev else []),
-            DynamicToolMiddleware([t.name for t in tools], capability_tools),
+            *([CourseAnswerMiddleware()] if run_jev else []),
+            DynamicToolMiddleware([t.name for t in tools], capability_tools, fixed_tools),
             ModelCallLimitMiddleware(run_limit=budget, exit_behavior="error"),
             FinalAnswerMiddleware(budget),
             *extra_middleware,

@@ -17,10 +17,11 @@ from django.core.exceptions import ValidationError
 from django.db import DatabaseError
 from django.utils import timezone
 from langchain_core.messages import HumanMessage, SystemMessage
-from llm.v2.agent.browser_research import structured_search
+from llm.v2.agent.browser_research import allow_new_source_search, structured_search
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
 from llm.v1.progress import config_kwargs, ProgressCancelled, ProgressStorageError
+from llm.service.chat_runs import Stopped
 from travel.place_keyword_memory import retrieve_keyword_memory, record_keyword_memory
 from travel.place_knowledge_models import PlaceKnowledge, PlaceKnowledgeSource, PlaceEnrichmentAttempt, PlaceKnowledgeObservation
 from ..nearby.lodging import same_property
@@ -30,6 +31,7 @@ GENERAL = {"scope": "general", "weekdays": [], "start_minute": None, "end_minute
 VERSION = "course-evidence-v8"
 MAX_PASSES = 3
 _BUDGET = ContextVar("course_evidence_budget", default=None)
+_LOCAL_CENTER = ContextVar("course_evidence_local_center", default=None)
 CATALOG_CUISINES = (("한식", "한식집", "한식당", "한국음식"),
                     ("중식", "중식집", "중식당", "중국집", "중국음식", "중국요리"),
                     ("일식", "일식집", "일식당", "일본음식"), ("양식", "양식집", "양식당"))
@@ -37,6 +39,15 @@ CATALOG_CUISINES = (("한식", "한식집", "한식당", "한국음식"),
 
 def catalog_cuisine(term):
     return next((group[0] for group in CATALOG_CUISINES if re.sub(r"\s+", "", term) in group), "")
+
+
+@contextmanager
+def local_candidates(center):
+    token = _LOCAL_CENTER.set(center)
+    try:
+        yield
+    finally:
+        _LOCAL_CENTER.reset(token)
 
 
 @contextmanager
@@ -109,6 +120,13 @@ def requirements(conditions):
     budget, key = _BUDGET.get(), tuple(conditions)
     if budget is not None and key in budget["requirements"]:
         return budget["requirements"][key]
+    from .catalog_conditions import parse, MENUS
+    if (terms := parse(conditions)) is not None:
+        parsed = [Requirement(term=term, attribute="menu" if term in MENUS.values() else "catalog", intent="required", group=str(i))
+                  for i, term in enumerate(terms)]
+        if budget is not None:
+            budget["requirements"][key] = parsed
+        return parsed
     answer = llm().with_structured_output(Requirements, method="json_schema").invoke([
         SystemMessage("""장소 조건을 원자 조건으로 분리한다. 요청에 없는 조건은 만들지 않는다.
 필수는 required, '가능하면/면 좋겠어'는 optional, 명시적 금지/싫어/제외는 exclude.
@@ -329,6 +347,10 @@ def search(candidates, requested):
                 if all(any(f.place_id == identity(p) and f.term == r.term for f in direct)
                        for p in candidates for r in requested):
                     return direct, direct_urls, 0
+        if place_quality.probing() or not allow_new_source_search.get():
+            # V2 permits known-page reads only. Preserve verified partial facts;
+            # absent conditions remain unknown through checked_rows/verdict.
+            return direct, direct_urls, 0
         findings, opened, calls, discovered = _search_once(candidates, requested)
         valid_ids = {identity(p) for p in candidates}
         terms = {(r.term, r.attribute) for r in requested}
@@ -550,6 +572,53 @@ def _enrich(candidates, conditions):
         all_rows[id(p)] = rows
         if not collected_food and any(r.intent != "optional" and verdict(rows, r) == "unknown" for r in requested):
             pending.append(p)
+    def accepted_rows(items):
+        result = []
+        for p in items:
+            rows = all_rows[id(p)]
+            checks, accepted = condition_result(rows, requested, mixed_groups)
+            if accepted and not availability.check(p, availability.visit_date()):
+                result.append({**p, "conditionChecks": checks, "verifiedFacts": [
+                    {"term": r["term"], "attribute": r["attribute"], "polarity": r["polarity"], "url": r["source"]["url"]}
+                    for r in rows]})
+        return result
+    # A menu-verified nearby option can complete this visit. Do not investigate
+    # every other shop before returning it. Unknown facts never become matches;
+    # distant cached shops and semantic/negative conditions retain full research.
+    center = _LOCAL_CENTER.get()
+    if center and requested:
+        from . import catalog_conditions, place_quality
+        terms = catalog_conditions.parse(conditions)
+        if terms is not None and any(t in catalog_conditions.MENUS.values() for t in terms):
+            ready = catalog_conditions.choose(accepted_rows(candidates),
+                {"conditions": conditions}, "; ".join(conditions), verified=True)
+            nearest = min((place_quality.distance_to(p, center) for p in candidates), default=float("inf"))
+            limit = min(place_quality.LOCAL_REUSE_M, nearest + place_quality.LOCAL_DISTANCE_SLACK_M)
+            local = [p for p in ready or [] if place_quality.distance_to(p, center) <= limit]
+            if local:
+                return local
+    from . import place_quality
+    if place_quality.probing():
+        # A probe only checks the known branch profiles. A partial/failed probe
+        # must not create a cooldown or mark candidates tried: the normal path
+        # can still discover other sources for these same branches.
+        if (getattr(settings, "COURSE_WEB_VERIFICATION_ENABLED", False) and pending
+                and budget.get("profile_probes", 0) < 2
+                and (budget["deadline"] is None or time.monotonic() < budget["deadline"])):
+            active = investigation_order(pending, requested)[:4]
+            budget["profile_probes"] = budget.get("profile_probes", 0) + 1
+            try:
+                findings, opened, _ = search(active, requested)
+                for p in active:
+                    rows = checked_rows(p, requested, findings, opened, timezone.now())
+                    all_rows[id(p)].extend(rows)
+                    known = facts.setdefault(fact_key(p), [])
+                    known.extend(row for row in rows if row not in known)
+            except (Stopped, ProgressCancelled, ProgressStorageError):
+                raise
+            except Exception as exc:
+                log.warning("local menu probe failed: %s", type(exc).__name__)
+        return accepted_rows(candidates)
     turn_candidates = []
     condition_key = tuple((r.term, r.attribute, r.intent, r.group) for r in requested)
     while (getattr(settings, "COURSE_WEB_VERIFICATION_ENABLED", False) and pending
@@ -575,7 +644,7 @@ def _enrich(candidates, conditions):
                         break
             except (DatabaseError, ValidationError):
                 continue
-        if not active:
+        if not active and allow_new_source_search.get():
             # When all candidates were tried, revisit partial evidence first,
             # explicitly asking for different sources under the same turn cap.
             active = sorted(alternatives, key=lambda p: -len(all_rows[id(p)]))[:4]
@@ -593,7 +662,7 @@ def _enrich(candidates, conditions):
             semantic_before = budget.get("semantic_calls", 0)
             try:
                 findings, opened, calls = search(active, requested)
-            except (ProgressCancelled, ProgressStorageError):
+            except (Stopped, ProgressCancelled, ProgressStorageError):
                 raise
             except Exception as exc:
                 log.warning("place evidence lookup failed: %s", type(exc).__name__)
@@ -612,7 +681,7 @@ def _enrich(candidates, conditions):
                             attribute=r.attribute, term=r.term, status=status,
                             reason_code="provider_error" if failed else "stored" if count else "verified_not_stored" if rows else "not_found",
                             search_calls=calls if i == j == 0 else 0,
-                            model_calls=(1 + budget.get("semantic_calls", 0) - semantic_before) if i == j == 0 else 0,
+                            model_calls=(int(allow_new_source_search.get()) + budget.get("semantic_calls", 0) - semantic_before) if i == j == 0 else 0,
                             started_at=started, finished_at=finished, next_retry_at=finished + timedelta(minutes=15 if failed else 60))
                 except (DatabaseError, ValidationError, ValueError):
                     log.warning("place evidence storage unavailable")
@@ -622,13 +691,4 @@ def _enrich(candidates, conditions):
                 break
             # Three passes total, even if a nested origin/corridor search calls
             # enrich again. A provider failure does not trigger a retry storm.
-    result = []
-    for p in candidates:
-        rows = all_rows[id(p)]
-        checks, accepted = condition_result(rows, requested, mixed_groups)
-        if not accepted or availability.check(p, availability.visit_date()):
-            continue
-        result.append({**p, "conditionChecks": checks, "verifiedFacts": [
-            {"term": r["term"], "attribute": r["attribute"], "polarity": r["polarity"], "url": r["source"]["url"]}
-            for r in rows]})
-    return result
+    return accepted_rows(candidates)

@@ -5,17 +5,18 @@
   "uniqueImageCount": 2293,
   "checkedUniqueImageCount": 2293,
   "statuses": {
-    "SAVED": 365,
+    "SAVED": 357,
+    "QUARANTINED_SHARED_PHOTO": 8,
     "NO_MENU_PHOTO": 11,
     "UNREADABLE": 5,
     "NO_PHOTOS": 7
   },
-  "savedMenuCount": 5299,
+  "savedMenuCount": 5051,
   "byStadium": {
     "CHANGWON": {
       "stores": 37,
       "saved": 37,
-      "items": 506
+      "items": 503
     },
     "DAEGU": {
       "stores": 45,
@@ -24,8 +25,8 @@
     },
     "DAEJEON": {
       "stores": 43,
-      "saved": 43,
-      "items": 610
+      "saved": 39,
+      "items": 490
     },
     "GOCHEOK": {
       "stores": 42,
@@ -34,28 +35,28 @@
     },
     "GWANGJU": {
       "stores": 28,
-      "saved": 25,
-      "items": 417
+      "saved": 24,
+      "items": 374
     },
     "JAMSIL": {
       "stores": 67,
       "saved": 62,
-      "items": 929
+      "items": 928
     },
     "MUNHAK": {
       "stores": 47,
-      "saved": 46,
-      "items": 1126
+      "saved": 45,
+      "items": 1076
     },
     "SAJIK": {
       "stores": 33,
       "saved": 29,
-      "items": 380
+      "items": 365
     },
     "SUWON": {
       "stores": 46,
-      "saved": 36,
-      "items": 265
+      "saved": 34,
+      "items": 249
     }
   },
   "records": [
@@ -1010,15 +1011,17 @@
       "status": "SAVED",
       "imageCount": 3,
       "checkedImageCount": 3,
-      "menuImageCount": 2,
+      "menuImageCount": 1,
       "itemCount": 5,
       "missingImages": [],
       "images": [
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/NC파크26_20260407_175753_mark.webp",
-          "status": "READABLE",
-          "itemCount": 4,
-          "note": "호남원조식당 메뉴판의 일부 글자가 작아 판독이 제한됩니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "호남원조식당 메뉴판의 일부 글자가 작아 판독이 제한됩니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 4
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/NC파크26_20260407_175800_mark.webp",
@@ -1118,8 +1121,8 @@
       "status": "SAVED",
       "imageCount": 6,
       "checkedImageCount": 6,
-      "menuImageCount": 4,
-      "itemCount": 12,
+      "menuImageCount": 3,
+      "itemCount": 9,
       "missingImages": [],
       "images": [
         {
@@ -1148,9 +1151,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/NC파크26_20260407_175753_mark.webp",
-          "status": "READABLE",
-          "itemCount": 4,
-          "note": "호남원조식당 메뉴판의 일부 글자가 작아 판독이 제한됩니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "호남원조식당 메뉴판의 일부 글자가 작아 판독이 제한됩니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 4
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/NC파크26_20260407_172550_mark.webp",
@@ -4628,8 +4633,8 @@
       "status": "SAVED",
       "imageCount": 7,
       "checkedImageCount": 7,
-      "menuImageCount": 5,
-      "itemCount": 27,
+      "menuImageCount": 3,
+      "itemCount": 11,
       "missingImages": [],
       "images": [
         {
@@ -4658,15 +4663,19 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7075_mark.webp",
-          "status": "READABLE",
-          "itemCount": 9,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 9
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7076_mark.webp",
-          "status": "READABLE",
-          "itemCount": 10,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 10
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_6947_mark.webp",
@@ -4685,7 +4694,7 @@
       "status": "SAVED",
       "imageCount": 5,
       "checkedImageCount": 5,
-      "menuImageCount": 2,
+      "menuImageCount": 1,
       "itemCount": 21,
       "missingImages": [],
       "images": [
@@ -4697,9 +4706,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7114_mark.webp",
-          "status": "READABLE",
-          "itemCount": 20,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 20
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7115_mark.webp",
@@ -5126,8 +5137,8 @@
       "status": "SAVED",
       "imageCount": 9,
       "checkedImageCount": 9,
-      "menuImageCount": 3,
-      "itemCount": 9,
+      "menuImageCount": 2,
+      "itemCount": 6,
       "missingImages": [],
       "images": [
         {
@@ -5168,9 +5179,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7062_mark.webp",
-          "status": "READABLE",
-          "itemCount": 3,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 3
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7067_mark.webp",
@@ -5195,8 +5208,8 @@
       "status": "SAVED",
       "imageCount": 8,
       "checkedImageCount": 8,
-      "menuImageCount": 6,
-      "itemCount": 15,
+      "menuImageCount": 1,
+      "itemCount": 8,
       "missingImages": [],
       "images": [
         {
@@ -5207,27 +5220,35 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-편의시설-2026_IMG_0502_mark.webp",
-          "status": "READABLE",
-          "itemCount": 8,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 8
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-편의시설-2026_IMG_0503_mark.webp",
-          "status": "READABLE",
-          "itemCount": 5,
-          "note": "오른쪽 메뉴판의 메뉴 항목이 사진에 일부만 보입니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "오른쪽 메뉴판의 메뉴 항목이 사진에 일부만 보입니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 5
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-편의시설-2026_IMG_0504_mark.webp",
-          "status": "READABLE",
-          "itemCount": 5,
-          "note": "오른쪽 메뉴판이 잘려 있어 일부 메뉴 항목을 확인할 수 없습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "오른쪽 메뉴판이 잘려 있어 일부 메뉴 항목을 확인할 수 없습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 5
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-편의시설-2026_IMG_0505_mark.webp",
-          "status": "READABLE",
-          "itemCount": 3,
-          "note": "왼쪽 메뉴판이 잘려 일부 메뉴명을 판독할 수 없습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "왼쪽 메뉴판이 잘려 일부 메뉴명을 판독할 수 없습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 3
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7137_mark.webp",
@@ -5237,9 +5258,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7068_mark.webp",
-          "status": "READABLE",
-          "itemCount": 10,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 10
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_6947_mark.webp",
@@ -5258,8 +5281,8 @@
       "status": "SAVED",
       "imageCount": 7,
       "checkedImageCount": 7,
-      "menuImageCount": 5,
-      "itemCount": 22,
+      "menuImageCount": 3,
+      "itemCount": 6,
       "missingImages": [],
       "images": [
         {
@@ -5288,15 +5311,19 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7075_mark.webp",
-          "status": "READABLE",
-          "itemCount": 9,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 9
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7076_mark.webp",
-          "status": "READABLE",
-          "itemCount": 10,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 10
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_6947_mark.webp",
@@ -5315,8 +5342,8 @@
       "status": "SAVED",
       "imageCount": 10,
       "checkedImageCount": 10,
-      "menuImageCount": 8,
-      "itemCount": 25,
+      "menuImageCount": 6,
+      "itemCount": 18,
       "missingImages": [],
       "images": [
         {
@@ -5363,15 +5390,19 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7075_mark.webp",
-          "status": "READABLE",
-          "itemCount": 9,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 9
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7076_mark.webp",
-          "status": "READABLE",
-          "itemCount": 10,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 10
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_6947_mark.webp",
@@ -5651,8 +5682,8 @@
       "status": "SAVED",
       "imageCount": 5,
       "checkedImageCount": 5,
-      "menuImageCount": 2,
-      "itemCount": 5,
+      "menuImageCount": 1,
+      "itemCount": 2,
       "missingImages": [],
       "images": [
         {
@@ -5675,9 +5706,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7062_mark.webp",
-          "status": "READABLE",
-          "itemCount": 3,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 3
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_6947_mark.webp",
@@ -5750,11 +5783,11 @@
       "store": "자담치킨",
       "location": "중앙 100B구역",
       "sourceUrl": "https://myseatcheck.com/대전한화생명볼파크-먹거리-중앙-1층-2/",
-      "status": "SAVED",
+      "status": "QUARANTINED_SHARED_PHOTO",
       "imageCount": 7,
       "checkedImageCount": 7,
-      "menuImageCount": 5,
-      "itemCount": 15,
+      "menuImageCount": 0,
+      "itemCount": 0,
       "missingImages": [],
       "images": [
         {
@@ -5765,27 +5798,35 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-편의시설-2026_IMG_0502_mark.webp",
-          "status": "READABLE",
-          "itemCount": 8,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 8
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-편의시설-2026_IMG_0503_mark.webp",
-          "status": "READABLE",
-          "itemCount": 5,
-          "note": "오른쪽 메뉴판의 메뉴 항목이 사진에 일부만 보입니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "오른쪽 메뉴판의 메뉴 항목이 사진에 일부만 보입니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 5
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-편의시설-2026_IMG_0504_mark.webp",
-          "status": "READABLE",
-          "itemCount": 5,
-          "note": "오른쪽 메뉴판이 잘려 있어 일부 메뉴 항목을 확인할 수 없습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "오른쪽 메뉴판이 잘려 있어 일부 메뉴 항목을 확인할 수 없습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 5
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-편의시설-2026_IMG_0505_mark.webp",
-          "status": "READABLE",
-          "itemCount": 3,
-          "note": "왼쪽 메뉴판이 잘려 일부 메뉴명을 판독할 수 없습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "왼쪽 메뉴판이 잘려 일부 메뉴명을 판독할 수 없습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 3
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_6947_mark.webp",
@@ -5795,9 +5836,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7068_mark.webp",
-          "status": "READABLE",
-          "itemCount": 10,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 10
         }
       ]
     },
@@ -5807,11 +5850,11 @@
       "store": "GS25",
       "location": "3루 124구역",
       "sourceUrl": "https://myseatcheck.com/대전한화생명볼파크-먹거리-3루-1층-gs25/",
-      "status": "SAVED",
+      "status": "QUARANTINED_SHARED_PHOTO",
       "imageCount": 3,
       "checkedImageCount": 3,
-      "menuImageCount": 1,
-      "itemCount": 20,
+      "menuImageCount": 0,
+      "itemCount": 0,
       "missingImages": [],
       "images": [
         {
@@ -5822,9 +5865,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7114_mark.webp",
-          "status": "READABLE",
-          "itemCount": 20,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 20
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_6947_mark.webp",
@@ -6182,8 +6227,8 @@
       "status": "SAVED",
       "imageCount": 6,
       "checkedImageCount": 6,
-      "menuImageCount": 5,
-      "itemCount": 16,
+      "menuImageCount": 4,
+      "itemCount": 6,
       "missingImages": [],
       "images": [
         {
@@ -6212,9 +6257,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7068_mark.webp",
-          "status": "READABLE",
-          "itemCount": 10,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 10
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_6947_mark.webp",
@@ -6695,8 +6742,8 @@
       "status": "SAVED",
       "imageCount": 10,
       "checkedImageCount": 10,
-      "menuImageCount": 4,
-      "itemCount": 3,
+      "menuImageCount": 3,
+      "itemCount": 2,
       "missingImages": [],
       "images": [
         {
@@ -6713,9 +6760,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7275_mark.webp",
-          "status": "READABLE",
-          "itemCount": 1,
-          "note": "공동 홍보판의 일부 메뉴명만 읽히고 나머지 글씨는 작아 판독하기 어렵습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "공동 홍보판의 일부 메뉴명만 읽히고 나머지 글씨는 작아 판독하기 어렵습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 1
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7276_mark.webp",
@@ -6770,8 +6819,8 @@
       "status": "SAVED",
       "imageCount": 12,
       "checkedImageCount": 12,
-      "menuImageCount": 4,
-      "itemCount": 14,
+      "menuImageCount": 2,
+      "itemCount": 10,
       "missingImages": [],
       "images": [
         {
@@ -6788,9 +6837,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7275_mark.webp",
-          "status": "READABLE",
-          "itemCount": 1,
-          "note": "공동 홍보판의 일부 메뉴명만 읽히고 나머지 글씨는 작아 판독하기 어렵습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "공동 홍보판의 일부 메뉴명만 읽히고 나머지 글씨는 작아 판독하기 어렵습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 1
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7276_mark.webp",
@@ -6824,9 +6875,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7279_mark.webp",
-          "status": "READABLE",
-          "itemCount": 3,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 3
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7307_mark.webp",
@@ -6857,8 +6910,8 @@
       "status": "SAVED",
       "imageCount": 11,
       "checkedImageCount": 11,
-      "menuImageCount": 4,
-      "itemCount": 7,
+      "menuImageCount": 3,
+      "itemCount": 6,
       "missingImages": [],
       "images": [
         {
@@ -6875,9 +6928,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7275_mark.webp",
-          "status": "READABLE",
-          "itemCount": 1,
-          "note": "공동 홍보판의 일부 메뉴명만 읽히고 나머지 글씨는 작아 판독하기 어렵습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "공동 홍보판의 일부 메뉴명만 읽히고 나머지 글씨는 작아 판독하기 어렵습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 1
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7276_mark.webp",
@@ -6938,8 +6993,8 @@
       "status": "SAVED",
       "imageCount": 12,
       "checkedImageCount": 12,
-      "menuImageCount": 4,
-      "itemCount": 6,
+      "menuImageCount": 3,
+      "itemCount": 5,
       "missingImages": [],
       "images": [
         {
@@ -6956,9 +7011,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7275_mark.webp",
-          "status": "READABLE",
-          "itemCount": 1,
-          "note": "공동 홍보판의 일부 메뉴명만 읽히고 나머지 글씨는 작아 판독하기 어렵습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "공동 홍보판의 일부 메뉴명만 읽히고 나머지 글씨는 작아 판독하기 어렵습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 1
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7276_mark.webp",
@@ -7022,11 +7079,11 @@
       "store": "역전우동",
       "location": "3루 2층 더본테이스티",
       "sourceUrl": "https://myseatcheck.com/대전한화생명볼파크-먹거리-2층-3루-더본테이스티-7/",
-      "status": "SAVED",
+      "status": "QUARANTINED_SHARED_PHOTO",
       "imageCount": 13,
       "checkedImageCount": 13,
-      "menuImageCount": 2,
-      "itemCount": 6,
+      "menuImageCount": 0,
+      "itemCount": 0,
       "missingImages": [],
       "images": [
         {
@@ -7043,9 +7100,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7275_mark.webp",
-          "status": "READABLE",
-          "itemCount": 1,
-          "note": "공동 홍보판의 일부 메뉴명만 읽히고 나머지 글씨는 작아 판독하기 어렵습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "공동 홍보판의 일부 메뉴명만 읽히고 나머지 글씨는 작아 판독하기 어렵습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 1
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7276_mark.webp",
@@ -7067,9 +7126,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7295_mark.webp",
-          "status": "READABLE",
-          "itemCount": 6,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 6
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7296_mark.webp",
@@ -7118,8 +7179,8 @@
       "status": "SAVED",
       "imageCount": 9,
       "checkedImageCount": 9,
-      "menuImageCount": 3,
-      "itemCount": 7,
+      "menuImageCount": 1,
+      "itemCount": 3,
       "missingImages": [],
       "images": [
         {
@@ -7136,9 +7197,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7275_mark.webp",
-          "status": "READABLE",
-          "itemCount": 1,
-          "note": "공동 홍보판의 일부 메뉴명만 읽히고 나머지 글씨는 작아 판독하기 어렵습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "공동 홍보판의 일부 메뉴명만 읽히고 나머지 글씨는 작아 판독하기 어렵습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 1
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7276_mark.webp",
@@ -7154,9 +7217,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7279_mark.webp",
-          "status": "READABLE",
-          "itemCount": 3,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 3
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7280_mark.webp",
@@ -7184,11 +7249,11 @@
       "store": "한신포차",
       "location": "3루 2층 더본테이스티",
       "sourceUrl": "https://myseatcheck.com/대전한화생명볼파크-먹거리-2층-3루-더본테이스티-2/",
-      "status": "SAVED",
+      "status": "QUARANTINED_SHARED_PHOTO",
       "imageCount": 13,
       "checkedImageCount": 13,
-      "menuImageCount": 2,
-      "itemCount": 6,
+      "menuImageCount": 0,
+      "itemCount": 0,
       "missingImages": [],
       "images": [
         {
@@ -7205,9 +7270,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7275_mark.webp",
-          "status": "READABLE",
-          "itemCount": 1,
-          "note": "공동 홍보판의 일부 메뉴명만 읽히고 나머지 글씨는 작아 판독하기 어렵습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "공동 홍보판의 일부 메뉴명만 읽히고 나머지 글씨는 작아 판독하기 어렵습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 1
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7276_mark.webp",
@@ -7229,9 +7296,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7295_mark.webp",
-          "status": "READABLE",
-          "itemCount": 6,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 6
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/볼파크-2025_IMG_7296_mark.webp",
@@ -10016,11 +10085,11 @@
       "store": "XOXO 핫도그, 타코잇",
       "location": "1루 4층",
       "sourceUrl": "https://myseatcheck.com/광주-챔피언스필드-먹거리-1루-4층-xoxo핫도그/",
-      "status": "SAVED",
+      "status": "QUARANTINED_SHARED_PHOTO",
       "imageCount": 6,
       "checkedImageCount": 6,
-      "menuImageCount": 3,
-      "itemCount": 23,
+      "menuImageCount": 0,
+      "itemCount": 0,
       "missingImages": [],
       "images": [
         {
@@ -10031,21 +10100,27 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/광주26_20260506_201407_mark.webp",
-          "status": "READABLE",
-          "itemCount": 14,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 14
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/광주26_20260506_201409_mark.webp",
-          "status": "READABLE",
-          "itemCount": 14,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 14
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/광주26_20260506_201416_mark.webp",
-          "status": "READABLE",
-          "itemCount": 12,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 12
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/광주26_20260506_201419_mark.webp",
@@ -10070,8 +10145,8 @@
       "status": "SAVED",
       "imageCount": 15,
       "checkedImageCount": 15,
-      "menuImageCount": 11,
-      "itemCount": 47,
+      "menuImageCount": 8,
+      "itemCount": 27,
       "missingImages": [],
       "images": [
         {
@@ -10124,21 +10199,27 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/광주26_20260506_201407_mark.webp",
-          "status": "READABLE",
-          "itemCount": 14,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 14
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/광주26_20260506_201409_mark.webp",
-          "status": "READABLE",
-          "itemCount": 14,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 14
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/광주26_20260506_201416_mark.webp",
-          "status": "READABLE",
-          "itemCount": 12,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 12
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/광주26_20260506_201419_mark.webp",
@@ -12707,8 +12788,8 @@
       "status": "SAVED",
       "imageCount": 10,
       "checkedImageCount": 10,
-      "menuImageCount": 8,
-      "itemCount": 64,
+      "menuImageCount": 7,
+      "itemCount": 63,
       "missingImages": [],
       "images": [
         {
@@ -12761,9 +12842,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/잠실26_20260416_175959_mark.webp",
-          "status": "READABLE",
-          "itemCount": 1,
-          "note": "메뉴판의 작은 글씨가 선명하지 않아 일부 항목을 판독할 수 없습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "메뉴판의 작은 글씨가 선명하지 않아 일부 항목을 판독할 수 없습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 1
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/잠실26_20260422_153137_mark.webp",
@@ -13052,15 +13135,17 @@
       "status": "SAVED",
       "imageCount": 6,
       "checkedImageCount": 6,
-      "menuImageCount": 5,
+      "menuImageCount": 4,
       "itemCount": 11,
       "missingImages": [],
       "images": [
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/잠실26_20260416_175959_mark.webp",
-          "status": "READABLE",
-          "itemCount": 1,
-          "note": "메뉴판의 작은 글씨가 선명하지 않아 일부 항목을 판독할 수 없습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "메뉴판의 작은 글씨가 선명하지 않아 일부 항목을 판독할 수 없습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 1
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/잠실26_20260416_180003_mark.webp",
@@ -15536,11 +15621,11 @@
       "store": "쌈빠치킨 떡볶이",
       "location": "206 통로 근처",
       "sourceUrl": "https://myseatcheck.com/인천-랜더스필드-먹거리-3루-2층-쌈바치킨/",
-      "status": "SAVED",
+      "status": "QUARANTINED_SHARED_PHOTO",
       "imageCount": 12,
       "checkedImageCount": 12,
-      "menuImageCount": 8,
-      "itemCount": 24,
+      "menuImageCount": 0,
+      "itemCount": 0,
       "missingImages": [],
       "images": [
         {
@@ -15551,33 +15636,43 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170632_mark.webp",
-          "status": "READABLE",
-          "itemCount": 7,
-          "note": "분식 메뉴판이 사진 오른쪽에서 잘려 가격을 확인하기 어렵습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "분식 메뉴판이 사진 오른쪽에서 잘려 가격을 확인하기 어렵습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 7
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170634_mark.webp",
-          "status": "READABLE",
-          "itemCount": 6,
-          "note": "치킨 메뉴판이 사진 왼쪽에서 잘려 메뉴명을 확인할 수 없습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "치킨 메뉴판이 사진 왼쪽에서 잘려 메뉴명을 확인할 수 없습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 6
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170636_mark.webp",
-          "status": "READABLE",
-          "itemCount": 3,
-          "note": "오른쪽 아이스크림 메뉴판이 일부 잘려 있습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "오른쪽 아이스크림 메뉴판이 일부 잘려 있습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 3
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170639_mark.webp",
-          "status": "READABLE",
-          "itemCount": 6,
-          "note": "아이스크림 메뉴판의 가격이 오른쪽에서 잘려 있습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "아이스크림 메뉴판의 가격이 오른쪽에서 잘려 있습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 6
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170642_mark.webp",
-          "status": "READABLE",
-          "itemCount": 6,
-          "note": "오른쪽 라면·간식 메뉴판 일부가 가려져 있습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "오른쪽 라면·간식 메뉴판 일부가 가려져 있습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 6
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170650_mark.webp",
@@ -15587,21 +15682,27 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170655_mark.webp",
-          "status": "READABLE",
-          "itemCount": 6,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 6
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170659_mark.webp",
-          "status": "READABLE",
-          "itemCount": 6,
-          "note": "오른쪽 위 항목은 반사와 흐림으로 이름을 판독할 수 없습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "오른쪽 위 항목은 반사와 흐림으로 이름을 판독할 수 없습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 6
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170702_mark.webp",
-          "status": "READABLE",
-          "itemCount": 2,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 2
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170720_mark.webp",
@@ -15626,8 +15727,8 @@
       "status": "SAVED",
       "imageCount": 24,
       "checkedImageCount": 24,
-      "menuImageCount": 14,
-      "itemCount": 34,
+      "menuImageCount": 6,
+      "itemCount": 14,
       "missingImages": [],
       "images": [
         {
@@ -15680,33 +15781,43 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170632_mark.webp",
-          "status": "READABLE",
-          "itemCount": 7,
-          "note": "분식 메뉴판이 사진 오른쪽에서 잘려 가격을 확인하기 어렵습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "분식 메뉴판이 사진 오른쪽에서 잘려 가격을 확인하기 어렵습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 7
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170634_mark.webp",
-          "status": "READABLE",
-          "itemCount": 6,
-          "note": "치킨 메뉴판이 사진 왼쪽에서 잘려 메뉴명을 확인할 수 없습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "치킨 메뉴판이 사진 왼쪽에서 잘려 메뉴명을 확인할 수 없습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 6
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170636_mark.webp",
-          "status": "READABLE",
-          "itemCount": 3,
-          "note": "오른쪽 아이스크림 메뉴판이 일부 잘려 있습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "오른쪽 아이스크림 메뉴판이 일부 잘려 있습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 3
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170639_mark.webp",
-          "status": "READABLE",
-          "itemCount": 6,
-          "note": "아이스크림 메뉴판의 가격이 오른쪽에서 잘려 있습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "아이스크림 메뉴판의 가격이 오른쪽에서 잘려 있습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 6
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170642_mark.webp",
-          "status": "READABLE",
-          "itemCount": 6,
-          "note": "오른쪽 라면·간식 메뉴판 일부가 가려져 있습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "오른쪽 라면·간식 메뉴판 일부가 가려져 있습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 6
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170650_mark.webp",
@@ -15716,21 +15827,27 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170655_mark.webp",
-          "status": "READABLE",
-          "itemCount": 6,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 6
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170659_mark.webp",
-          "status": "READABLE",
-          "itemCount": 6,
-          "note": "오른쪽 위 항목은 반사와 흐림으로 이름을 판독할 수 없습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "오른쪽 위 항목은 반사와 흐림으로 이름을 판독할 수 없습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 6
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170702_mark.webp",
-          "status": "READABLE",
-          "itemCount": 2,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 2
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_170720_mark.webp",
@@ -17318,15 +17435,17 @@
       "status": "SAVED",
       "imageCount": 12,
       "checkedImageCount": 12,
-      "menuImageCount": 9,
-      "itemCount": 23,
+      "menuImageCount": 8,
+      "itemCount": 21,
       "missingImages": [],
       "images": [
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/IMG_6632_mark.webp",
-          "status": "READABLE",
-          "itemCount": 2,
-          "note": "출입구 옆 메뉴판은 글자가 작아 판독하기 어렵습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "출입구 옆 메뉴판은 글자가 작아 판독하기 어렵습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 2
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_172104_mark.webp",
@@ -17405,15 +17524,17 @@
       "status": "SAVED",
       "imageCount": 7,
       "checkedImageCount": 7,
-      "menuImageCount": 6,
-      "itemCount": 25,
+      "menuImageCount": 5,
+      "itemCount": 23,
       "missingImages": [],
       "images": [
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/IMG_6632_mark.webp",
-          "status": "READABLE",
-          "itemCount": 2,
-          "note": "출입구 옆 메뉴판은 글자가 작아 판독하기 어렵습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "출입구 옆 메뉴판은 글자가 작아 판독하기 어렵습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 2
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_171934_mark.webp",
@@ -17591,15 +17712,17 @@
       "status": "SAVED",
       "imageCount": 5,
       "checkedImageCount": 5,
-      "menuImageCount": 4,
-      "itemCount": 8,
+      "menuImageCount": 3,
+      "itemCount": 6,
       "missingImages": [],
       "images": [
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/IMG_6632_mark.webp",
-          "status": "READABLE",
-          "itemCount": 2,
-          "note": "출입구 옆 메뉴판은 글자가 작아 판독하기 어렵습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "출입구 옆 메뉴판은 글자가 작아 판독하기 어렵습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 2
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/랜필26_20260408_172129_mark.webp",
@@ -18734,8 +18857,8 @@
       "status": "SAVED",
       "imageCount": 8,
       "checkedImageCount": 8,
-      "menuImageCount": 7,
-      "itemCount": 18,
+      "menuImageCount": 3,
+      "itemCount": 15,
       "missingImages": [],
       "images": [
         {
@@ -18758,27 +18881,35 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/사직편의시설_104347_mark.webp",
-          "status": "READABLE",
-          "itemCount": 12,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 12
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/사직편의시설_102336_mark.webp",
-          "status": "READABLE",
-          "itemCount": 6,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 6
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/사직편의시설_102340_mark.webp",
-          "status": "READABLE",
-          "itemCount": 2,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 2
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/사직편의시설_102343_mark.webp",
-          "status": "READABLE",
-          "itemCount": 5,
-          "note": "판독 제한이 없습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "판독 제한이 없습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 5
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/사직편의시설_094601_mark.webp",
@@ -18929,8 +19060,8 @@
       "status": "SAVED",
       "imageCount": 6,
       "checkedImageCount": 6,
-      "menuImageCount": 5,
-      "itemCount": 16,
+      "menuImageCount": 1,
+      "itemCount": 4,
       "missingImages": [],
       "images": [
         {
@@ -18941,27 +19072,35 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/사직편의시설_104347_mark.webp",
-          "status": "READABLE",
-          "itemCount": 12,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 12
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/사직편의시설_102336_mark.webp",
-          "status": "READABLE",
-          "itemCount": 6,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 6
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/사직편의시설_102340_mark.webp",
-          "status": "READABLE",
-          "itemCount": 2,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 2
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/사직편의시설_102343_mark.webp",
-          "status": "READABLE",
-          "itemCount": 5,
-          "note": "판독 제한이 없습니다."
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "판독 제한이 없습니다.",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 5
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/사직편의시설_094601_mark.webp",
@@ -20819,11 +20958,11 @@
       "store": "또리펍",
       "location": "3루 2층 하단",
       "sourceUrl": "https://myseatcheck.com/수원-kt위즈파크-먹거리-3루-2층-또리펍2/",
-      "status": "SAVED",
+      "status": "QUARANTINED_SHARED_PHOTO",
       "imageCount": 3,
       "checkedImageCount": 3,
-      "menuImageCount": 1,
-      "itemCount": 8,
+      "menuImageCount": 0,
+      "itemCount": 0,
       "missingImages": [],
       "images": [
         {
@@ -20834,9 +20973,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/20260421_183119_mark.webp",
-          "status": "READABLE",
-          "itemCount": 8,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 8
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/20260421_172340_mark.webp",
@@ -20930,11 +21071,11 @@
       "store": "빅카페",
       "location": "3루 2층 하단",
       "sourceUrl": "https://myseatcheck.com/수원-kt위즈파크-먹거리-3루-2층-빅카페/",
-      "status": "SAVED",
+      "status": "QUARANTINED_SHARED_PHOTO",
       "imageCount": 3,
       "checkedImageCount": 3,
-      "menuImageCount": 1,
-      "itemCount": 8,
+      "menuImageCount": 0,
+      "itemCount": 0,
       "missingImages": [],
       "images": [
         {
@@ -20945,9 +21086,11 @@
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/20260421_183119_mark.webp",
-          "status": "READABLE",
-          "itemCount": 8,
-          "note": ""
+          "status": "QUARANTINED_SHARED_PHOTO",
+          "itemCount": 0,
+          "note": "",
+          "originalStatus": "READABLE",
+          "quarantinedItemCount": 8
         },
         {
           "imageUrl": "https://myseatcheck.com/wp-content/uploads/20260421_172340_mark.webp",

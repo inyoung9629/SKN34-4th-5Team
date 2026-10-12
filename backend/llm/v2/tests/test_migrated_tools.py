@@ -108,6 +108,20 @@ class MigratedToolsTest(unittest.TestCase):
                                                    {"role": "assistant", "content": "네"}], "JAMSIL")])
         self.assertEqual(self.tool_msg(out, "plan_course").content, "코스 완성")
 
+    def test_main_receives_lodging_verdicts_without_exposing_internal_fields_on_course(self):
+        from llm.tests.test_course_output import COURSE
+        for status in ("match", "unknown", "mismatch"):
+            verdict = [{"name": "숙소", "sourceUrl": "https://nol.yanolja.com/stay/domestic/123",
+                        "status": status, "checks": [{"condition": "주차 가능", "status": status, "intent": "required"}]}]
+            with self.subTest(status=status), patch("llm.v1.rag.course.agent.answer", return_value={
+                    **COURSE, "answer": "코스 안내", "lodgingAssessments": verdict}):
+                out = self.run_graph([call("ask_course", {"task": "숙박 코스"}, "c"), AIMessage("안내")],
+                                     ["day_plan"], [HumanMessage("숙박 코스")])
+            self.assertIn(f'"status": "{status}"', self.tool_msg(out, "ask_course").content)
+            self.assertTrue(any(isinstance(m, ToolMessage) and f'"status": "{status}"' in m.content
+                                for m in self.calls[-1]["messages"]))
+            self.assertEqual(self.tool_msg(out, "plan_course").artifact["course"], COURSE)
+
     def test_explicit_course_selection_reaches_engine_when_classifier_misses(self):
         from llm.tests.test_course_output import COURSE
 
@@ -138,6 +152,7 @@ class MigratedToolsTest(unittest.TestCase):
         self.assertEqual(calls, [])
 
     def test_relative_pin_request_preserves_selection_and_history_when_classifier_says_new_or_none(self):
+        from django.test import override_settings
         from llm.tests.test_course_editing import CURRENT, PLACES
 
         current = {**CURRENT, "places": [], "selectedPlace": PLACES[1],
@@ -145,22 +160,33 @@ class MigratedToolsTest(unittest.TestCase):
         context = {"stadium": "JAMSIL", "intent": "route", "currentCourse": current}
         original = deepcopy(context)
         question = "가기 전에 식사하고 다녀온 뒤에는 산책하는 코스 짜줘"
-        for request in ("NEW", "NONE"):
-            with self.subTest(course_request=request):
+        for mode, request in ((mode, request) for mode in ("strict", "balanced") for request in ("NEW", "NONE")):
+            with self.subTest(mode=mode, course_request=request), override_settings(COURSE_RECOMMENDATION_MODE=mode):
                 calls = []
-                graph = chain.build_graph(ScriptedModel(script=[call("ask_course", {"task": question}, "c"),
-                                                               AIMessage("완성")], calls=calls), tools_with_real_migrated([]))
+                # Balanced edits dispatch directly; strict edits still select the
+                # tool through the model. Both must execute the same guarded tool.
+                script = [AIMessage("완성")]
+                if mode == "strict":
+                    script.insert(0, call("ask_course", {"task": question}, "c"))
+                graph = chain.build_graph(ScriptedModel(script=script, calls=calls), tools_with_real_migrated([]))
                 verdict = {"allowed": True, "capabilities": [], "course_request": request}
                 with patch.object(classifier, "classify", return_value=verdict), \
                         patch("llm.v1.rag.course.agent.answer", return_value={"answer": "앞뒤 코스 완성"}) as engine:
-                    graph.invoke({"messages": [HumanMessage("카페를 골랐어"), AIMessage("네"), HumanMessage(question)],
-                                  "context": context})
+                    out = graph.invoke({"messages": [HumanMessage("카페를 골랐어"), AIMessage("네"), HumanMessage(question)],
+                                        "context": context})
                 engine.assert_called_once()
                 self.assertEqual(engine.call_args.args[0], question)
                 self.assertEqual(engine.call_args.kwargs["course_request"], "EDIT")
                 self.assertEqual(engine.call_args.kwargs["current_course"], current)
                 self.assertEqual(len(engine.call_args.kwargs["history"]), 2)
-                self.assertIn("ask_course", calls[0]["tools"])
+                tool_calls = [c for m in out["messages"] if isinstance(m, AIMessage) for c in m.tool_calls]
+                self.assertEqual([c["name"] for c in tool_calls], ["ask_course"])
+                self.assertEqual(tool_calls[0]["args"]["task"], question)
+                self.assertEqual(self.tool_msg(out, "plan_course").status, "success")
+                self.assertEqual(len(calls), 1 if mode == "balanced" else 2)
+                if mode == "strict":
+                    self.assertIn("ask_course", calls[0]["tools"])
+                self.assertNotIn("ask_course", calls[-1]["tools"])
                 self.assertEqual(verdict["course_request"], request)
                 self.assertEqual(context, original)
 
@@ -200,10 +226,14 @@ class MigratedToolsTest(unittest.TestCase):
                 patch("llm.v1.rag.course.agent.answer", return_value={"answer": "코스 완성"}) as engine:
             first = graph.invoke({"messages": [HumanMessage("잠실 기준으로 추천해줘")], "tool_group_ids": ["day_plan"]})
             second = graph.invoke({"messages": [HumanMessage("안녕")]})
-        engine.assert_called_once()
+        self.assertEqual(engine.call_count, 2)
+        self.assertEqual([c.args[0] for c in engine.call_args_list], ["잠실 기준으로 추천해줘", "안녕"])
+        self.assertEqual(engine.call_args_list[1].kwargs["history"], [])
         self.assertEqual(self.tool_msg(first, "ask_course").status, "success")
-        self.assertEqual(self.tool_msg(second, "ask_course").status, "error")
-        self.assertNotIn("ask_course", calls[2]["tools"])
+        self.assertEqual(self.tool_msg(second, "ask_course").status, "success")
+        self.assertIn("ask_course", calls[2]["tools"])
+        self.assertIn("get_directions", calls[0]["tools"])
+        self.assertNotIn("get_directions", calls[2]["tools"])
 
     def test_unverified_course_ends_without_research_loop_or_invented_card(self):
         from llm.v1.rag.course.agent import unverified_course
@@ -228,13 +258,17 @@ class MigratedToolsTest(unittest.TestCase):
         self.assertEqual(out["messages"][-1].content, result["answer"])
 
     def test_hidden_migrated_tools_rejected(self):
-        with patch.object(assistant, "_run_fixed") as db, patch("llm.v1.rag.course.agent.answer") as course:
+        with patch.object(assistant, "_run_fixed") as db, \
+                patch("llm.v1.rag.course.agent.answer", return_value={"answer": "코스 완성"}) as course:
             out = self.run_graph([call("get_ticket_policy", {"team": "LG"}, "h1"),
                                   call("ask_course", {"task": "x"}, "h2"), AIMessage("순위")],
                                  ["standings"], [HumanMessage("순위")])
         db.assert_not_called()
-        course.assert_not_called()
-        self.assertEqual({m.status for m in out["messages"] if isinstance(m, ToolMessage)}, {"error"})
+        course.assert_called_once()
+        self.assertEqual(self.tool_msg(out, "get_ticket_policy").status, "error")
+        self.assertEqual(self.tool_msg(out, "ask_course").status, "success")
+        self.assertNotIn("get_ticket_policy", self.calls[0]["tools"])
+        self.assertIn("ask_course", self.calls[0]["tools"])
 
     def test_map_origin_reaches_course_planner_and_is_not_carried_into_next_request(self):
         origin = {"lat": 35.18, "lng": 126.9}

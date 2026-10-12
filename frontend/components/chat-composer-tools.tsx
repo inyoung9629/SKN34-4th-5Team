@@ -36,6 +36,7 @@ const toolPresentation: Record<string, { icon: Parameters<typeof Icon>[0]["name"
   schedule: { icon: "calendar", description: "야구" },
   standings: { icon: "trophy", description: "야구" },
   players: { icon: "userPlus", description: "야구" },
+  highlight: { icon: "sparkles", description: "영상" },
   baseball_stats: { icon: "chart", description: "야구" },
   rules: { icon: "book", description: "야구" },
   stadium_info: { icon: "stadium", description: "구장" },

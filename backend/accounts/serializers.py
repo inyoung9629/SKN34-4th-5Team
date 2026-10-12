@@ -7,14 +7,26 @@ from zoneinfo import ZoneInfo
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import timezone
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 from rest_framework.validators import UniqueValidator
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from PIL import Image, UnidentifiedImageError
 
+from .point_policy import DAILY_LOGIN, grant_definition
+from .point_service import grant_points
+
 User = get_user_model()
+
+
+class SignInSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        local_day = timezone.localdate()
+        grant_points(user=self.user, **grant_definition(DAILY_LOGIN, f"{local_day.isoformat()}:{self.user.pk}"))
+        return data
 
 
 class PasswordAwareTokenRefreshSerializer(TokenRefreshSerializer):

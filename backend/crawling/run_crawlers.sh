@@ -14,6 +14,7 @@ CRAWLERS=(
   "kbo_schedule.py"
   "kbo_standing.py"
   "kbo_ticket_db.py"
+  "kbo_highlights.py"  # HIGHLIGHT_AUTO_COLLECT=1 일 때만 실제 수집
 )
 
 log() {

@@ -13,8 +13,24 @@ import { updateMemberUser, type MemberUserUpdate } from "@/lib/api/auth";
 import { RouteCard } from "@/components/route-card";
 import { MemberPosts } from "@/components/member-posts";
 import { AdminFeedbackPanel } from "@/components/admin-feedback-panel";
-import { logoutMember, memberError } from "@/lib/member-auth-request";
+import { logoutMember, memberError, memberFetch } from "@/lib/member-auth-request";
 import styles from "./page.module.css";
+
+type PointTransaction = { amount: number; transaction_type: string; description: string; created_at: string };
+type MemberPoints = { balance: number; transactions: PointTransaction[] };
+
+function isMemberPoints(value: unknown): value is MemberPoints {
+  if (!value || typeof value !== "object" || !("balance" in value) || !("transactions" in value)) return false;
+  return typeof value.balance === "number" && Number.isFinite(value.balance)
+    && Array.isArray(value.transactions)
+    && value.transactions.every(transaction =>
+      transaction && typeof transaction === "object"
+      && "amount" in transaction && typeof transaction.amount === "number" && Number.isFinite(transaction.amount)
+      && "transaction_type" in transaction && typeof transaction.transaction_type === "string"
+      && "description" in transaction && typeof transaction.description === "string"
+      && "created_at" in transaction && typeof transaction.created_at === "string",
+    );
+}
 
 async function patchUser(payload: MemberUserUpdate, signal = AbortSignal.timeout(15000)): Promise<MemberUser> {
   let result: MemberUser | null;
@@ -60,7 +76,7 @@ function MyPageContent() {
   }, [legacyAdminTab, status, router]);
   const isAdmin = Boolean(user?.is_staff || user?.is_superuser);
   const feedbackTabs = status === "authenticated" && user?.is_superuser === true ? [["feedback", "챗봇 답변 평가"]] : [];
-  const tabValues: string[] = ["likes", "posts", ...feedbackTabs.map(([value]) => value), "profile"];
+  const tabValues: string[] = ["likes", "posts", "points", ...feedbackTabs.map(([value]) => value), "profile"];
   const tab = selected && tabValues.includes(selected) ? selected : "courses";
   const ready = useRoutesReady();
   const routes = useRoutes();
@@ -86,13 +102,47 @@ function MyPageContent() {
     } finally { setRemoving(""); }
   }
   const [saving, setSaving] = useState(false);
+  const [pointState, setPointState] = useState<
+    | { status: "loading"; userId?: number }
+    | { status: "loaded"; userId: number; points: MemberPoints }
+    | { status: "error"; userId: number; message: string }
+  >({ status: "loading" });
+  const [pointReload, setPointReload] = useState(0);
+  const pointUserId = user?.id;
   const saveRequest = useRef<AbortController | null>(null);
   const [loadedAt] = useState(() => Date.now());
   useEffect(() => () => saveRequest.current?.abort(), []);
+  useEffect(() => {
+    if (pointUserId === undefined) return;
+    const controller = new AbortController();
+    let current = true;
+    void (async () => {
+      try {
+        const response = await memberFetch("/api/v1/fantasy/points/", {
+          cache: "no-store",
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
+        });
+        const result: unknown = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(memberError(result, "포인트 정보를 불러오지 못했어요."));
+        if (!isMemberPoints(result)) throw new Error("포인트 정보 응답 형식이 올바르지 않아요.");
+        if (current) setPointState({ status: "loaded", userId: pointUserId, points: result });
+      } catch (cause) {
+        if (!current) return;
+        const message = cause instanceof DOMException && cause.name === "TimeoutError"
+          ? "포인트 조회 시간이 초과됐어요."
+          : cause instanceof Error ? cause.message : "포인트 정보를 불러오지 못했어요.";
+        setPointState({ status: "error", userId: pointUserId, message });
+      }
+    })();
+    return () => { current = false; controller.abort(); };
+  }, [pointUserId, pointReload]);
   if (status === "loading") return <main className={`container ${styles.page}`}><p role="status">회원 화면을 불러오고 있어요.</p></main>;
   if (status === "unavailable") return <main className={`container ${styles.page}`}><h1>마이페이지</h1><p className={styles.note}>회원 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.</p></main>;
   if (!user) return <main className={`container ${styles.page}`}><h1>마이페이지</h1><p className={styles.note}>로그인 후 이용할 수 있어요.</p><Link className="button button-primary" href="/login">로그인</Link></main>;
   if (!ready && (tab === "courses" || tab === "likes")) return <main className={`container ${styles.page}`}><p role="status">코스 목록을 불러오고 있어요.</p></main>;
+  const currentPointState = pointState.status === "loading" || pointState.userId === user.id
+    ? pointState
+    : { status: "loading" as const };
   const team = teamBoards.find(item => item.code === user.team_code);
   const nextChange = nextNicknameChangeAt(user.nickname_changed_at);
   const nicknameLocked = Boolean(nextChange && loadedAt < Date.parse(nextChange));
@@ -106,9 +156,18 @@ function MyPageContent() {
     <p className={styles.note}>계정·프로필 설정은 서버에 저장돼요. 새 코스는 공개되며 편집 권한만 이 브라우저에 저장돼요. 이전 버전 코스는 다시 저장하기 전까지 이 브라우저에만 남아요.</p>
     {loadError && <p className={styles.note} role="alert">{loadError} 이전 버전 코스만 표시될 수 있어요. <button type="button" onClick={() => void retryRoutes()}>다시 불러오기</button></p>}
     <nav className={styles.tabs} aria-label="마이페이지 메뉴">
-      {[["courses",`내 코스 (${own.length})`],["likes",`찜한 코스 (${liked.length})`],["posts","내가 쓴 글"], ...feedbackTabs, ["profile","회원 정보"]].map(([value, label]) => <button key={value} type="button" aria-pressed={tab === value} onClick={() => router.push(`/mypage?tab=${value}`, { scroll: false })}>{label}</button>)}
+      {[["courses",`내 코스 (${own.length})`],["likes",`찜한 코스 (${liked.length})`],["posts","내가 쓴 글"],["points","포인트"], ...feedbackTabs, ["profile","회원 정보"]].map(([value, label]) => <button key={value} type="button" aria-pressed={tab === value} onClick={() => router.push(`/mypage?tab=${value}`, { scroll: false })}>{label}</button>)}
     </nav>
-    {tab === "posts" ? <MemberPosts /> : tab === "feedback" ? <AdminFeedbackPanel key={user.id} /> : tab === "profile" ? <section className={styles.settings}><h2>회원정보 수정</h2>
+    {tab === "points" ? <section className={styles.points} aria-label="포인트 내역"><h2>보유 포인트</h2>
+      {currentPointState.status === "loading" ? <p role="status">포인트 정보를 불러오고 있어요.</p>
+        : currentPointState.status === "error" ? <p role="alert">{currentPointState.message} <button type="button" onClick={() => { setPointState({ status: "loading", userId: user.id }); setPointReload(value => value + 1); }}>다시 불러오기</button></p>
+        : <><p className={styles.pointBalance}>{currentPointState.points.balance.toLocaleString("ko-KR")}P</p><h3>최근 거래 내역</h3>
+          {currentPointState.points.transactions.length ? <ul className={styles.pointTransactions}>{currentPointState.points.transactions.map((entry, index) => <li key={`${entry.created_at}-${entry.transaction_type}-${index}`}>
+            <span><strong>{entry.description || "포인트 거래"}</strong><time dateTime={entry.created_at}>{new Date(entry.created_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}</time></span>
+            <b>{entry.amount > 0 ? "+" : ""}{entry.amount.toLocaleString("ko-KR")}P</b>
+          </li>)}</ul> : <p className={styles.note}>아직 포인트 거래 내역이 없어요.</p>}
+        </>}
+    </section> : tab === "posts" ? <MemberPosts /> : tab === "feedback" ? <AdminFeedbackPanel key={user.id} /> : tab === "profile" ? <section className={styles.settings}><h2>회원정보 수정</h2>
       <ProfilePhotoEditor avatar={user.avatar} onSaved={async avatar => { const updated = await patchUser({ avatar }); setUser(updated, user.id); }} />
       <form key={`${user.nickname}:${user.team_code}:${user.email}`} onSubmit={async event => {
         event.preventDefault(); if (saveRequest.current) return; const values = new FormData(event.currentTarget), controller = new AbortController(); saveRequest.current = controller; setSaving(true); setMessage("");

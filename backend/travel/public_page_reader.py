@@ -10,6 +10,7 @@ import ipaddress
 import re
 import socket
 import time
+from threading import RLock
 from urllib.parse import urljoin, urlsplit, urlunsplit
 from urllib.robotparser import RobotFileParser
 
@@ -191,6 +192,9 @@ class PublicReader:
         self.blocked = set()
         self.attempted_urls = set()
         self.http_requests = 0
+        self._requests_lock = RLock()
+        self._robots_lock = RLock()
+        self._delays = {}
 
     def close(self):
         if self.owned:
@@ -198,19 +202,29 @@ class PublicReader:
 
     def get(self, url, max_bytes):
         host = urlsplit(url).hostname
-        if self.http_requests >= self.max_requests or (self.deadline and time.monotonic() >= self.deadline):
-            raise ValueError("Reader budget")
-        if not self.dns_check(host):
-            raise ValueError("Nonpublic DNS")
-        time.sleep(max(0, self.gap - (time.monotonic() - self.last.get(host, 0))))
-        self.last[host] = time.monotonic()
-        self.http_requests += 1
-        remaining = min(8., self.deadline - time.monotonic()) if self.deadline else 8.
-        if remaining <= 0:
-            raise ValueError("Reader deadline")
+        # Reserve each request atomically, but allow network I/O to overlap.
+        # All workers share the original request cap and per-host crawl interval.
+        with self._requests_lock:
+            if self.http_requests >= self.max_requests or (self.deadline and time.monotonic() >= self.deadline):
+                raise ValueError("Reader budget")
+            if host in self.blocked:
+                raise ValueError("Host blocked")
+            if not self.dns_check(host):
+                raise ValueError("Nonpublic DNS")
+            gap = max(self.gap, self._delays.get(host, 0))
+            wait = max(0, gap - (time.monotonic() - self.last.get(host, 0)))
+            if self.deadline and time.monotonic() + wait >= self.deadline:
+                raise ValueError("Reader deadline")
+            time.sleep(wait)
+            remaining = min(8., self.deadline - time.monotonic()) if self.deadline else 8.
+            if remaining <= 0:
+                raise ValueError("Reader deadline")
+            self.last[host] = time.monotonic()
+            self.http_requests += 1
         with self.client.stream("GET", url, timeout=remaining) as response:
             if response.status_code in (401, 403, 429):
-                self.blocked.add(host)
+                with self._requests_lock:
+                    self.blocked.add(host)
             if response.status_code != 200:
                 return response.status_code, "", response.headers.get("location"), response.headers.get("content-type", "")
             data = bytearray()
@@ -228,6 +242,11 @@ class PublicReader:
             return 200, text, None, response.headers.get("content-type", "")
 
     def permitted(self, url):
+        # One robots fetch per origin, including when two profiles start together.
+        with self._robots_lock:
+            return self._permitted(url)
+
+    def _permitted(self, url):
         p = urlsplit(url)
         origin = urlunsplit((p.scheme, p.netloc, "", "", ""))
         if p.hostname in self.blocked:
@@ -262,6 +281,8 @@ class PublicReader:
         if delay and delay > 10:
             return False, "robots_delay_exceeds_pilot_budget"
         if delay:
+            with self._requests_lock:
+                self._delays[p.hostname] = delay
             wait = max(0, delay - (time.monotonic() - self.last.get(p.hostname, 0)))
             if self.deadline and time.monotonic() + wait >= self.deadline:
                 return False, "reader_deadline"
@@ -272,9 +293,16 @@ class PublicReader:
         row = {"url": url, "body_read": False, "body_text": "", "status": "unread"}
         if not allowed_url(url):
             return {**row, "status": "unsupported_host_or_scheme"}
-        if url in self.attempted_urls:
-            return {**row, "status": "already_attempted_no_retry"}
-        self.attempted_urls.add(url)
+        from llm.v2.agent.browser_research import shared_body, shared_reader_result
+        from llm.service.chat_runs import check_cancelled
+        check_cancelled()
+        retained = shared_body(url)
+        if retained is not None:
+            return shared_reader_result(retained)
+        with self._requests_lock:
+            if url in self.attempted_urls:
+                return {**row, "status": "already_attempted_no_retry"}
+            self.attempted_urls.add(url)
         start = time.monotonic()
         try:
             current = url
@@ -302,7 +330,8 @@ class PublicReader:
                 text, title = extract_text(html)
                 # Challenge detection is based on rendered text, not embedded scripts.
                 if any(t in text[:1500].lower() for t in ("verify you are human", "access denied", "captcha", "비정상적인 접근", "접근이 제한", "자동입력 방지")):
-                    self.blocked.add(urlsplit(current).hostname)
+                    with self._requests_lock:
+                        self.blocked.add(urlsplit(current).hostname)
                     row["status"] = "challenge_or_access_denied"
                     break
                 if metadata_extractor:

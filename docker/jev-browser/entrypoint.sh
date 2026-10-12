@@ -8,4 +8,5 @@ for tool in iptables ip6tables; do
   "$tool" -A OUTPUT -j REJECT
 done
 squid -N &
+setpriv --reuid=node --regid=node --init-groups --bounding-set=-all Xvfb :99 -screen 0 1280x1000x24 -nolisten tcp &
 exec setpriv --reuid=node --regid=node --init-groups --bounding-set=-all python /opt/service/server.py

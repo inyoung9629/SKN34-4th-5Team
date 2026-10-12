@@ -298,16 +298,17 @@ class RepairTests(SimpleTestCase):
     def test_lodging_reference_page_is_checked_without_extra_page_or_model_calls(self):
         from llm.v1.rag.nearby import lodging
         hotel = {"id": "hotel", "name": "가상호텔", "address": SHOP["address"]}
-        url = "https://nol.yanolja.com/stay/domestic/fixture"
-        page = document("폐업", title="가상호텔 호텔/리조트 예약 | NOL", url=url)
+        url = "https://nol.yanolja.com/stay/domestic/123"
+        page = {**document("폐업", title="가상호텔 호텔/리조트 예약 | NOL", url=url),
+                "name": hotel["name"], "address": hotel["address"], "status": "read"}
         model = Mock()
         model.with_structured_output.return_value.invoke.return_value = {"requirements": [], "properties": []}
-        with hours.session(), patch("travel.public_page_reader.PublicReader") as reader, patch.object(agent, "llm", return_value=model):
-            reader.return_value.read.return_value = page
-            lodging._read_details([hotel], [url], [], {"deadline": grounding.time.monotonic() + 90})
+        with hours.session(), patch.object(lodging, "collect_chrome", return_value=page) as reader, \
+                patch.object(lodging, "requirements", return_value=[]), patch.object(agent, "llm", return_value=model):
+            lodging.search([hotel], "숙소", [])
             self.assertEqual(hours.check({**hotel, "placeId": "hotel"}, DAY), "폐업")
-        reader.return_value.read.assert_called_once()
-        model.with_structured_output.return_value.invoke.assert_called_once()
+        reader.assert_called_once()
+        model.with_structured_output.return_value.invoke.assert_not_called()
 
     def test_menu_evidence_on_closed_first_batch_continues_to_next_candidate(self):
         req = evidence_memory.Requirement(term="돈까스", attribute="menu", intent="required", group="food")

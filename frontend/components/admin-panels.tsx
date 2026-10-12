@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { getMemberUser, listAdminMembers, updateAdminRole, type AdminMember, type MemberUser } from "@/lib/api/auth";
-import { actOnAdminReport, deleteAdminPost, listAdminPosts, listAdminReports, reportReasonLabel, reportStatusLabel, sanctionLabel, type AdminPost, type AdminReport, type AdminSanction } from "@/lib/api/admin-community";
+import { actOnAdminReport, deleteAdminPost, hideAdminPost, listAdminPosts, listAdminReports, reportReasonLabel, reportStatusLabel, sanctionLabel, type AdminPost, type AdminReport, type AdminSanction } from "@/lib/api/admin-community";
 import type { Page } from "@/lib/api/types";
 import { memberRoleLabel } from "@/lib/member-policy";
 import { getTeamBoard, getTeamBoardHref } from "@/lib/team-community";
@@ -117,6 +117,16 @@ export function AdminPostsPanel() {
   const [actionError, setActionError] = useState("");
   const [busy, setBusy] = useState(false);
   const list = usePagedList<AdminPost>(listAdminPosts, "게시글 목록을 불러오지 못했어요.");
+  async function hide(post: AdminPost) {
+    if (busy || list.loading || post.is_hidden || !window.confirm(`#${post.post_number} "${post.title}" 게시글을 숨길까요?\n신고 관리의 숨김과 동일하게 처리하며, 게시글은 삭제하지 않습니다.`)) return;
+    setBusy(true); setActionError(""); setNotice("");
+    try {
+      await hideAdminPost(post.source_id);
+      setNotice(`#${post.post_number} 게시글을 숨겼어요.`);
+      list.refresh();
+    } catch (cause) { setActionError(errorText(cause, "게시글을 숨기지 못했어요.")); }
+    finally { setBusy(false); }
+  }
   async function remove(post: AdminPost) {
     if (busy || !window.confirm(`#${post.post_number} "${post.title}" 게시글을 삭제하시겠어요?\n댓글과 신고 기록도 함께 삭제되고 되돌릴 수 없어요.`)) return;
     setBusy(true); setActionError(""); setNotice("");
@@ -130,7 +140,7 @@ export function AdminPostsPanel() {
   const { data } = list;
   return <section className={styles.panel} aria-labelledby="admin-posts-title">
     <h2 id="admin-posts-title">게시글 관리</h2>
-    <p className={styles.intro}>커뮤니티 게시글을 확인하고 운영 정책에 맞지 않는 글을 삭제하세요. 신고가 들어온 글은 신고 수가 빨갛게 표시돼요.</p>
+    <p className={styles.intro}>커뮤니티 게시글을 확인하고 운영 정책에 따라 숨기거나 삭제하세요. 숨김은 신고 관리와 동일한 기준으로 처리돼요.</p>
     {list.loading && !data && <p role="status">게시글을 불러오고 있어요.</p>}
     {list.error && <div className={styles.feedback} role="alert"><p>{list.error}</p><button type="button" onClick={() => list.refresh()}>다시 확인</button></div>}
     {actionError && <p className={styles.feedback} role="alert">{actionError}</p>}
@@ -145,7 +155,7 @@ export function AdminPostsPanel() {
           <td><Link href={postHref(post)} target="_blank">{post.title}</Link>{post.is_sample && <span className={styles.muted}> (예시)</span>}{post.is_hidden && <span className={styles.hiddenTag}>숨김</span>}</td>
           <td className={styles.longText}>{post.author}</td><td className={styles.nowrap}>{dateText(post.created_at)}</td><td className={styles.nowrap}>{post.views}</td><td className={styles.nowrap}>{post.comment_count}</td>
           <td className={styles.nowrap}><span className={`${styles.count}${post.report_count ? ` ${styles.hot}` : ""}`}>{post.report_count}</span></td>
-          <td className={styles.nowrap}><button type="button" className={styles.delete} disabled={busy} onClick={() => void remove(post)}>삭제</button></td>
+          <td className={styles.nowrap}><div className={styles.actions}><button type="button" className={styles.hide} disabled={busy || list.loading || post.is_hidden} onClick={() => void hide(post)}>{post.is_hidden ? "숨김 처리됨" : "숨김"}</button><button type="button" className={styles.delete} disabled={busy} onClick={() => void remove(post)}>삭제</button></div></td>
         </tr>)}
         {!data.results.length && <tr><td colSpan={9}>게시글이 없어요.</td></tr>}</tbody>
       </table></div>

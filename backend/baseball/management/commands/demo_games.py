@@ -56,6 +56,12 @@ class Command(BaseCommand):
             except (Stadium.DoesNotExist, Team.DoesNotExist) as exc:
                 raise CommandError("필요한 구장·팀 데이터가 없습니다. 등록을 모두 취소합니다.") from exc
 
+            conflicts = Game.objects.filter(game_date=DEMO_DATE).filter(
+                Q(stadium=stadium) | Q(home_team__in=(home, away)) | Q(away_team__in=(home, away))
+            ).exclude(pk__in=demo_rows().values("pk"))
+            if conflicts.exists():
+                raise CommandError(f"{DEMO_DATE} {stadium_code} 구장 또는 팀의 기존 일정이 있습니다. 덮어쓰지 않습니다.")
+
             existing = Game.objects.select_for_update().filter(game_code=code).first()
             if existing:
                 if not demo_rows().filter(pk=existing.pk).exists():
@@ -67,11 +73,6 @@ class Command(BaseCommand):
                     raise CommandError(f"가상 일정이 변경되어 있습니다: {code}. remove 후 apply로 복구하세요.")
                 continue
 
-            conflicts = Game.objects.filter(game_date=DEMO_DATE).filter(
-                Q(stadium=stadium) | Q(home_team__in=(home, away)) | Q(away_team__in=(home, away))
-            ).exclude(pk__in=demo_rows().values("pk"))
-            if conflicts.exists():
-                raise CommandError(f"{DEMO_DATE} {stadium_code} 구장 또는 팀의 기존 일정이 있습니다. 덮어쓰지 않습니다.")
             pk = stable_id(Game, code)
             if Game.objects.filter(pk=pk).exists() or Game.objects.filter(source_external_code=code).exists():
                 raise CommandError(f"가상 경기 ID 충돌: {code}. 기존 경기를 수정하지 않습니다.")

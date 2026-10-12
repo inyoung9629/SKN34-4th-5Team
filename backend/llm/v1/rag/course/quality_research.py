@@ -8,6 +8,8 @@ import json
 import re
 from types import SimpleNamespace
 from typing import Literal
+from concurrent.futures import Future
+from threading import Lock
 from urllib.parse import quote, urlsplit
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -26,11 +28,28 @@ class ProfileReader:
     """
     def __init__(self, reader):
         self.reader, self.pages = reader, {}
+        self._lock, self._pending = Lock(), {}
 
     def read(self, url, terms, **kwargs):
-        if url not in self.pages:
-            self.pages[url] = self.reader.read(url, terms, **{**kwargs, "complete_text": True})
-        return self.pages[url]
+        with self._lock:
+            if url in self.pages:
+                return self.pages[url]
+            owner = url not in self._pending
+            future = self._pending.setdefault(url, Future())
+        if not owner:
+            return future.result()
+        try:
+            page = self.reader.read(url, terms, **{**kwargs, "complete_text": True})
+            with self._lock:
+                self.pages[url] = page
+            future.set_result(page)
+            return page
+        except BaseException as exc:
+            future.set_exception(exc)
+            raise
+        finally:
+            with self._lock:
+                self._pending.pop(url, None)
 
     def close(self):
         self.pages.clear()
@@ -58,12 +77,16 @@ def discover(place, reader):
     # Adding a neighbourhood makes this provider substitute popular district
     # results for the exact shop (and misses nearby Gangnam-side branches).
     region = "광주" if place["stadium"] == "GWANGJU" else "서울"
-    urls = []
+    seen = set()
     for query in (region + " " + place["name"], place["name"]):
         url = "https://www.diningcode.com/list.dc?query=" + quote(query)
         page = reader.read(url, [], metadata_extractor=metadata)
-        urls.extend(page.get("metadata", {}).get("profiles", [])[:3])
-    return list(dict.fromkeys(urls))
+        # Read the exact regional profiles before paying for the fallback query.
+        # The caller stops at the first profile with verified branch identity.
+        for candidate in page.get("metadata", {}).get("profiles", [])[:3]:
+            if candidate not in seen:
+                seen.add(candidate)
+                yield candidate
 
 
 def profile(place, url, reader):

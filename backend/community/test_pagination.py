@@ -8,6 +8,38 @@ from .models import CommunityPost
 
 
 class CommunityPostPaginationTests(APITestCase):
+    def test_category_combines_with_filters_before_pagination(self):
+        for index in range(3):
+            CommunityPost.objects.create(
+                source_id=f"category-{index}", post_number=f"{900000 + index}",
+                board="teams", team_code="LT", author="분류테스트",
+                title="분류전용 검색", content="본문", category="굿즈",
+                is_hidden=index == 2,
+            )
+        params = {"board": "teams", "team": "LT", "category": "굿즈",
+                  "q": "분류전용", "search_field": "title", "page": 1, "page_size": 1}
+        response = self.client.get("/api/v1/community/posts/", params)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 2)
+        self.assertEqual(response.data["results"][0]["id"], "category-1")
+        self.assertEqual(parse_qs(urlsplit(response.data["next"]).query)["category"], ["굿즈"])
+        params.pop("page")
+        params.pop("page_size")
+        legacy = self.client.get("/api/v1/community/posts/", params)
+        self.assertEqual(len(legacy.data), 2)
+        params["category"] = "응원"
+        self.assertEqual(self.client.get("/api/v1/community/posts/", params).data, [])
+
+    def test_category_validation_and_public_access(self):
+        CommunityPost.objects.create(source_id="category-free", post_number="999998",
+            board="free", author="테스트", title="질문", content="본문", category="질문")
+        for category in ("", "없는분류", "질", " 잡담 "):
+            self.assertEqual(self.client.get("/api/v1/community/posts/", {"category": category}).status_code, 400)
+        response = self.client.get("/api/v1/community/posts/", {"board": "free", "category": "질문"})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data)
+        self.assertTrue(all(post["category"] == "질문" for post in response.data))
+
     def test_legacy_request_still_returns_a_list(self):
         response = self.client.get("/api/v1/community/posts/")
 

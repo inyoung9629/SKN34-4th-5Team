@@ -1,5 +1,6 @@
 import type { ChatMessage, ChatToolCall } from "./types";
 import { parsePlanning } from "./planning";
+import { parseVideos } from "./validation";
 import { inheritCourseState, parseChatCourse, parseCoursePreferences } from "./course";
 import { buildTimeline } from "./types";
 import type { ChatAttachmentDto, ChatMessageDto, ChatToolCallDto } from "./wire";
@@ -31,6 +32,7 @@ export function restoreChatMessages(history: ChatMessageDto[], previous: ChatMes
     const priorCourse = previous.find(message => message.id === item.id && message.role === "assistant")?.course;
     // 완료 답변 ID는 불변이며 재생성 답변에는 새 ID가 부여된다. 같은 답변의 지도 되돌리기 상태를 유지한다.
     if (course && priorCourse) course = priorCourse;
+    const videos = item.role === "assistant" && item.status === "completed" && !item.answer_deleted ? parseVideos(item.videos) : undefined;
     return {
       id: item.id, role: item.role, content: item.content, status: item.status,
       ...(item.attachments ? { attachments: item.attachments.map(fromAttachmentDto) } : {}),
@@ -39,6 +41,7 @@ export function restoreChatMessages(history: ChatMessageDto[], previous: ChatMes
       ...(item.feedback !== undefined ? { feedback: item.feedback } : {}),
       ...(planning ? { planning } : {}),
       ...(course ? { course } : {}),
+      ...(videos ? { videos } : {}),
       ...(item.role === "assistant" && item.status === "completed" && parseCoursePreferences(item.coursePreferences) ? { coursePreferences: parseCoursePreferences(item.coursePreferences) } : {}),
       ...(tools.length ? { tools } : {}), ...(timeline.length ? { timeline } : {}),
     };

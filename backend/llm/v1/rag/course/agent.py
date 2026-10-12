@@ -78,12 +78,14 @@ PUBLIC_COURSE_LOOKUP = re.compile(
 _llm = None
 
 
-def llm():
+def llm(*, reasoning_effort="medium"):
     global _llm
     if _llm is None:
         _llm = ChatOpenAI(model=LLM_MODEL, timeout=25, max_retries=0, reasoning_effort="medium", use_responses_api=True,
                           max_tokens=settings.USAGE_MAX_CALL_OUTPUT_TOKENS)
-    return _llm
+    # Creation extracts a bounded plan; keep deeper checks on their existing
+    # setting and never mutate the shared model during concurrent requests.
+    return _llm if reasoning_effort == "medium" else _llm.model_copy(update={"reasoning_effort": reasoning_effort})
 
 
 def answer_public_course(question, history):
@@ -100,7 +102,10 @@ def answer_public_course(question, history):
 # ── 1. DB 조회 ────────────────────────────────────────────────────────────────
 def stadium_anchor(code):
     """정식 구장 테이블의 검증된 좌표를 우선 사용한다. 예전 RAG 적재 여부에 의존하지 않는다."""
+    from llm.service.chat_runs import check_cancelled
+    check_cancelled()
     result = invoke_domain_tool("course", "get_stadium", {"stadium_code": code})
+    check_cancelled()
     stadium = result.get("item") if isinstance(result, dict) else None
     if stadium and None not in (_f(stadium.get("latitude")), _f(stadium.get("longitude"))):
         return {"key": "STADIUM", "phase": "GAME", "name": stadium["stadium_name_ko"],
@@ -280,6 +285,7 @@ def find_game(code, question, today, tool_result=None, *, now=None, stadium_id=N
                 "home": item.get("home_team__team_name_ko") or item.get("home_team__team_code") or "",
                 "canceled": item.get("status_code") in {"cancelled", "postponed"},
                 "status": item.get("status_code") or "", "score": "", "as_of": str(item["game_date"]),
+                **{k: item[k] for k in ("source", "game_type", "source_status_label") if item.get(k)},
             })
         games = [game for game in games if not game["canceled"]]
     else:
@@ -295,7 +301,10 @@ def find_game(code, question, today, tool_result=None, *, now=None, stadium_id=N
 
 def load_schedule(code, requested, now):
     """구장을 먼저 필터링해 타 구장 경기나 기본 20행 제한에 다음 경기가 누락되지 않게 한다."""
+    from llm.service.chat_runs import check_cancelled
+    check_cancelled()
     stadium_result = invoke_domain_tool("course", "get_stadium", {"stadium_code": code})
+    check_cancelled()
     stadium = stadium_result.get("item") if isinstance(stadium_result, dict) else None
     if not stadium:
         return {"items": [], "warning": "구장 정보를 확인하지 못해 경기 일정을 조회하지 못했어요.", "lookup_failed": True}, None
@@ -311,9 +320,10 @@ def load_schedule(code, requested, now):
 
 
 def schedule_notice(game):
-    return (f"방문 날짜가 정해지지 않아 이 구장의 가장 가까운 예정 홈경기인 "
+    from .game_metadata import annotate
+    return annotate((f"방문 날짜가 정해지지 않아 이 구장의 가장 가까운 예정 홈경기인 "
             f"{game['date']} {game['time']} · {game['home']} 홈 vs {game['away']} 원정을 기준으로 짰어요.\n"
-            f"{DATE_RECOMMENDATION}")
+            f"{DATE_RECOMMENDATION}"), game)
 
 
 def game_time_of(game):
@@ -325,11 +335,12 @@ def is_evening(game):
 
 
 def _game_text(game, code):
+    from .game_metadata import annotate
     ko = STADIUM_KO.get(code, code)
     if game:
         d = datetime.strptime(game["date"], "%Y-%m-%d")
-        return (f"{d.month}월 {d.day}일 {game['time']} {ko} · {game['home']} 홈 vs {game['away']} 원정 "
-                f"(상태: {game['status'] or '경기 전'})")
+        return annotate((f"{d.month}월 {d.day}일 {game['time']} {ko} · {game['home']} 홈 vs {game['away']} 원정 "
+                f"(상태: {game.get('status') or '경기 전'})"), game)
     return f"{ko} · 경기 정보 없음 → 평일 저녁 경기 기준 {DEFAULT_GAME_TIME} 시작으로 가정"
 
 
@@ -407,6 +418,31 @@ def fallback_course(cands, evening, sl):
                 course.append({"key": place["key"], "phase": phase,
                                "reason": f"경기 {'전' if phase == 'BEFORE' else '후'} {slots.ACTIVITY_LABEL[kind]}"})
     return course
+
+
+def _candidate_sources(code, anchor, question, game, kinds, searches, vectors, widen, *, research):
+    """Overlap read-only vector queries with live discovery; preserve merge order.
+
+    Quality/evidence budgets and their mutations remain on the requesting
+    thread. A worker only fetches raw vectors, with the usual cancellation and
+    per-query filters/limits. An error still propagates instead of dropping a
+    source or silently weakening a requested category.
+    """
+    def read_vectors():
+        started = time.perf_counter()
+        rows = parallel.reads(partial(search_places, vectors[which], code, category, k * 3 * widen)
+                              for category, which, k in searches)
+        return rows, round((time.perf_counter() - started) * 1000)
+
+    def read_live():
+        started = time.perf_counter()
+        with place_quality.research_policy(research):
+            rows, data = _live_candidates(code, anchor, question, game, kinds=kinds)
+        return rows, data, round((time.perf_counter() - started) * 1000)
+
+    live, retrieved, wait_ms = parallel.alongside(read_vectors, read_live)
+    rows, vector_ms = retrieved
+    return live[0], live[1], rows, {"live_ms": live[2], "vector_ms": vector_ms, "vector_wait_ms": wait_ms}
 
 
 def _live_candidates(code, anchor, question, game, kinds=None):
@@ -559,8 +595,8 @@ def _kakao_step(kind, center, radius, anchor, sl, *, candidate_filter=None, qual
             return None
         if kind == "INDOOR" and not kakao._INDOOR.search(f"{detail} {name}"):
             return None
-        if kind == "BAR" and keyword and not any(w in detail for w in timeline.BAR_WORDS):
-            detail = f"{detail} > 술집"[:255]               # 술집 검색 결과는 체류시간을 술집 기준으로
+        if kind == "BAR" and not any(w in detail for w in timeline.BAR_WORDS):
+            return None  # A keyword hit is not evidence of a bar category.
         return {
             "dist": 0.3, "category": STEP_CATEGORY[kind], "name": str(item.get("place_name") or "")[:255],
             "detail": detail, "distance": int(geo.haversine_m(anchor.get("lat"), anchor.get("lng"), lat, lng) or 0),
@@ -605,6 +641,18 @@ def remembered_candidates(candidates, state, cache):
             continue
         def identity(p):
             return (p["name"], p["lat"], p["lng"], str(p.get("placeId") or ""))
+        # Live radius results and seed candidates can contain the same branch.
+        # Verify it once, preserving order and discovery hints from both paths.
+        unique = {}
+        for p in group:
+            key = identity(p)
+            if key not in unique:
+                unique[key] = dict(p)
+            else:
+                for field in ("_menu_queries", "_requested_visit_ids"):
+                    if field in p:
+                        unique[key][field] = list(dict.fromkeys([*unique[key].get(field, []), *p[field]]))
+        group = list(unique.values())
         def confirmed_key(p):
             return ("confirmed", category, tuple(conditions), identity(p))
         # 경로 탐색에서 후보 묶음이 바뀌어도 이번 요청에서 이미 검증한 장소는 유지한다.
@@ -613,7 +661,7 @@ def remembered_candidates(candidates, state, cache):
         if not pending:
             result.extend({**p, **cache[confirmed_key(p)]} for p in group)
             continue
-        key = (category, tuple(conditions), tuple(sorted(identity(p) for p in group)))
+        key = (category, tuple(conditions), tuple(sorted(identity(p) for p in group)), place_quality.probing())
         if key not in cache:
             cache[key] = choose(pending, {"query": "", "conditions": conditions, "all_matches": True}, "; ".join(conditions))
         selected = cache[key]
@@ -683,14 +731,14 @@ def build_origin_course(origin, anchor, pool, sl, evening, route_segments=None, 
 
     def filter_for_visit(items):
         if active_visit and isinstance(candidate_filter, visit_requests.Selector):
-            return candidate_filter.for_visit(items, active_visit)
+            return candidate_filter.for_visit(items, active_visit, center=None if route_segments else prev)
         return candidate_filter(items) if candidate_filter else items
 
     def choose(kind, phase):
         nonlocal last_choices
         last_choices = []
         reuse = candidate_filter is None
-        if active_visit and isinstance(candidate_filter, visit_requests.Selector):
+        if active_visit and kind in ("FOOD", "CAFE", "BAR") and isinstance(candidate_filter, visit_requests.Selector):
             reuse = active_visit["internal"] or place_quality.reusable_conditions(candidate_filter.conditions(active_visit))
         if route_segments:
             def allowed(p):
@@ -732,6 +780,20 @@ def build_origin_course(origin, anchor, pool, sl, evening, route_segments=None, 
         def search(center, radius):
             return _kakao_step(kind, center, radius, anchor, active_sl,
                 candidate_filter=lambda p: bool(eligible([p], check_quality=False)), quality_reuse=reuse)
+        # Live discovery and all visit conditions still apply. Try nearby
+        # branches with valid quality evidence before researching alternatives.
+        # Complex requests and route corridors retain the full selection path.
+        from . import catalog_conditions
+        if (active_visit and not active_visit["internal"] and kind in ("FOOD", "CAFE")
+                and isinstance(candidate_filter, visit_requests.Selector)
+                and catalog_conditions.parse(candidate_filter.conditions(active_visit)) is not None):
+            with place_quality.local_probe():
+                local = eligible(search(prev, STEP_RADII_M[0]))
+                local = filter_for_visit([p for p in local
+                    if geo.step_allowed(p, prev, anchor, phase, AFTER_MAX_FROM_STADIUM_M)])
+            if local:
+                last_choices = shortlist(local)
+                return last_choices[0]
         for radius in STEP_RADII_M:
             found = search(prev, radius) + [
                 p for p in pool
@@ -989,7 +1051,7 @@ def course_timing(rows, game_time, mode, ranker, *, entry_minute=None):
 
 
 # ── 6. 진입점 ─────────────────────────────────────────────────────────────────
-def _answer(question, history=None, hint_stadium=None, origin=None, requested_after=None, route_path=None, course_memory=None, origin_cleared=False, requested_visits=None):
+def _answer(question, history=None, hint_stadium=None, origin=None, requested_after=None, route_path=None, course_memory=None, origin_cleared=False, requested_visits=None, lodging_requirements=None, prepared=None):
     """origin: 사용자가 지도에서 고른 출발지 {"lat","lng"}. 있으면 각 장소를 앞 지점 기준으로 이어서 고른다."""
     history = history or []
     origin = valid_origin(origin)
@@ -1013,6 +1075,9 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
     if code is None or code == "OTHER":
         from ..persona import FIXED
         return {"answer": FIXED["clarify"], "sources": [], "route": "guard:clarify", "places": [], "timing": timings}
+
+    from . import preparation
+    prepared = prepared if preparation.matches(prepared, question, code, today) else {}
 
     from . import memory as course_memory_tools
     remembered = course_memory_tools.planning_text(course_memory or {})
@@ -1039,7 +1104,10 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
     # ② 경기 — TVING 공통 DB-first 도구가 기존 structured 조회보다 먼저 최신성을 확인한다.
     t0 = time.perf_counter()
     requested = requested_date(question, history, today, code)
-    schedule_result, stadium_id = load_schedule(code, requested, now)
+    if "schedule" in prepared and prepared.get("requested") == requested:
+        schedule_result, stadium_id = prepared["schedule"], prepared["stadium_id"]
+    else:
+        schedule_result, stadium_id = load_schedule(code, requested, now)
     game, assumed, upcoming = find_game(code, requested or "", today, schedule_result, now=now, stadium_id=stadium_id)
     timings["structured_ms"] = round((time.perf_counter() - t0) * 1000)
     if schedule_result.get("lookup_failed") or (game is None and not requested):
@@ -1055,7 +1123,7 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
     availability.set_date((game or {}).get("date"))
     game_text = _game_text(game, code)
 
-    anchor = stadium_anchor(code)
+    anchor = prepared.get("anchor") or stadium_anchor(code)
     selected_paths = corridor.paths_of(route_path)
     selected_is_actual = bool(route_path and route_path.get("source") == "directions")
     if selected_paths and not selected_is_actual and geo._dist(selected_paths[0][0], anchor) > MAX_DISTANCE_M:
@@ -1095,11 +1163,18 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
     # ③ 후보 — 공개 장소/관광 서비스 + 기존 RAG 후보를 같은 안전 필터로 거른다.
     radius = min(sl["radius"] or MAX_DISTANCE_M, TIGHT_DISTANCE_M if sl["spare"] == "tight" else MAX_DISTANCE_M)
     pref_text = " ".join(dict.fromkeys(sl["prefs"]))
+    planned_kinds = [kind for group in plan_steps(sl, evening) for kind in group]
+    searches = SEARCHES
+    if sl.get("itinerary") is not None:
+        wanted = {STEP_CATEGORY[kind] for kind in planned_kinds}
+        if wanted & {"WALK", "INDOOR"}:
+            wanted.add("SPOT")  # Existing tourism candidates may satisfy these activities.
+        searches = [row for row in SEARCHES if row[0] in wanted]
     t0 = time.perf_counter()
     vec_meal, vec_after = embed_many([
         f"{question} 경기 전 식사 {pref_text}".strip(),
         f"{question} 경기 후 {' '.join(slots.ACTIVITY_LABEL[k] for k in plan_steps(sl, evening)[1])}".strip(),
-    ])
+    ]) if searches else (None, None)
     timings["embed_ms"] = round((time.perf_counter() - t0) * 1000)
 
     t0 = time.perf_counter()
@@ -1107,17 +1182,18 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
     # Required menus must get first use of the bounded review/interior lookup.
     # Generic nearby food/cafes can otherwise exhaust it before the menu query runs.
     requested_candidates = visit_selector.search(anchor, origin=origin) if visit_selector else []
-    with place_quality.research_policy(not bool(origin or visit_selector)):
-        live_candidates, live_data = _live_candidates(code, anchor, question, game,
-                                                     kinds=[kind for group in plan_steps(sl, evening) for kind in group])
+    timings["requested_candidates_ms"] = round((time.perf_counter() - t0) * 1000)
     cands, seen = [], set()
     widen = 2 if origin else 1                           # 출발지 기준으로 고르려면 방향별 후보가 더 필요하다
-    for category, _, k in SEARCHES:
+    vector_searches = [row for row in searches if not (
+        sl["spare"] == "tight" and row[0] == "SPOT" and sl.get("itinerary") is None)]
+    live_candidates, live_data, vector_rows, source_timings = _candidate_sources(
+        code, anchor, question, game, planned_kinds, vector_searches,
+        {"meal": vec_meal, "after": vec_after}, widen, research=not bool(origin or visit_selector))
+    timings.update(source_timings)
+    for category, _, k in searches:
         cands += pick([item for item in live_candidates if item["category"] == category], k, sl, radius, seen_names=seen)
-    for category, which, k in SEARCHES:
-        if sl["spare"] == "tight" and category == "SPOT" and sl.get("itinerary") is None:
-            continue                                     # 촉박하면 명소는 후보에서 뺀다
-        raw = search_places(vec_meal if which == "meal" else vec_after, code, category, k * 3 * widen)
+    for (category, _, k), raw in zip(vector_searches, vector_rows):
         cands += pick(raw, k * widen, sl, radius, seen_names=seen)
     timings["retrieval_ms"] = round((time.perf_counter() - t0) * 1000)
 
@@ -1127,12 +1203,15 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
     if extras:
         t0 = time.perf_counter()
         for kind in extras:
-            found = venue_policy.filter_candidates(kakao.nearby(code, kind), EXTRA_CATEGORY[kind])
+            raw = prepared.get("extras", {}).get(kind)
+            found = venue_policy.filter_candidates(raw if raw is not None else kakao.nearby(code, kind), EXTRA_CATEGORY[kind])
             if kind == "stay":
                 found = [p for p in found if geo._has_xy(p) and geo._dist(p, anchor) <= MAX_DISTANCE_M]
                 if route_segments:
                     found.sort(key=lambda p: corridor.distance_position(p, route_segments)[0])
-                lodging_result = lodging.verify(found, planning_question, history)
+                lodging_result = lodging.verify(found, planning_question, history,
+                    **({"fixed_requirements": lodging_requirements} if lodging_requirements is not None else {}))
+                timings["lodging"] = lodging_result.get("timing", {})
                 found = lodging.eligible(found, lodging_result)
             else:
                 found = nearby_agent.narrow(found, kind, question)
@@ -1175,9 +1254,14 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
                 cands.append(p)
     cands = [p for p in venue_policy.filter_candidates(cands) if geo._has_xy(p) and geo._dist(p, anchor) <= MAX_DISTANCE_M]
     candidate_filter = visit_selector
-    if visit_selector:
+    # Each visit is checked at its actual preceding stop, including mixed
+    # external/internal courses. The selector's per-visit policy still verifies
+    # collected tenants and menus; a global pass would repeat external checks
+    # before proximity is known and consume the same research budget twice.
+    defer_visit_filter = bool(origin and visit_selector)
+    if visit_selector and not defer_visit_filter:
         cands = visit_selector(cands)
-    elif course_memory:
+    elif not visit_selector and course_memory:
         condition_cache = {}
         candidate_filter = lambda items: remembered_candidates(items, course_memory, condition_cache)
         cands = candidate_filter(cands)
@@ -1199,6 +1283,11 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
         if sl.get("detour_places"):
             approach_notice = " ".join(filter(None, [approach_notice,
                 f"{', '.join(sl['detour_places'])} 방문에는 구장 반대 방향으로 잠시 이동하는 구간이 포함됐어요. 방문지는 모두 구장 반경 2.5km 안이에요."]))
+        if defer_visit_filter and not origin_steps:
+            # The route builder checks each visit at its actual preceding stop.
+            # Only a failed route needs the stadium-wide semantic fallback.
+            # Never pass an unfiltered seed pool to the fallback course model.
+            cands = visit_selector(cands)
     if not cands and not origin_steps:
         if course_memory and course_memory.get("conditions"):
             return unverified_course(code, timings)
@@ -1370,6 +1459,8 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
         places.append({
             "phase": c["phase"], "name": p["name"], "lat": p["lat"], "lng": p["lng"],
             "category": "STADIUM" if c["key"] == "STADIUM" else CAT_LABEL[p["category"]],
+            # Kept in server course memory; public_course omits provider details.
+            "detail": p.get("detail", ""),
             "placeId": p["placeId"], "address": p["address"], "placeUrl": p["placeUrl"],
             "distance": p["distance"], "reason": c["reason"],
             "time": row["time"], "until": row["until"], "stayMin": row["stayMin"],
@@ -1404,14 +1495,19 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
     if not _WARN.search(text):
         text = f"{text}\n{WARN_THIRD_PARTY}"
 
+    from .game_metadata import annotate, summary as game_summary
+    text = annotate(text, game)
     route.append(f"course:{code}:{game['date'] + ' ' + game['time'] if game else 'assumed'}:{len(cands)}cands")
     if approach_notice:
         travel.setdefault("notes", []).append(approach_notice)
     return {
         "answer": text, "sources": sources, "route": " ".join(route), "places": places, "timing": timings,
+        # Private model context: keep the link-only lodging cards while preserving
+        # verified/unknown distinctions in the main agent's final explanation.
+        "lodgingAssessments": lodging.assessments(rows),
         "routeComparison": ranker.report,
         "stadiumCode": code,
-        "game": {"date": game["date"], "time": game["time"]} if game else None,
+        "game": game_summary(game) if game else None,
         "origin": {**original_origin, "name": origin_label} if original_origin else None,
         "entryPoint": entry_point,
         "approachNotice": approach_notice,
@@ -1425,7 +1521,10 @@ def _answer(question, history=None, hint_stadium=None, origin=None, requested_af
 
 
 def answer(question, history=None, hint_stadium=None, origin=None, requested_after=None, route_path=None, current_course=None, course_memory=None, course_request=None):
+    from travel.course_place_warmer import foreground
+    from . import recommendation_policy
     from llm.tools.assistant import request_state
+    from llm.service.chat_runs import Stopped
     from .evidence_memory import request_budget
     from . import editing, memory
     from .selection import connect_game_context, selected_relative_request
@@ -1435,19 +1534,23 @@ def answer(question, history=None, hint_stadium=None, origin=None, requested_aft
         structured.date_in(question, datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat())
     except structured.DateRequestError as exc:
         return {"answer": str(exc), "sources": [], "places": [], "route": "course:invalid_date"}
-    selected_code = detect_stadium(question) or hint_stadium or (current_course or {}).get("stadiumCode")
-    selected_writer = (current_course or {}).get("writerState")
-    selected_origin = selected_writer.get("origin") if selected_writer is not None else origin
     anchored_request = selected_relative_request(question, current_course)
     if anchored_request:
         course_request = "EDIT"
+    if course_request == "EDIT" and not detect_stadium(question):
+        hint_stadium = ((current_course or {}).get("stadiumCode")
+                        or ((course_memory or {}).get("current") or {}).get("stadiumCode")
+                        or (course_memory or {}).get("stadiumCode") or hint_stadium)
+    selected_code = detect_stadium(question) or hint_stadium or (current_course or {}).get("stadiumCode")
+    selected_writer = (current_course or {}).get("writerState")
+    selected_origin = selected_writer.get("origin") if selected_writer is not None else origin
     if course_request == "NEW":
         history, course_memory, current_course, origin = [], memory.empty(), None, selected_origin
         hint_stadium = selected_code
     quality_code = selected_code or ((course_memory or {}).get("current") or {}).get("stadiumCode") or (course_memory or {}).get("stadiumCode") or next(
         (detected for message in reversed(history or []) if message.get("role") == "user"
          and (detected := detect_stadium(message.get("content", "")))), None)
-    with place_quality.request_scope(quality_code), request_state(hint_stadium, question, history), request_budget():
+    with foreground(), recommendation_policy.request(question), place_quality.request_scope(quality_code), request_state(hint_stadium, question, history), request_budget():
         if course_memory is None and current_course is None and not venue_policy.mentions_internal(question):
             return _answer(question, history, hint_stadium, origin, requested_after, route_path)
         saved = deepcopy(course_memory or memory.empty())
@@ -1466,19 +1569,28 @@ def answer(question, history=None, hint_stadium=None, origin=None, requested_aft
         if writer is not None and (supplied_current or valid_origin(origin) is None):
             origin = writer["origin"]
         context = editable or {"places": [], "stadiumCode": code, "travelMode": "walk", "legModes": {}}
+        context = memory.restore_place_details(context, saved)
         before_context = context
+        intent_started = time.monotonic()
+        prepared, preparation_wait_ms = None, 0
         try:
             context, game_connected = connect_game_context(question, context, code)
-            parsed = editing.interpret(question, context, history, saved)
+            if course_request == "NEW" and not game_connected:
+                from . import preparation
+                parsed, prepared, preparation_wait_ms = parallel.alongside(
+                    partial(preparation.read, question, code, **({"origin": valid_origin(origin)} if valid_origin(origin) else {})),
+                    partial(editing.interpret, question, context, history, saved, new_course=True))
+            else:
+                parsed = editing.interpret(question, context, history, saved)
             if (anchored_request or game_connected) and parsed["operation"] == "new":
                 return memory.attach(editing.unchanged("선택한 장소를 기준으로 추가할 활동과 앞·뒤 순서를 확인하지 못했어요. 다시 요청해 주세요."), saved, undo=False)
             # 부분 수정 판정과 별개로 생성기로 넘어갈 때도 이전 코스가 섞이지 않도록 보장한다.
             # V2는 모델 호출 전 이미 비운다. 직접 호출/분류 불일치만 깨끗한 입력으로 다시 해석한다.
             if parsed["operation"] == "new" and (history or editable or any(memory.core(saved).values())):
                 clean = {"places": [], "stadiumCode": selected_code, "travelMode": "walk", "legModes": {}}
-                parsed = editing.interpret(question, clean, [], memory.empty())
+                parsed = editing.interpret(question, clean, [], memory.empty(), new_course=True)
                 parsed["operation"] = "new"
-        except (ProgressCancelled, ProgressStorageError):
+        except (Stopped, ProgressCancelled, ProgressStorageError):
             raise
         except ProgressError as exc:
             return memory.attach(editing.unchanged(str(exc)), saved, undo=False)
@@ -1491,6 +1603,7 @@ def answer(question, history=None, hint_stadium=None, origin=None, requested_aft
                 edited = editing.answer(question, history, context, code, valid_origin(origin), saved, parsed, route_path=route_path)
                 edited = venue_policy.explain_missing_signature(edited)
             if edited is not None:
+                edited["courseOnly"] = recommendation_policy.enabled() and parsed.get("course_only") is True
                 if game_connected and edited.get("places"):
                     if not edited.get("game"):
                         return memory.attach(editing.unchanged("경기의 날짜와 시각을 확인하지 못해 구장 방문을 연결하지 못했어요."), saved, undo=False)
@@ -1498,18 +1611,28 @@ def answer(question, history=None, hint_stadium=None, origin=None, requested_aft
                     undo = edited.get("courseMemory", {}).get("undo")
                     if undo:
                         undo["before"] = deepcopy(before_context)
-                return edited
+                return recommendation_policy.explain(edited)
         # 여기부터는 새 생성이다. 이전 방문/고정/제외/날짜/이동수단/undo는 전부 경계 밖에 둔다.
+        intent_ms = round((time.monotonic() - intent_started) * 1000)
         saved = editing.update_memory(memory.empty(), parsed, {"places": [], "stadiumCode": selected_code})
         origin = selected_origin
-        with request_state(selected_code, question, []), venue_policy.request_policy(question, selected_code,
+        from . import preparation
+        snapshot = prepared if preparation.matches(prepared, question, selected_code, datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()) else {}
+        with venue_policy.prepared_discovery((snapshot or {}).get("discovery")), request_state(selected_code, question, []), venue_policy.request_policy(question, selected_code,
                 parsed.get("internal_venue_requests"), visits=parsed.get("requested_visits")):
             result = _answer(question, [], selected_code, origin, requested_after, route_path,
                          course_memory=editing.request_memory(saved, parsed),
                          origin_cleared=origin is None,
-                         requested_visits=parsed.get("requested_visits") if parsed else None)
+                         requested_visits=parsed.get("requested_visits") if parsed else None,
+                         **({"lodging_requirements": parsed["lodging_requirements"]} if "lodging_requirements" in parsed else {}),
+                         **({"prepared": prepared} if prepared else {}))
+            result.setdefault("timing", {})["intent_ms"] = intent_ms
+            if prepared:
+                result["timing"].update(preparation_ms=prepared["elapsed_ms"], preparation_wait_ms=preparation_wait_ms)
             result = venue_policy.explain_missing_signature(result)
         result["courseHistoryReset"] = True
+        result["courseOnly"] = parsed.get("course_only") is True and not parsed.get("additional_requests")
+        result = recommendation_policy.explain(result)
         if result.get("places"):
             for i, p in enumerate(result["places"]):
                 p.setdefault("visitId", f"course:{i}:{p.get('placeId', p['name'])}")

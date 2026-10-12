@@ -1,0 +1,8 @@
+[
+  {"id":"success","review_status":"implementation-reviewed","provenance":"hand-authored","status":"ok","expected_reads":1},
+  {"id":"failure","review_status":"implementation-reviewed","provenance":"hand-authored","status":"blocked","expected_reads":1},
+  {"id":"partial","review_status":"implementation-reviewed","provenance":"hand-authored","status":"partial","expected_reads":1},
+  {"id":"new-identity","review_status":"implementation-reviewed","provenance":"hand-authored","status":"ok","old_failure":true,"expected_reads":1},
+  {"id":"recent-window","review_status":"implementation-reviewed","provenance":"hand-authored","status":"ok","expired":true,"expected_reads":1},
+  {"id":"ownership","review_status":"implementation-reviewed","provenance":"hand-authored","foreign":true,"expected_reads":0}
+]

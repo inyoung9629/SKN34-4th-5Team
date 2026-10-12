@@ -5,8 +5,8 @@ import { test } from "node:test";
 import vm from "node:vm";
 const require = createRequire(import.meta.url);
 const ts = require("typescript"), React = require("react");
-function load(path, mocks) {
-  const context = { exports: {}, Error, require(id) {
+function load(path, mocks, globals = {}) {
+  const context = { ...globals, exports: {}, Error, require(id) {
     if (id in mocks) return mocks[id];
     if (id === "react" || id === "react/jsx-runtime") return require(id);
     if (id.endsWith(".css")) return {};
@@ -23,6 +23,33 @@ function nodes(tree) {
   return [tree, ...nodes(tree.props.children)];
 }
 const member = { id: 18, is_active: true, is_staff: true, is_superuser: false };
+function postPanel({ hidden = false, busy = false, confirm = true, fail = false } = {}) {
+  const calls = [];
+  const post = { source_id: "free-1", post_number: "1", board: "free", title: "글", is_hidden: hidden, report_count: 0 };
+  const values = ["", "", busy, { count: 1, results: [post] }, "", false, "", 1, 0];
+  let index = 0;
+  const panel = load("../components/admin-panels.tsx", {
+    react: { ...React, useState() { const i = index++; return [values[i], value => { values[i] = typeof value === "function" ? value(values[i]) : value; }]; }, useEffect() {} },
+    "next/link": { __esModule: true, default: "a" },
+    "@/lib/api/auth": {}, "@/lib/member-policy": {}, "@/lib/team-community": {},
+    "@/lib/api/admin-community": { async hideAdminPost(id) { calls.push(id); if (fail) throw new Error("숨김 실패"); } },
+  }, { window: { confirm: () => confirm } }).AdminPostsPanel();
+  return { values, calls, button: nodes(panel).find(n => n.type === "button" && ["숨김", "숨김 처리됨"].includes(n.props.children)) };
+}
+
+test("post hide confirms, refreshes without deleting, and handles errors", async () => {
+  for (const options of [{}, { confirm: false }, { fail: true }]) {
+    const view = postPanel(options);
+    view.button.props.onClick();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(view.calls.length, options.confirm === false ? 0 : 1);
+    assert.equal(view.values[2], false);
+    if (options.fail) { assert.equal(view.values[1], "숨김 실패"); assert.equal(view.values[0], ""); }
+    else if (options.confirm !== false) { assert.match(view.values[0], /숨겼어요/); assert.equal(view.values[8], 1); }
+  }
+  assert.equal(postPanel({ hidden: true }).button.props.disabled, true);
+  assert.equal(postPanel({ busy: true }).button.props.disabled, true);
+});
 function reportPanel(status, { busy = false, hidden = false, fail = false } = {}) {
   const calls = [];
   const report = { id: 1, status, created_at: "2026-10-06T00:00:00Z", reason: "spam", reporter: "회원", post: { post_number: "1", source_id: "free-1", board: "free", title: "글", author: "작성자", is_hidden: hidden } };
@@ -109,7 +136,7 @@ test("feedback entry shares the primary menu styling and is exclusive to superus
 test("category menu ends with Admin only for authenticated active staff; header has no duplicate", () => {
   for (const [status, user, allowed] of [["authenticated", member, true], ["anonymous", null, false], ["loading", member, false], ["unavailable", member, false], ["authenticated", { ...member, is_staff: false }, false], ["authenticated", { ...member, is_active: false }, false]]) {
     const header = load("../components/member-header-actions.tsx", {
-      react: { ...React, useState: value => [value, () => {}], useRef: () => ({ current: null }), useEffect() {} },
+      react: { ...React, useCallback: callback => callback, useState: value => [value, () => {}], useRef: () => ({ current: null }), useEffect() {} },
       "next/link": { __esModule: true, default: "a" }, "next/navigation": { useRouter: () => ({}) },
       "@/lib/member-auth": { useMemberAuth: () => ({ status, user }) }, "@/lib/member-auth-request": {},
     });

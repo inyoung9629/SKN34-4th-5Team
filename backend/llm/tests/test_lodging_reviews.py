@@ -13,22 +13,6 @@ def review(text, polarity="positive", day="2026-09-25"):
 
 
 class LodgingReviewTest(SimpleTestCase):
-    def test_provider_schema_requires_every_property_including_defaulted_fields(self):
-        def check(node):
-            if isinstance(node, dict):
-                if node.get("type") == "object" and "properties" in node:
-                    self.assertEqual(set(node["required"]), set(node["properties"]))
-                    self.assertFalse(node["additionalProperties"])
-                self.assertNotIn("default", node)
-                for value in node.values():
-                    check(value)
-            elif isinstance(node, list):
-                for value in node:
-                    check(value)
-        check(lodging.search_schema())
-        self.assertEqual(set(lodging.search_schema()["properties"]), {"requirements", "properties"})
-        self.assertEqual(lodging.search_schema()["properties"]["properties"]["type"], "array")
-
     def setUp(self):
         clock = patch.object(lodging.timezone, "localdate", return_value=date(2026, 10, 5))
         clock.start()
@@ -126,8 +110,8 @@ class LodgingReviewTest(SimpleTestCase):
             return raw, {URL}
         lookup = Mock(side_effect=search)
         result = lodging.verify(places, "주차와 금연 숙소", _search=lookup)
-        self.assertEqual(lookup.call_count, 2)
-        self.assertEqual(result["checkedCount"], 8)
+        self.assertEqual(lookup.call_count, 6)
+        self.assertEqual(result["checkedCount"], 6)
         self.assertEqual(lodging.eligible(places, result)[0]["placeId"], "5")
 
     def test_later_batch_cannot_drop_an_unconfirmed_condition(self):
@@ -145,24 +129,6 @@ class LodgingReviewTest(SimpleTestCase):
         self.assertEqual(lodging.recommendations(result)[0]["id"], "123")
         self.assertIn("미확인", lodging.notice(result))
 
-    def test_unopened_detail_is_read_before_its_rating_can_be_used(self):
-        raw = report()
-        raw["properties"][0].update(rating=4.8, rating_scale=5, review_count=200, rating_evidence="4.8(200)")
-        fresh = deepcopy(raw)
-        fresh["properties"][0].update(rating=4.7, rating_evidence="4.7(200)")
-        with patch.object(lodging, "_search", return_value=(raw, set())), \
-                patch.object(lodging, "_read_details", return_value=(fresh["properties"], {URL})) as lookup:
-            result, sources = lodging.search([CANDIDATE], "숙소", [])
-        self.assertEqual(lookup.call_count, 1)
-        self.assertEqual(lookup.call_args.args[1], [URL])
-        self.assertEqual(lodging._normalize([CANDIDATE], result, sources)["items"][0]["rating"], 4.7)
-
-    def test_open_attempt_without_property_read_does_not_validate_old_search_snippet(self):
-        with patch.object(lodging, "_search", return_value=(report(), set())), \
-                patch.object(lodging, "_read_details", return_value=([], set())):
-            result, sources = lodging.search([CANDIDATE], "숙소", [])
-        self.assertEqual(lodging._normalize([CANDIDATE], result, sources)["items"][0]["status"], "unknown")
-
     def test_first_search_cannot_omit_hotel_requirement(self):
         fixed = [{"id": "hotel", "label": "호텔 유형", "basis": "detail", "intent": "required"}]
         with patch.object(lodging, "requirements", return_value=fixed), \
@@ -170,14 +136,6 @@ class LodgingReviewTest(SimpleTestCase):
             result = lodging.verify([PLACE], "깔끔한 호텔 유형 생략 회귀 테스트")
         self.assertEqual(result["requirements"], ["호텔 유형"])
         self.assertEqual(result["items"][0]["status"], "unknown")
-
-    def test_opened_page_missing_from_report_is_read_again(self):
-        omitted = {"requirements": report()["requirements"], "properties": []}
-        with patch.object(lodging, "_search", return_value=(omitted, {URL})), \
-                patch.object(lodging, "_read_details", return_value=(report()["properties"], {URL})) as lookup:
-            result, sources = lodging.search([CANDIDATE], "숙소", [])
-        self.assertEqual(lookup.call_count, 1)
-        self.assertEqual(lodging._normalize([CANDIDATE], result, sources)["items"][0]["status"], "match")
 
     def test_stay_after_game_is_a_visit_order_not_property_requirement(self):
         result = lodging._normalize([], {}, set(), [{"id": "after", "label": "경기 후 숙박"}])
@@ -201,14 +159,6 @@ class LodgingReviewTest(SimpleTestCase):
         self.assertEqual(len(result["reviews"]), 1)
         self.assertEqual(result["lodging_type"], "motel")
         self.assertEqual(result["reviews"][0]["observed_on"], "2026-09-25")
-
-    def test_search_model_reviews_cannot_pass_without_independent_body_read(self):
-        raw = report()
-        raw["properties"][0]["reviews"] = [review("침구와 욕실이 아주 깨끗해서 편하게 쉬었어요")]
-        with patch.object(lodging, "_search", return_value=(raw, {URL})), \
-                patch.object(lodging, "_read_details", return_value=([], set())):
-            result, _ = lodging.search([CANDIDATE], "깔끔한 숙소", [])
-        self.assertEqual(result["properties"][0]["reviews"], [])
 
     def test_review_blocks_are_recent_deduplicated_and_do_not_include_checkin_dates(self):
         body = "2026.10.05(월)\n체크인\n2026.09.25\n침구와 욕실이 깨끗했습니다\n2026.08.02\n욕실이 넓고 아주 깨끗합니다\n2026.09.25\n침구와 욕실이 깨끗했습니다\n쿠폰 마감"

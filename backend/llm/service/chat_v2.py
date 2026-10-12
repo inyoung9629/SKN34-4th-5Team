@@ -15,10 +15,13 @@ log = logging.getLogger(__name__)
 
 def _model_history(messages, turns):
     """다음 모델 입력용 projection: 완료된 턴의 질문/최종 답변만."""
+    # Preserve server-produced choices as metadata for the course interpreter;
+    # model-visible text and the other specialists' input remain unchanged.
     raw = {m.id: m for m in messages}
     return [
         raw[item["id"]] if item["role"] == ChatRole.USER else AIMessage(item["content"] + ("\n" if item.get("planning", {}).get("questions") else "") + "\n".join(
-            q["question"] + ": " + " / ".join(q["choices"]) for q in item.get("planning", {}).get("questions", [])))
+            q["question"] + ": " + " / ".join(q["choices"]) for q in item.get("planning", {}).get("questions", [])),
+            response_metadata={"planning_questions": item["planning"]["questions"]} if item.get("planning", {}).get("questions") else {})
         for item in project_history(messages, turns) if item["status"] == TurnStatus.COMPLETED and not item.get("answer_deleted")
     ]
 

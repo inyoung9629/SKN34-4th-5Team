@@ -241,11 +241,38 @@ def _ranking_groups(payload):
     return groups
 
 
-def _roster(payload):
+def _roster_items_response(payload):
     athletes = [{"code": text(obj(raw, "선수단 선수").get("code"), "선수 코드", 40), "name": text(obj(raw, "선수단 선수").get("name"), "선수 이름", 80), "imageUrl": image_url(obj(raw, "선수단 선수").get("imageUrl"), "선수 사진"), "backNumber": optional_text(obj(raw, "선수단 선수").get("backNumber"), "등번호", 20)} for raw in array(success_data(payload).get("items"), "선수단", 100)]
     if len({item["code"] for item in athletes}) != len(athletes):
         fail("선수단 중복 선수")
     return athletes
+
+
+def _roaster_band_response(payload):
+    """Parse the /roaster response band without shadowing the item contract."""
+    data = success_data(payload)
+    bands = array(data.get("bands"), "bands", 30)
+    roster_bands = [
+        item for item in bands
+        if isinstance(item, dict)
+        and (item.get("bandType") == "KBO_TEAM_ROASTER" or item.get("bandName") == "KBO_TEAM_ROASTER")
+    ]
+    if len(roster_bands) != 1:
+        fail("KBO_TEAM_ROASTER band")
+    items = array(roster_bands[0].get("items"), "roster items", 100)
+    athletes = [{
+        "code": text((raw.get("player") if isinstance(raw.get("player"), dict) else raw).get("code"), "player code", 40),
+        "name": text((raw.get("player") if isinstance(raw.get("player"), dict) else raw).get("name"), "player name", 80),
+        "imageUrl": image_url((raw.get("player") if isinstance(raw.get("player"), dict) else raw).get("imageUrl"), "player image"),
+        "backNumber": optional_text((raw.get("player") if isinstance(raw.get("player"), dict) else raw).get("backNumber"), "back number", 20),
+    } for raw in items]
+    if len({item["code"] for item in athletes}) != len(athletes):
+        fail("duplicate player code")
+    return athletes
+
+
+# 기존 roster crawler가 사용하는 내부 이름을 유지합니다.
+_roster = _roaster_band_response
 
 
 def parse_team_detail(code, payload, rankings, rosters):
@@ -257,7 +284,10 @@ def parse_team_detail(code, payload, rankings, rosters):
     if len(season_items) != 1:
         fail("시즌 기록")
     season = obj(season_items[0], "시즌 기록")
-    parsed_rosters = {position: _roster(rosters[position]) for position in POSITIONS}
+    parsed_rosters = {
+        position: _roster_items_response(rosters[position])
+        for position in POSITIONS
+    }
     all_codes = [athlete["code"] for values in parsed_rosters.values() for athlete in values]
     if len(set(all_codes)) != len(all_codes):
         fail("포지션 간 중복 선수")

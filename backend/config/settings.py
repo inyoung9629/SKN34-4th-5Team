@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 import os
 import json
 from datetime import timedelta
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -52,6 +53,19 @@ COLLECTED_PLACES_DIR = Path(os.getenv("COLLECTED_PLACES_DIR") or BASE_DIR.parent
 PLACE_RAG_PATH = Path(os.getenv("PLACE_RAG_PATH") or BASE_DIR / "artifacts/place-rag/index.sqlite3")
 # Explicit opt-in only; a local knowledge miss must not silently buy web searches.
 COURSE_WEB_VERIFICATION_ENABLED = os.getenv("COURSE_WEB_VERIFICATION_ENABLED", "false").strip().lower() == "true"
+COURSE_PLACE_WARM_ENABLED = os.getenv("COURSE_PLACE_WARM_ENABLED", "false").strip().lower() == "true"
+COURSE_RECOMMENDATION_MODE = os.getenv("COURSE_RECOMMENDATION_MODE", "balanced").strip().lower()
+# Public lodging snapshots are shared by local workers, independently of user wording.
+# This private cache directory must remain outside static/media roots.
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "lodging_pages": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": str(BASE_DIR / ".cache" / "lodging-pages"),
+        "TIMEOUT": 6 * 60 * 60,
+        "OPTIONS": {"MAX_ENTRIES": 256},
+    },
+}
 SERPER_API_KEY = os.getenv("SERPER_API_KEY") or os.getenv("Serper_API_KEY", "")
 PLACE_EVIDENCE_STORAGE_POLICIES = json.loads(os.getenv("PLACE_EVIDENCE_STORAGE_POLICIES", "[]"))
 
@@ -92,6 +106,7 @@ INSTALLED_APPS = [
     'community',
     'ads.apps.AdsConfig',
     'tving.apps.TvingConfig',
+    'fantasy.apps.FantasyConfig',
 ]
 
 MIDDLEWARE = [
@@ -162,6 +177,8 @@ DATABASE_ROUTERS = ["travel.knowledge_router.PlaceKnowledgeRouter", "baseball.db
 
 # 식사·숙소 근거 조사를 연속 실행할 수 있는 공개 이벤트 대기 예산. heartbeat는 이 제한을 연장하지 않는다.
 CHAT_STREAM_IDLE_TIMEOUT_SECONDS = positive_int_env("CHAT_STREAM_IDLE_TIMEOUT_SECONDS", 300)
+# Empty keeps production; preview embeds via GOOGLE_API_KEY, verifies via OPENROUTER_API_KEY.
+HIGHLIGHT_MULTIMODAL_CORPUS = os.getenv("HIGHLIGHT_MULTIMODAL_CORPUS", "").strip()
 
 BASEBALL_QUERY_MAX_ROWS = positive_int_env("BASEBALL_QUERY_MAX_ROWS", 200)
 BASEBALL_QUERY_TIMEOUT_MS = positive_int_env("BASEBALL_QUERY_TIMEOUT_MS", 3000)
@@ -171,6 +188,18 @@ BASEBALL_QUERY_MAX_RESPONSE_BYTES = positive_int_env(
     "BASEBALL_QUERY_MAX_RESPONSE_BYTES", 1024 * 1024
 )
 EXTERNAL_DATA_SYNC_INTERVAL_SECONDS = positive_int_env("EXTERNAL_DATA_SYNC_INTERVAL_SECONDS", 600)
+FANTASY_LOCAL_REQUEST_JOBS_ENABLED = os.getenv(
+    "FANTASY_LOCAL_REQUEST_JOBS_ENABLED", "false"
+).strip().lower() == "true"
+try:
+    FANTASY_POINT_PAYOUT_RATE = Decimal(os.getenv("FANTASY_POINT_PAYOUT_RATE", "0.10"))
+except InvalidOperation as error:
+    raise ValueError("FANTASY_POINT_PAYOUT_RATE must be a decimal between 0 and 1.") from error
+if (
+    not FANTASY_POINT_PAYOUT_RATE.is_finite()
+    or not Decimal("0") <= FANTASY_POINT_PAYOUT_RATE <= Decimal("1")
+):
+    raise ValueError("FANTASY_POINT_PAYOUT_RATE must be a decimal between 0 and 1.")
 KMA_SERVICE_KEY = os.getenv("KMA_SERVICE_KEY", "")
 KMA_API_KEY = os.getenv("KMA_API_KEY", "")
 KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY", "")
@@ -199,9 +228,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ko-kr'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Seoul'
 
 USE_I18N = True
 

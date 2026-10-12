@@ -60,6 +60,24 @@ class ArrivalGeometryTests(SimpleTestCase):
 
 
 class NamedOriginTests(SimpleTestCase):
+    def test_pinned_origin_reference_does_not_consume_the_next_restaurant(self):
+        supplied = {**ANCHOR, "name": "잠실새내역"}
+        for text in ("지도에 찍은 출발지에서 출발해서 구장 밖 양식 식당에서 식사하고",
+                     "출발지에서 출발해서 카페 갈게", "지도에 찍어 놓은 출발지부터 시작할게"):
+            with self.subTest(text=text):
+                invoke = Mock()
+                self.assertIsNone(arrival.origin_query(text))
+                self.assertEqual(arrival.resolve_origin(text, [], supplied, ANCHOR, invoke),
+                                 (ANCHOR, "잠실새내역", ""))
+                invoke.assert_not_called()
+
+    def test_missing_pin_reference_requests_coordinates_instead_of_searching_restaurant(self):
+        invoke = Mock()
+        point, _, error = arrival.resolve_origin("지도에 찍은 출발지에서 출발해서 양식 식당 갈게", [], None, ANCHOR, invoke)
+        self.assertIsNone(point)
+        self.assertIn("위치가 필요", error)
+        invoke.assert_not_called()
+
     def test_explicit_departure_expressions_and_after_game_exclusion(self):
         for question in ("서울역에서 출발할 거야", "나는 서울역에서 대중교통으로 출발해. 식사랑 카페 갈래", "출발지는 서울역이야", "지금 서울역부터 시작하자"):
             self.assertEqual(arrival.origin_query(question), "서울역")

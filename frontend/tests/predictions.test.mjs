@@ -55,10 +55,15 @@ test("authenticated reads and final-state votes use memberFetch with encoded IDs
 test("prediction UI stays a game card surface with direct auth and shared navigation", () => {
   const component = readFileSync(new URL("components/prediction-board.tsx", frontend), "utf8");
   const page = readFileSync(new URL("app/community/predictions/page.tsx", frontend), "utf8");
-  assert.match(component, /CommunityNavigation active="predictions"/);
+  assert.match(page, /redirect\("\/fantasy"\)/);
+  const fantasyPage = readFileSync(new URL("app/fantasy/page.tsx", frontend), "utf8");
+  assert.match(fantasyPage, /PredictionBoard/);
   assert.match(component, /useMemberAuth/);
-  assert.match(component, /type="date"/);
-  assert.match(component, /무승부로 종료/);
-  assert.match(component, /무효 처리/);
-  assert.doesNotMatch(component + page, /CommunityBoard|localStorage|points|ranking/i);
+  assert.match(component, /다음 주 선수 선택/);
+  assert.match(component, /타자·투수 각 1명/);
+  assert.match(component, /다음 주 예정된 경기가 없어/);
+  assert.match(component, /이번 주 획득 점수/);
+  assert.match(component, /현재 점수로 포인트 지급/);
+  assert.match(component, /memberFetch/);
+  assert.doesNotMatch(component + page, /CommunityBoard|localStorage|ranking/i);
 });

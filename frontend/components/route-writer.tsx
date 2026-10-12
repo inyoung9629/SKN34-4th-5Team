@@ -22,7 +22,7 @@ import { GUIDE_COURSE, type GuideCourseStop } from "@/lib/route-guide-events";
 import { teamBoards } from "@/lib/team-community";
 import { browserDraftStorage, createDraftAutosave, latestNewDraftStadium, readRouteDraft, recoverRouteDraft, removeRouteDraft, saveRouteDraft, type MemoryRouteDraft, type RouteDraftData } from "@/lib/route-draft";
 import type { LegModes, TravelMode } from "@/lib/course-directions";
-import { courseContext, courseGeometryKey, type CourseAction } from "@/lib/course-state";
+import { bindCourseSelection, courseContext, courseGeometryKey, type CourseAction } from "@/lib/course-state";
 import { useCourseState } from "./use-course-state";
 import { chatRouteSelectionKey } from "@/lib/chat/route-path";
 import type { ChatCourse, ChatRoutePath } from "@/lib/chat/types";
@@ -39,7 +39,6 @@ function WriterIcon({ kind }: { kind: "spark" | "pin" | "arrow" | "save" }) {
 }
 
 type WriterTab = "write" | "chat";
-type PlannerMode = "places" | "draw";
 type Confirmation = { title: string; description: string; label: string; action: () => void; cancelLabel?: string; cancelAction?: () => void };
 const writerTabs: { id: WriterTab; label: string }[] = [{ id: "write", label: "루트 작성" }, { id: "chat", label: "챗봇" }];
 const writerDrafts = new Map<string, MemoryRouteDraft>();
@@ -136,17 +135,21 @@ function WriterForm({ stadiums, initial, existing, copying = false, sample = fal
     chatCourseKey: restoredDraft?.chatCourseKey?.startsWith(`chat:member:${draftOwner?.id}:`) ? restoredDraft.chatCourseKey : undefined,
   }));
   const { stadiumCode, title, content, contentFormat, contentDoc, duration, tags, stops, start, tab, travelMode,
-    legModes = {}, plannerCompleted = false, plannerMode = "places", chatCourseKey } = courseState.data;
+    legModes = {}, plannerCompleted = false, chatCourseKey } = courseState.data;
   const [initialDoc] = useState(() => restoredDraft?.contentDoc ?? copiedStory ?? existing?.contentDoc
     ?? plainRichDoc(routeContentToText(restoredDraft?.content ?? existing?.content ?? "", restoredDraft ? restoredDraft.contentFormat : existing?.contentFormat)));
   const linkedDraftRaw = useRef<{ key: string; raw: string | null } | null>(null);
   const [pathResult, setPathResult] = useState<{ key: string; path?: ChatRoutePath }>();
   const [selectedPlace, setSelectedPlace] = useState<RouteStop | null>(null);
   const selectedPlaceRef = useRef<RouteStop | null>(null);
+  const selectionRevision = useRef(0);
   const changeSelectedPlace = useCallback((place: RouteStop | null) => {
-    selectedPlaceRef.current = place;
-    setSelectedPlace(place);
-  }, []);
+    const next = bindCourseSelection(courseRef.current.data.stops, place);
+    if (JSON.stringify(selectedPlaceRef.current) === JSON.stringify(next)) return;
+    selectionRevision.current += 1;
+    selectedPlaceRef.current = next;
+    setSelectedPlace(next);
+  }, [courseRef]);
   const geometryKey = courseGeometryKey(courseState.data);
   const routePath = pathResult?.key === geometryKey ? pathResult.path : undefined;
   const pathRef = useRef(pathResult);
@@ -164,6 +167,7 @@ function WriterForm({ stadiums, initial, existing, copying = false, sample = fal
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   // 챗봇 코스를 담은 횟수·구장. 지도(planner)가 이 값이 바뀌면 "내 코스" 탭을 열고 코스 전체를 보여준다.
   const [courseApplied, setCourseApplied] = useState<{ version: number; stadiumCode: string; completed?: boolean } | null>(null);
+  const courseApplicationSequence = useRef(0);
   const dirty = useRef(recovery.dirty);
   // "작성 중" = something was changed (or restored) that has not been published yet.
   const touched = useRef(recovery.dirty || Boolean(restoredDraft));
@@ -292,9 +296,10 @@ function WriterForm({ stadiums, initial, existing, copying = false, sample = fal
   const commitCourse = useCallback((action: CourseAction) => {
     const before = courseRef.current;
     const next = dispatchCourse(action);
+    if (selectedPlaceRef.current?.visitId && !courseContext(next, undefined, selectedPlaceRef.current).currentCourse?.selectedPlace) changeSelectedPlace(null);
     if (before !== next) markDirty();
     return next;
-  }, [courseRef, dispatchCourse, markDirty]);
+  }, [courseRef, dispatchCourse, markDirty, changeSelectedPlace]);
   const changeCourse = useCallback((patch: Partial<RouteDraftData>) => { commitCourse({ type: "patch", patch }); }, [commitCourse]);
   const changeStops = useCallback((next: RouteStop[]) => changeCourse({ stops: next }), [changeCourse]);
   const changeStart = useCallback((next: TripRoute["start"], originSource: "custom" | "current" = "custom") => {
@@ -304,20 +309,19 @@ function WriterForm({ stadiums, initial, existing, copying = false, sample = fal
   const changeCompletion = useCallback((completed: boolean) => changeCourse({ plannerCompleted: completed }), [changeCourse]);
   const changeLegModes = useCallback((next: LegModes) => changeCourse({ legModes: next }), [changeCourse]);
   const setTab = useCallback((next: WriterTab) => changeCourse({ tab: next }), [changeCourse]);
-  const setPlannerMode = useCallback((next: PlannerMode) => changeCourse({ plannerMode: next }), [changeCourse]);
-  const applyCourse = useCallback((course: ChatCourse, how: "replace" | "append") => {
-    const target = course.stadiumCode ? stadiums.find(stadium => matchesStadium(stadium, course.stadiumCode!)) : stadiums.find(stadium => stadium.code === courseRef.current.data.stadiumCode);
+  const applyCourse = useCallback((course: ChatCourse, how: "replace" | "append", requestBase?: RouteDraftData) => {
+    const target = course.stadiumCode ? stadiums.find(stadium => matchesStadium(stadium, course.stadiumCode!)) : stadiums.find(stadium => stadium.code === (requestBase ?? courseRef.current.data).stadiumCode);
     if (!target) return null;
     const before = courseRef.current;
     course = { ...course, places: course.places.map(place => place.category === "STADIUM"
       ? { ...place, name: target.name, lat: target.lat, lng: target.lng, address: target.address || place.address } : place) };
-    const next = commitCourse({ type: "apply", course, stadiumCode: target.code, how });
-    setCourseApplied({ version: next.revision, stadiumCode: next.data.stadiumCode, completed: next.data.plannerCompleted });
+    const next = commitCourse({ type: "apply", course, stadiumCode: target.code, how, requestBase });
+    setCourseApplied({ version: ++courseApplicationSequence.current, stadiumCode: next.data.stadiumCode, completed: next.data.plannerCompleted });
     return () => {
       const current = courseRef.current;
       const undone = commitCourse({ type: "undo", before, expectedRevision: next.revision });
       if (undone !== current) {
-        setCourseApplied({ version: undone.revision, stadiumCode: undone.data.stadiumCode, completed: undone.data.plannerCompleted });
+        setCourseApplied({ version: ++courseApplicationSequence.current, stadiumCode: undone.data.stadiumCode, completed: undone.data.plannerCompleted });
         return true;
       }
       setError("코스를 추가로 수정했어요. 최신 내용을 보호하기 위해 이전 추천 적용을 되돌리지 않았어요.");
@@ -326,13 +330,18 @@ function WriterForm({ stadiums, initial, existing, copying = false, sample = fal
   }, [stadiums, courseRef, commitCourse]);
   const applyCourseRef = useRef(applyCourse);
   useLayoutEffect(() => { applyCourseRef.current = applyCourse; }, [applyCourse]);
-  const readCourseVersion = useCallback(() => JSON.stringify([courseRef.current.revision,
+  const requestScope = useRef({});
+  const captureApply = useCallback(() => {
+    const requestBase = structuredClone(courseRef.current.data);
+    return (course: ChatCourse, how: "replace" | "append") => applyCourseRef.current(course, how, requestBase);
+  }, [courseRef]);
+  const readCourseVersion = useCallback(() => JSON.stringify([courseRef.current.revision, selectionRevision.current,
     chatRouteSelectionKey(pathRef.current?.key === courseGeometryKey(courseRef.current.data) ? pathRef.current.path : undefined)]), [courseRef]);
   const selectionKey = JSON.stringify([courseState.revision, chatRouteSelectionKey(routePath)]);
   useLayoutEffect(() => {
-    registerCourseTarget({ stadiumCode, stopCount: stops.length, selectionKey, getContext: readCurrentContext, getVersion: readCourseVersion,
+    registerCourseTarget({ stadiumCode, stopCount: stops.length, selectionKey, getContext: readCurrentContext, getVersion: readCourseVersion, requestScope: requestScope.current, captureApply,
       apply: (course, how) => applyCourseRef.current(course, how) });
-  }, [registerCourseTarget, stadiumCode, stops.length, selectionKey, readCurrentContext, readCourseVersion]);
+  }, [registerCourseTarget, stadiumCode, stops.length, selectionKey, readCurrentContext, readCourseVersion, requestScope, captureApply]);
   useEffect(() => () => registerCourseTarget(null), [registerCourseTarget]);
   useEffect(() => {
     // 전체 채팅 화면에서 "루트 작성 지도에서 열기"로 넘어온 코스
@@ -447,15 +456,11 @@ function WriterForm({ stadiums, initial, existing, copying = false, sample = fal
               <div className="planner-heading-row">
                 <div className="planner-mode-heading">
                   <h2 id="planner-heading" className="sr-only">코스 만들기 방법</h2>
-                  <div className="planner-mode-tabs" role="group" aria-labelledby="planner-heading">
-                    <button type="button" aria-pressed={plannerMode === "places"} disabled={plannerCompleted} onClick={() => setPlannerMode("places")}><span>01</span><strong>직접 코스 만들기</strong></button>
-                    <button type="button" aria-pressed={plannerMode === "draw"} disabled={plannerCompleted} onClick={() => setPlannerMode("draw")}><span>02</span><strong>동선으로 코스 짜기</strong></button>
-                  </div>
-                  <p>{plannerMode === "places" ? "가고 싶은 장소를 골라 방문 순서대로 코스를 만들어보세요." : "지도 위를 차례로 눌러 한 가지 색상의 동선을 그려보세요."}</p>
+                  <p>지도에서 출발지를 정하고, 장소를 고르거나 챗봇으로 코스를 만들어보세요.</p>
                 </div>
                 <div className="writer-field planner-stadium-field"><label className="sr-only" htmlFor="route-stadium">구장 선택</label><select id="route-stadium" aria-label="구장 선택" value={stadiumCode} onChange={(event) => changeStadium(event.target.value)}>{stadiums.map((stadium) => <option key={stadium.code} value={stadium.code}>{stadium.name}</option>)}</select></div>
               </div>
-              <NearbyRoutePlanner key={`${stadiumCode}:${plannerMode}`} plannerMode={plannerMode} stadium={current} stops={stops} onChange={changeStops} initialStart={start} onStartChange={changeStart} onCourseChange={changeCourse} courseRevision={courseState.revision} originSource={courseState.originSource} onRoutePathChange={changeRoutePath} onSelectedPlaceChange={changeSelectedPlace} initialTravelMode={travelMode} travelMode={travelMode} legModes={legModes} onLegModesChange={changeLegModes} courseApplied={courseApplied} onTravelModeChange={changeTravelMode} courseName={title} onCourseNameChange={(name) => changeCourse({ title: name })} allowSave={showMemberFields} onSaveCourse={() => saveCourse()} saving={saving} saveError={error} startWithAllPlaces={copying} onCompletionChange={changeCompletion} initialCompleted={plannerCompleted} autoComplete={autoCompleteCourse} onAutoCompleted={() => setAutoCompleteCourse(false)} guide={sample} />
+              <NearbyRoutePlanner key={stadiumCode} stadium={current} stops={stops} onChange={changeStops} initialStart={start} onStartChange={changeStart} onCourseChange={changeCourse} courseRevision={courseState.revision} originSource={courseState.originSource} onRoutePathChange={changeRoutePath} onSelectedPlaceChange={changeSelectedPlace} initialTravelMode={travelMode} travelMode={travelMode} legModes={legModes} onLegModesChange={changeLegModes} courseApplied={courseApplied} onTravelModeChange={changeTravelMode} courseName={title} onCourseNameChange={(name) => changeCourse({ title: name })} allowSave={showMemberFields} onSaveCourse={() => saveCourse()} saving={saving} saveError={error} startWithAllPlaces={copying} onCompletionChange={changeCompletion} initialCompleted={plannerCompleted} autoComplete={autoCompleteCourse} onAutoCompleted={() => setAutoCompleteCourse(false)} guide={sample} />
             </section>
             {showMemberFields && <div className="writer-writing writer-panel" id="writer-panel-write" role="tabpanel" aria-labelledby="writer-tab-write" tabIndex={0}>
               <section className="writer-card">

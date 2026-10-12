@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "corpus_segments": 12,
+  "label_authority": "Operator-created weak sample labels, not independent human ground truth",
+  "negative_scope": "Only exact indexed 12 segments",
+  "time_policy": "Closed original-source interval, full indexed segment tolerance; not precise play onset",
+  "cases": [
+    {
+      "id": "positive-1-1",
+      "query": "외야수가 펜스 앞에서 뜬공을 잡는 장면",
+      "references": [
+        {
+          "segment_id": "34892a67-9b6f-5f66-92b0-67aaa95c53e6",
+          "video_id": "SlvDBmr4Bd8",
+          "original_interval": [
+            474.039,
+            498.039
+          ]
+        }
+      ],
+      "label_basis": "Directly inspected 3-second frame contact sheet reference-3489.jpg: outfielder runs to wall and raises glove to catch fly; original 474.04–498.04s. Visual label made before verifier run, not exhaustive corpus truth. Current operator re-inspected actual reference sheet; tolerance is the entire indexed 24-second segment, declared before this pass, not exact action onset."
+    },
+    {
+      "id": "positive-1-2",
+      "query": "담장 바로 앞에서 외야수가 글러브를 들어 공을 잡는 수비를 보여줘",
+      "references": [
+        {
+          "segment_id": "34892a67-9b6f-5f66-92b0-67aaa95c53e6",
+          "video_id": "SlvDBmr4Bd8",
+          "original_interval": [
+            474.039,
+            498.039
+          ]
+        }
+      ],
+      "label_basis": "Directly inspected 3-second frame contact sheet reference-3489.jpg: outfielder runs to wall and raises glove to catch fly; original 474.04–498.04s. Visual label made before verifier run, not exhaustive corpus truth. Current operator re-inspected actual reference sheet; tolerance is the entire indexed 24-second segment, declared before this pass, not exact action onset."
+    },
+    {
+      "id": "positive-2-1",
+      "query": "KT가 7대1로 앞서다가 안타로 9대1이 되는 장면",
+      "references": [
+        {
+          "segment_id": "ba49bdb9-0b53-50f1-b19b-bac4338adfa7",
+          "video_id": "SlvDBmr4Bd8",
+          "original_interval": [
+            646.079,
+            670.079
+          ]
+        }
+      ],
+      "label_basis": "Directly inspected reference-ba49.jpg: scoreboard KT 7:1 then 9:1; bat contact, outfield ball, runner scoring visible. Original 646.08–670.08s. Existing ASR also says two RBI; label made before verifier run. Current operator re-inspected actual reference sheet; tolerance is the entire indexed 24-second segment, declared before this pass, not exact action onset."
+    },
+    {
+      "id": "positive-2-2",
+      "query": "KT가 삼성 상대로 7:1에서 두 주자가 들어와 9:1이 된 안타를 찾아줘",
+      "references": [
+        {
+          "segment_id": "ba49bdb9-0b53-50f1-b19b-bac4338adfa7",
+          "video_id": "SlvDBmr4Bd8",
+          "original_interval": [
+            646.079,
+            670.079
+          ]
+        }
+      ],
+      "label_basis": "Directly inspected reference-ba49.jpg: scoreboard KT 7:1 then 9:1; bat contact, outfield ball, runner scoring visible. Original 646.08–670.08s. Existing ASR also says two RBI; label made before verifier run. Current operator re-inspected actual reference sheet; tolerance is the entire indexed 24-second segment, declared before this pass, not exact action onset."
+    },
+    {
+      "id": "positive-3-1",
+      "query": "KT와 삼성 경기의 선발 라인업 소개",
+      "references": [
+        {
+          "segment_id": "c4af3f80-8026-5405-bac1-1064310dad91",
+          "video_id": "SlvDBmr4Bd8",
+          "original_interval": [
+            0,
+            24
+          ]
+        }
+      ],
+      "label_basis": "Actual timestamped ko VTT at original 0–24s names KT and Samsung and batting order; transcript-grounded label, not independent human video annotation. Current operator re-inspected actual reference sheet; tolerance is the entire indexed 24-second segment, declared before this pass, not exact action onset."
+    },
+    {
+      "id": "positive-3-2",
+      "query": "삼성과 KT의 타순 표가 화면에 나오는 경기 전 소개",
+      "references": [
+        {
+          "segment_id": "c4af3f80-8026-5405-bac1-1064310dad91",
+          "video_id": "SlvDBmr4Bd8",
+          "original_interval": [
+            0,
+            24
+          ]
+        }
+      ],
+      "label_basis": "Actual timestamped ko VTT at original 0–24s names KT and Samsung and batting order; transcript-grounded label, not independent human video annotation. Current operator re-inspected actual reference sheet; tolerance is the entire indexed 24-second segment, declared before this pass, not exact action onset."
+    },
+    {
+      "id": "positive-4-1",
+      "query": "롯데와 기아 경기 시작 소개",
+      "references": [
+        {
+          "segment_id": "23c68b0d-62f8-57cd-bf3f-d3dbe278f3dc",
+          "video_id": "zagLdeKDcAI",
+          "original_interval": [
+            0,
+            24
+          ]
+        }
+      ],
+      "label_basis": "Actual ko VTT original 0–24s explicitly introduces Lotte and KIA; transcript-grounded label, not independent human video annotation. Current operator re-inspected actual reference sheet; tolerance is the entire indexed 24-second segment, declared before this pass, not exact action onset."
+    },
+    {
+      "id": "positive-4-2",
+      "query": "롯데 자이언츠 대 KIA 타이거즈 경기 오프닝을 찾아줘",
+      "references": [
+        {
+          "segment_id": "23c68b0d-62f8-57cd-bf3f-d3dbe278f3dc",
+          "video_id": "zagLdeKDcAI",
+          "original_interval": [
+            0,
+            24
+          ]
+        }
+      ],
+      "label_basis": "Actual ko VTT original 0–24s explicitly introduces Lotte and KIA; transcript-grounded label, not independent human video annotation. Current operator re-inspected actual reference sheet; tolerance is the entire indexed 24-second segment, declared before this pass, not exact action onset."
+    },
+    {
+      "id": "negative-1",
+      "query": "축구 골키퍼가 페널티킥을 막는 장면",
+      "references": [],
+      "label_basis": "Operator inspected all 12 actual clip contact sheets at 1-second sampling and all indexed Korean ASR text: baseball broadcast only; no soccer penalty save or basketball dunk. Absence restricted to these indexed segments, not full source videos or global highlights; sampling is not exhaustive frame-by-frame independent human annotation."
+    },
+    {
+      "id": "negative-2",
+      "query": "농구 선수가 덩크슛을 하는 장면",
+      "references": [],
+      "label_basis": "Operator inspected all 12 actual clip contact sheets at 1-second sampling and all indexed Korean ASR text: baseball broadcast only; no soccer penalty save or basketball dunk. Absence restricted to these indexed segments, not full source videos or global highlights; sampling is not exhaustive frame-by-frame independent human annotation."
+    }
+  ]
+}

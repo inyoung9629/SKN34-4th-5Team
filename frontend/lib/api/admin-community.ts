@@ -66,6 +66,10 @@ export const deleteAdminPost = (sourceId: string) => apiRequest<never>(`/api/v1/
   method: "DELETE",
 }, memberFetch);
 
+export const hideAdminPost = (sourceId: string) => apiRequest<AdminPost>(`/api/v1/community/admin/posts/${encodeURIComponent(sourceId)}/`, {
+  method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "hide" }),
+}, memberFetch);
+
 export const listAdminReports = (query: URLSearchParams, signal?: AbortSignal) => apiRequest<Page<AdminReport>>(`/api/v1/community/admin/reports/?${query}`, {
   cache: "no-store", signal,
 }, memberFetch);

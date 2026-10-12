@@ -24,7 +24,8 @@ ALL_TOOL_NAMES = {
     "get_ticket_prices", "get_ticket_policies", "get_transport", "get_food_stores",
     "get_facilities", "get_stadium_contents", "get_seat_maps", "search_places",
     "search_courses", "get_course", "search_community_posts", "get_prediction_games",
-    "search_players", "get_directions", "search_tourism", "get_weather",
+    "search_players", "get_directions", "search_tourism", "get_weather", "search_highlight_scenes",
+    "search_highlight_rag", "select_highlight_scenes",
     "get_baseball_schema", "execute_baseball_select",
     "search_documents_tool", "search_kbo_documents",
     "get_ticket_policy", "search_nearby_places", "plan_course",
@@ -58,7 +59,8 @@ class ChainToolNamesTest(unittest.TestCase):
         self.assertEqual(set(classifier.CAPABILITIES), set(classifier.CAPABILITY_INSTRUCTIONS))
         for cap, names in CAPABILITY_TOOLS.items():
             with self.subTest(capability=cap):
-                self.assertEqual(set(names) - ALL_TOOL_NAMES - {"ask_baseball", "ask_travel_research", "ask_place_data", "ask_course"}, set())
+                self.assertEqual(set(names) - ALL_TOOL_NAMES - {"ask_baseball", "ask_travel_research", "ask_place_data", "ask_course",
+                                                                "ask_web_research", "ask_highlight"}, set())
 
     def test_serializer_sub_agent_names_match_specialists(self):
         from llm.serializer.message import SUB_AGENT_TOOLS

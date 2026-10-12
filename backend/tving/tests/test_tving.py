@@ -15,12 +15,42 @@ from rest_framework.test import APIClient
 from baseball.models import Game, Player, PlayerSeasonRecord, ProviderSnapshot, ScheduleDay, StandingHistory, Team
 from baseball.data_loader import stable_id
 
-from tving.parsers import TvingValidationError, parse_calendar, parse_schedule, parse_standings
+from tving.parsers import TvingValidationError, _roaster_band_response, _roster_items_response, parse_calendar, parse_schedule, parse_standings
 from tving.service import TvingInputError, TvingUpstreamError, _NoRedirect, _persist_if_due, create_snapshot, read_snapshot, refresh_athlete, refresh_daily, refresh_month, refresh_team, search_entities, search_snapshots
 from tving.relational import daily_sync_time, persist_athlete, persist_daily, persist_team, read_athlete, read_daily, read_team
 
 
 FIXTURES = Path(__file__).parents[3] / "frontend" / "tests" / "fixtures"
+
+
+class RosterContractParserTests(TestCase):
+    def test_items_contract_accepts_empty_and_rejects_duplicate_codes(self):
+        self.assertEqual(_roster_items_response({"code": "0000", "data": {"items": []}}), [])
+        payload = {"code": "0000", "data": {"items": [
+            {"code": "51454", "name": "이승현"},
+            {"code": "60146", "name": "이승현"},
+        ]}}
+        self.assertEqual([item["code"] for item in _roster_items_response(payload)], ["51454", "60146"])
+        duplicate = {"code": "0000", "data": {"items": [
+            {"code": "51454", "name": "이승현"},
+            {"code": "51454", "name": "다른 선수"},
+        ]}}
+        with self.assertRaisesRegex(TvingValidationError, "중복"):
+            _roster_items_response(duplicate)
+        with self.assertRaises(TvingValidationError):
+            _roster_items_response({"code": "0000", "data": {"items": "invalid"}})
+
+    def test_roaster_band_contract_is_parsed_separately(self):
+        payload = {"code": "0000", "data": {"bands": [{
+            "bandType": "KBO_TEAM_ROASTER",
+            "items": [{"player": {"code": "51454", "name": "이승현"}}],
+        }]}}
+        self.assertEqual(_roaster_band_response(payload)[0]["code"], "51454")
+        self.assertEqual(_roaster_band_response({"code": "0000", "data": {"bands": [{
+            "bandType": "KBO_TEAM_ROASTER", "items": [],
+        }]}}), [])
+        with self.assertRaises(TvingValidationError):
+            _roaster_band_response({"code": "0000", "data": {"bands": []}})
 
 
 def fixture(name):

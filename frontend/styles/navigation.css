@@ -54,9 +54,12 @@
 @media(max-width: 640px) { .header-brand-menu { gap: 4px; } }
 
 .member-menu { position: relative; }
-.member-menu-panel { position: absolute; right: 0; top: calc(100% + 10px); z-index: 100; width: 160px; padding: 6px; border: 1px solid #e2eaf6; border-radius: 12px; background: white; box-shadow: 0 8px 28px #16345e18; }
+.member-menu-panel { position: absolute; right: 0; top: calc(100% + 10px); z-index: 100; width: 200px; padding: 6px; border: 1px solid #e2eaf6; border-radius: 12px; background: white; box-shadow: 0 8px 28px #16345e18; }
 .member-menu-panel a, .member-menu-panel button { display: block; width: 100%; padding: 12px; border: 0; background: transparent; text-align: left; color: #34445e; font: inherit; font-size: 13px; border-radius: 6px; cursor: pointer; }
 .member-menu-panel a:hover, .member-menu-panel button:hover { background: #edf4ff; color: #246bf3; }
+.member-menu-balance { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; padding: 11px 12px; color: #718097; font-size: 13px; }
+.member-menu-balance strong { color: #2868dc; font-size: 15px; white-space: nowrap; }
+.member-menu-balance small { grid-column: 1 / -1; color: #a52f3e; font-size: 11px; }
 
 .member-menu-divider { border: 0; border-top: 1px solid #e5ebf3; margin: 5px 8px; }
 

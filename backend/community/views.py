@@ -6,8 +6,10 @@ from rest_framework.exceptions import NotAuthenticated, PermissionDenied, Valida
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from accounts.activity import activity_author
+from accounts.point_policy import POST, POST_READ, grant_definition
+from accounts.point_service import grant_points
 
-from .models import CommunityPost, TEAM_CODES
+from .models import CommunityPost, TEAM_CODES, TEAM_CATEGORIES
 from .pagination import CommunityPostPageSerializer, CommunityPostPagination, CommunityPostQuery
 from .serializers import CommunityPostPatchSerializer, CommunityPostSerializer, CommunityPostWriteSerializer
 
@@ -31,6 +33,7 @@ def same_submission(post, validated_data):
     get=extend_schema(
         parameters=[
             OpenApiParameter("board", OpenApiTypes.STR, enum=("free", "teams")),
+            OpenApiParameter("category", OpenApiTypes.STR, enum=TEAM_CATEGORIES, description="글 분류 정확히 일치. 생략하면 전체 분류."),
             OpenApiParameter("team", OpenApiTypes.STR),
             OpenApiParameter("mine", OpenApiTypes.STR, enum=("1",)),
             OpenApiParameter("author_id", {"type": "integer", "minimum": 1}, description="작성자 활동 목록. JWT 인증 필요, 본인 또는 공개 설정된 회원만 조회 가능."),
@@ -100,6 +103,8 @@ class CommunityPostListCreateView(generics.ListCreateAPIView):
                 "author": Q(author__icontains=query.q),
             }
             queryset = queryset.filter(fields[query.search_field])
+        if query.category is not None:
+            queryset = queryset.filter(category=query.category)
         return queryset
 
     def create(self, request, *args, **kwargs):
@@ -124,6 +129,7 @@ class CommunityPostListCreateView(generics.ListCreateAPIView):
                     idempotency_key=key,
                     is_sample=False,
                 )
+                grant_points(user=request.user, **grant_definition(POST, f"{post.source_id}"))
         except IntegrityError:
             existing = CommunityPost.objects.filter(owner=request.user, idempotency_key=key).first()
             if existing and same_submission(existing, values):
@@ -165,5 +171,7 @@ class CommunityPostDetailView(generics.RetrieveUpdateDestroyAPIView):
             raise PermissionDenied("작성자만 수정하거나 삭제할 수 있습니다.")
         if self.request.method == "GET":
             CommunityPost.objects.filter(pk=post.pk).update(views=F("views") + 1)
+            if self.request.user.is_authenticated and post.owner_id != self.request.user.id:
+                grant_points(user=self.request.user, **grant_definition(POST_READ, f"{post.source_id}"))
             post = post_queryset().get(pk=post.pk)
         return post

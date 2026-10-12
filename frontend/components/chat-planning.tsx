@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ChatAttachment, ChatMessage } from "@/lib/chat/types";
 import { ChatInlineContent } from "./chat-inline-input";
 import { inlineChatUrls, normalizeChatUrl } from "@/lib/chat/inline-urls";
-import { planningAnswers, type ChatPlanning } from "@/lib/chat/planning";
+import { planningAnswers, planningChoiceLink, type ChatPlanning } from "@/lib/chat/planning";
 import { useChat } from "./chat-provider";
 
 export function ChatWriterOffer() {
@@ -94,8 +94,10 @@ function QuestionAnswers({ message, disabled }: { message: ChatMessage; disabled
     </nav>}
     <fieldset disabled={locked}>
       <legend ref={heading} tabIndex={-1}>{question.question}</legend>
-      {!multiple && <p className="chat-question-help">선택하면 바로 보내요</p>}
-      <div className="chat-question-choices">{question.choices.map(choice => <button type="button" key={choice} disabled={locked} aria-pressed={!direct[step] && answers[step] === choice} onClick={event => {
+      {!multiple && question.choices.length > 0 && <p className="chat-question-help">선택하면 바로 보내요</p>}
+      <div className="chat-question-choices">{question.choices.map(choice => {
+        const link = planningChoiceLink(question.choice_links?.find(item => item.choice === choice));
+        return <div className="chat-question-choice" key={choice}><button type="button" disabled={locked} aria-pressed={!direct[step] && answers[step] === choice} onClick={event => {
         event.preventDefault(); event.stopPropagation();
         if (locked || sent.current) return;
         chat.stayHere();
@@ -103,7 +105,10 @@ function QuestionAnswers({ message, disabled }: { message: ChatMessage; disabled
         setDirect(current => ({ ...current, [step]: false }));
         setAnswers(values);
         if (!multiple) submit(values);
-      }}>{choice}</button>)}</div>
+      }}>{choice}</button>{link && <a className="chat-question-source" href={link.url} target="_blank" rel="noopener noreferrer"
+          aria-label={`${choice} ${link.label} (새 창)`} title={`${choice} 장소 정보 확인`}
+          onClick={event => { event.stopPropagation(); chat.stayHere(); }}>{link.label} <span aria-hidden="true">↗</span></a>}</div>;
+      })}</div>
       <label className="chat-question-help" htmlFor={`planning-direct-${message.id}-${step}`}>직접 입력{direct[step] ? " · 선택됨" : drafts[step] ? " · 수정하면 이 답변을 선택해요" : ""}</label>
       <input id={`planning-direct-${message.id}-${step}`} aria-label={`${question.question} 직접 입력`} placeholder="답변을 직접 입력해주세요" maxLength={160} value={drafts[step] ?? ""} onChange={event => {
         if (locked || sent.current) return;
@@ -115,7 +120,7 @@ function QuestionAnswers({ message, disabled }: { message: ChatMessage; disabled
     </fieldset>
     <p className="chat-question-help">{multiple ? "보내기 전까지 답변을 바꿀 수 있어요. " : ""}채팅창으로 자유롭게 답해도 돼요.</p>
     <p role="status" className="chat-question-help">{submission === "failed" ? disabled ? "응답을 받지 못했어요. 저장된 질문은 채팅에서 수정하거나 다시 시도해 주세요." : "응답을 받지 못했어요. 답변을 바꾸거나 다시 보내 주세요." : submission === "rejected" ? "지금은 보낼 수 없어요. 연결 상태와 진행 중인 요청을 확인한 뒤 다시 보내 주세요." : ""}</p>
-    {(multiple || direct[step]) && <div className="chat-question-actions">
+    {(multiple || !question.choices.length || direct[step]) && <div className="chat-question-actions">
       {multiple && <button type="button" disabled={locked || step === 0} onClick={() => move(step - 1)}>이전</button>}
       {multiple && step < questions.length - 1 ? <button type="button" className="chat-question-primary" disabled={locked || !answers[step]?.trim()} onClick={() => move(step + 1)}>다음</button> : <button type="button" className="chat-question-primary" disabled={locked || !complete} onClick={event => {
         event.preventDefault(); event.stopPropagation(); submit(answers);
